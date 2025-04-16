@@ -13,6 +13,8 @@
 		"level.h": "c",
 		"lib.h": "c",
 		"stdio.h": "c",
-		"cstddef": "c"
+		"cstddef": "c",
+		"stdint.h": "c",
+		"types.h": "c"
 	}
 }

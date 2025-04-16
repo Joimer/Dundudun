@@ -12,8 +12,6 @@ typedef struct {
 
 } Level;
 
-long int GenerateGameSeed();
-const char* SeedToString(long int seed);
-Level generateLevel(int floor, long int seed);
+Level generateLevel(int floor, unsigned long seed);
 
 #endif

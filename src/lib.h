@@ -26,4 +26,27 @@ typedef struct {
 int clamp(int num, int min, int max);
 float clampf(float num, float min, float max);
 
+/**
+ * Improved initialisation Mersenne Twister for the secondary PRNG.
+ * Adapted from the original work on https://www.math.sci.hiroshima-u.ac.jp/m-mat/MT/emt.html
+ * Copyright (C) 1997 - 2002, Makoto Matsumoto and Takuji Nishimura, All rights reserved.
+ */
+// Period parameters.
+#define MTRAND_VECTOR_LENGTH 624
+#define MTRAND_VECTOR_M 397
+// Constant vector a.
+#define MTRAND_MATRIX_A 0x9908b0dfUL
+// Most significant w-r bits.
+#define MTRAND_UPPER_MASK 0x80000000UL
+// Least significant r bits.
+#define MTRAND_LOWER_MASK 0x7fffffffUL
+
+typedef struct {
+	unsigned long mt[MTRAND_VECTOR_LENGTH];
+	int index;
+} MTRand;
+
+MTRand SeedMTRand(unsigned long seed);
+unsigned long GetRandomMTValue(MTRand* rand);
+
 #endif

@@ -31,9 +31,10 @@ typedef struct {
 	GameScreen nextScreen;
 	Camera2D camera;
 	bool paused;
-	int seed;
+	unsigned long seed;
 	// We keep this at hand so it is calculated only once.
 	const char* seedStr;
+	MTRand mtrand;
 } GameState;
 
 typedef enum { DIRECTIONAL, MOUSE } DashMode;
@@ -68,5 +69,7 @@ typedef struct {
 
 void Update(GameContext* context, Player* player);
 int RunGame(GameContext* context);
+unsigned long GenerateGameSeed();
+const char* SeedToString(unsigned long seed);
 
 #endif
