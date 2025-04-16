@@ -100,7 +100,9 @@ static void RenderWorld(
 	DrawEntity(&player->entity, context->options->showHitbox);
 
 	// Draw custom cursor last.
-	DrawCursor(context);
+	if (!context->options->systemCursor) {
+		DrawCursor(context);
+	}
 
 	// We finished creating the frame as a texture.
 	EndMode2D();

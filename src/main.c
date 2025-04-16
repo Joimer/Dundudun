@@ -1,11 +1,6 @@
 #include <raylib.h>
-#include <raymath.h>
 #include "game.h"
-#include "control.h"
 #include "frame.h"
-#include "character.h"
-#include "level.h"
-#include "resource.h"
 
 #define GAME_NAME "Dundudun"
 

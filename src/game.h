@@ -43,6 +43,7 @@ typedef struct {
 	int targetFps;
 	bool showHitbox;
 	Rectangle screenSize;
+	bool systemCursor;
 	Sprite cursor;
 } GameOptions;
 
