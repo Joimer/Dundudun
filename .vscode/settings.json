@@ -1,0 +1,18 @@
+{
+	"files.associations": {
+		"screens.h": "c",
+		"raylib.h": "c",
+		"character.h": "c",
+		"control.h": "c",
+		"type_traits": "c",
+		"raymath.h": "c",
+		"frame.h": "c",
+		"game.h": "c",
+		"math.h": "c",
+		"string.h": "c",
+		"level.h": "c",
+		"lib.h": "c",
+		"stdio.h": "c",
+		"cstddef": "c"
+	}
+}
