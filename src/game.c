@@ -127,13 +127,22 @@ void Update(GameContext* context, Player* player, Level* level) {
 					// Entity hitbox rectangle on its own with the future movement thresholds.
 					float neighbourXThres = isRight ? maxSpeed : (isLeft ? -maxSpeed : 0);
 					float neighbourYThres = isUp ? -maxSpeed : (isDown ? maxSpeed : 0);
+
+					// Pre-calculate all potential hitboxes so no need to recalcualte for every entity.
 					Rectangle hitBoxArea = {
 						.x = level->entities[i].entity.position.x + level->entities[i].entity.hitbox.x,
 						.y = level->entities[i].entity.position.y + level->entities[i].entity.hitbox.y,
 						.width = level->entities[i].entity.hitbox.width,
 						.height = level->entities[i].entity.hitbox.height
 					};
-					Rectangle movedRect;
+					Rectangle movedRectX = hitBoxArea;
+					movedRectX.x += neighbourXThres;
+					Rectangle movedRectY = hitBoxArea;
+					movedRectY.y += neighbourYThres;
+					Rectangle movedRectBoth = hitBoxArea;
+					movedRectBoth.x += neighbourXThres;
+					movedRectBoth.y += neighbourYThres;
+					Rectangle entityWorldHitbox;
 
 					for (int j = 0; j < level->entityCount; j++) {
 						if (!isLeft && !isRight && !isUp && !isDown) {
@@ -148,46 +157,30 @@ void Update(GameContext* context, Player* player, Level* level) {
 							// Ignore inactive entities.
 							continue;
 						}
-						Rectangle entityWorldHitbox = {
+						entityWorldHitbox = (Rectangle){
 							.x = level->entities[j].entity.position.x + level->entities[j].entity.hitbox.x,
 							.y = level->entities[j].entity.position.y + level->entities[j].entity.hitbox.y,
 							.width = level->entities[j].entity.hitbox.width,
 							.height = level->entities[j].entity.hitbox.height
 						};
 						if (isLeft) {
-							movedRect = hitBoxArea;
-							movedRect.x += neighbourXThres;
-							if (DoesRectCollideRect(movedRect, entityWorldHitbox)) {
+							if (DoesRectCollideRect(movedRectX, entityWorldHitbox)) {
 								isLeft = false;
-								continue;
 							}
 						}
 						if (isRight) {
-							movedRect = hitBoxArea;
-							movedRect.x += neighbourXThres;
-							if (DoesRectCollideRect(movedRect, entityWorldHitbox)) {
+							if (DoesRectCollideRect(movedRectX, entityWorldHitbox)) {
 								isRight = false;
-								continue;
 							}
 						}
 						if (isUp) {
-							movedRect = hitBoxArea;
-							if (isLeft || isRight) {
-								movedRect.x += neighbourXThres;
-							}
-							movedRect.y += neighbourYThres;
-							if (DoesRectCollideRect(movedRect, entityWorldHitbox)) {
+							if (DoesRectCollideRect((isLeft || isRight ? movedRectBoth : movedRectY), entityWorldHitbox)) {
 								isUp = false;
 								continue;
 							}
 						}
 						if (isDown) {
-							movedRect = hitBoxArea;
-							if (isLeft || isRight) {
-								movedRect.x += neighbourXThres;
-							}
-							movedRect.y += neighbourYThres;
-							if (DoesRectCollideRect(movedRect, entityWorldHitbox)) {
+							if (DoesRectCollideRect((isLeft || isRight ? movedRectBoth : movedRectY), entityWorldHitbox)) {
 								isDown = false;
 								continue;
 							}
