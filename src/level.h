@@ -24,6 +24,7 @@ typedef struct {
 	float activeRadius;
 	EnemyBehaviour behaviour;
 	bool active;
+	float speed;
 } Enemy;
 
 typedef struct {

@@ -7,7 +7,7 @@
 #include "game.h"
 
 #define PLAYER_SPEED 200.0f
-#define PLAYER_SPEED_DIAGONAL 132.0f
+#define PLAYER_SPEED_DIAGONAL 140.0f
 #define DASH_SPEED_MULT 4.0f
 #define DASH_DURATION 0.25f
 #define DASH_LENGTH 150.0f
@@ -60,6 +60,9 @@ void UpdatePlayer(GameContext* context, Player* player, float delta) {
 		return;
 	}
 
+	// TODO: Add pushback here.
+	// Player cannot move or act during a pushback action.
+
 	// Movement actions being pressed.
 	bool isLeft = IsActionPressed(GO_LEFT);
 	bool isRight = IsActionPressed(GO_RIGHT);
@@ -69,40 +72,38 @@ void UpdatePlayer(GameContext* context, Player* player, float delta) {
 	// The player direction is set only when there are no conflicting inputs.
 	// When there's a conflicting input, the direction will not be updated.
 	// Thus, active direction is always the last valid one.
-	if (isLeft && !isRight) {
-		if (isUp && !isDown) {
-			player->entity.dir = NORTHWEST;
-		} else if (!isUp && isDown) {
-			player->entity.dir = SOUTHWEST;
-		} else {
-			player->entity.dir = WEST;
-		}
-	} else if (!isLeft && isRight) {
-		if (isUp && !isDown) {
-			player->entity.dir = NORTHEAST;
-		} else if (!isUp && isDown) {
-			player->entity.dir = SOUTHEAST;
-		} else {
-			player->entity.dir = EAST;
-		}
-	} else if (isUp && !isDown) {
-		player->entity.dir = NORTH;
-	} else if (!isUp && isDown) {
-		player->entity.dir = SOUTH;
+	// TODO: When player is going diagonally, there's often an update in between stopping pressing one key and the other.
+	// FIX this with an action buffer or similar.
+	char newDir = isRight ? 1 : 0;
+	if (isLeft) {
+		newDir = IsBitSet(newDir, 1) ? 0 : 2;
+	}
+	if (isUp) {
+		newDir ^= 1 << 3;
+	}
+	if (isDown) {
+		newDir = IsBitSet(newDir, 4) ? newDir ^ (1 << 3) : newDir ^ (1 << 2);
+	}
+	if (newDir != 0) {
+		player->entity.dir = (Direction) newDir;
 	}
 
 	// Execute movement.
-	if (isLeft) {
-		player->entity.position.x -= (isUp || isDown ? PLAYER_SPEED_DIAGONAL : PLAYER_SPEED) * delta;
+	if (IsBitSet(newDir, 1)) {
+		// East
+		player->entity.position.x += (IsBitSet(newDir, 3) || IsBitSet(newDir, 4) ? PLAYER_SPEED_DIAGONAL : PLAYER_SPEED) * delta;
 	}
-	if (isRight) {
-		player->entity.position.x += (isUp || isDown ? PLAYER_SPEED_DIAGONAL : PLAYER_SPEED) * delta;
+	if (IsBitSet(newDir, 2)) {
+		// West
+		player->entity.position.x -= (IsBitSet(newDir, 3) || IsBitSet(newDir, 4) ? PLAYER_SPEED_DIAGONAL : PLAYER_SPEED) * delta;
 	}
-	if (isUp) {
-		player->entity.position.y -= (isLeft || isRight ? PLAYER_SPEED_DIAGONAL : PLAYER_SPEED) * delta;
+	if (IsBitSet(newDir, 3)) {
+		// South
+		player->entity.position.y += (IsBitSet(newDir, 1) || IsBitSet(newDir, 2) ? PLAYER_SPEED_DIAGONAL : PLAYER_SPEED) * delta;
 	}
-	if (isDown) {
-		player->entity.position.y += (isLeft || isRight ? PLAYER_SPEED_DIAGONAL : PLAYER_SPEED) * delta;
+	if (IsBitSet(newDir, 4)) {
+		// North
+		player->entity.position.y -= (IsBitSet(newDir, 1) || IsBitSet(newDir, 2) ? PLAYER_SPEED_DIAGONAL : PLAYER_SPEED) * delta;
 	}
 
 	// Execute dash.

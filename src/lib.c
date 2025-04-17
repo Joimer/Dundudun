@@ -10,14 +10,10 @@ inline bool IsPointInRectangle(Vector2 point, Rectangle rect) {
 	);
 }
 
-bool DoesRectCollideCircle(Rectangle rect, Circle circle) {
-	if (IsPointInRectangle(circle.center, rect)) {
-		return true;
-	}
-	float closestX = circle.center.x < rect.x ? rect.x : rect.x + rect.width;
-	float closestY = circle.center.y < rect.y ? rect.y : rect.y + rect.height;
-
-	return IsPointInCircle((Vector2){ closestX, closestY }, circle);
+inline Vector2 ClosestRectCorner(Rectangle rect, Vector2 point) {
+	float closestX = point.x < rect.x ? rect.x : rect.x + rect.width;
+	float closestY = point.y < rect.y ? rect.y : rect.y + rect.height;
+	return (Vector2){ closestX, closestY };
 }
 
 inline bool IsPointInCircle(Vector2 point, Circle circle) {
@@ -30,6 +26,87 @@ inline bool IsPointInCircle(Vector2 point, Circle circle) {
 		return true;
 	}
 	return (xDistance * xDistance + yDistance * yDistance <= circle.radius * circle.radius);
+}
+
+bool DoesRectCollideCircle(Rectangle rect, Circle circle) {
+	if (IsPointInRectangle(circle.center, rect)) {
+		return true;
+	}
+	Vector2 closestCorner = ClosestRectCorner(rect, circle.center);
+
+	return IsPointInCircle(closestCorner, circle);
+}
+
+bool DoesRectCollideRect(Rectangle rect, Rectangle rect2) {
+	if (rect.x > rect2.x + rect2.width) {
+		return false;
+	}
+	if (rect2.x > rect.x + rect.width) {
+		return false;
+	}
+	if (rect.y + rect.height < rect2.y) {
+		return false;
+	}
+	if (rect2.y + rect2.height < rect.y) {
+		return false;
+	}
+
+	return true;
+}
+
+inline bool IsBitSet(int val, int bit) {
+	return val & (1 << (bit - 1));
+}
+
+static inline void GetXPointDir(char* dirs, float originX, float targetX) {
+	// Target X above origin X means it's to the east.
+	if (targetX > originX) {
+		*dirs = (*dirs) ^ 1;
+	}
+	// Otherwise, west.
+	if (targetX < originX) {
+		*dirs = (*dirs) ^ (1 << 1);
+	}
+}
+
+static inline void GetYPointDir(char* dirs, float originY, float targetY) {
+	// Target Y less than origin Y means target is to origin's north.
+	if (targetY < originY) {
+		*dirs = (*dirs) ^ (1 << 3);
+	}
+	// Target is to the south (Y bigger than origin Y).
+	if (targetY > originY) {
+		*dirs = (*dirs) ^ (1 << 2);
+	}
+}
+
+inline Direction GetPointDir(Vector2 origin, Vector2 target) {
+	char dirs = 0;
+	GetXPointDir(&dirs, origin.x, target.x);
+	GetYPointDir(&dirs, origin.y, target.y);
+
+	return (Direction) dirs;
+}
+
+inline Direction GetPointDirThreshold(Vector2 origin, Vector2 target, float xThreshold, float yThreshold) {
+	float xDiff = fabs(origin.x - target.x);
+	float yDiff = fabs(origin.y - target.y);
+	if (xDiff < xThreshold && yDiff < yThreshold) {
+		return NO_DIRECTION;
+	}
+	char dirs = 0;
+
+	// Check X axis direction.
+	if (xDiff > xThreshold) {
+		GetXPointDir(&dirs, origin.x, target.x);
+	}
+
+	// Check Y axis direction.
+	if (yDiff > yThreshold) {
+		GetYPointDir(&dirs, origin.y, target.y);
+	}
+
+	return (Direction) dirs;
 }
 
 // initializes mt[N] with a seed

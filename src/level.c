@@ -5,6 +5,8 @@
 #include "lib.h"
 #include "game.h"
 
+#define ENEMY_DEFAULT_SPEED 150.0f
+
 Level GenerateLevel(GameContext* context, int floor) {
 	floor = (int) Clamp(floor, 1, MAX_LEVEL);
 	int entityCount = 3;
@@ -33,6 +35,7 @@ Level GenerateLevel(GameContext* context, int floor) {
 			.active = true,
 			.activeRadius = DEFAULT_ENEMY_RADIUS,
 			.behaviour = APPROACH,
+			.speed = ENEMY_DEFAULT_SPEED,
 			.entity = (GameEntity){
 				.sprite = (Sprite){
 					.rect = (Rectangle){ 0, 0, 32, 32 },
@@ -43,11 +46,11 @@ Level GenerateLevel(GameContext* context, int floor) {
 				.position = (Vector2){ pos, pos },
 				.health = 30,
 				.invuln = {},
-				.hitbox = { 0, 0, 16, 16 }
+				.hitbox = { 0, 0, 16, 16 },
+				.dir = SOUTH
 			}
 		};
 	}
 
 	return level;
 }
-

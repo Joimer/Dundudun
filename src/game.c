@@ -74,16 +74,150 @@ void Update(GameContext* context, Player* player, Level* level) {
 			if (!level->entities[i].active) {
 				continue;
 			}
+			// TODO: Own functions for entities for movement/action and state machine for those.
 			// Check if player is within the entity's active area.
 			if (IsPointInCircle(
 				player->entity.position,
 				(Circle){ level->entities[i].entity.position, level->entities[i].activeRadius }
 			)) {
 				//LogDebug("Enemy %d: Player inside entity active area!", i);
-				// TODO
 				if (level->entities[i].behaviour == APPROACH) {
+					// Set direction towards player.
 					// Min distance is entity hitbox in front of player hitbox.
+					float xDiff = fabs(player->entity.position.x - level->entities[i].entity.position.x);
+					float yDiff = fabs(player->entity.position.y - level->entities[i].entity.position.y);
+					float xThreshold = player->entity.hitbox.width + level->entities[i].entity.hitbox.width;
+					float yThreshold = player->entity.hitbox.height + level->entities[i].entity.hitbox.height;
+
+					// Entity is close enough to player, ignore movement.
+					if (xDiff < xThreshold && yDiff < yThreshold) {
+						continue;
+					}
+
+					// Get the closest player hitbox corner to the enemy position.
+					Vector2 closestCorner = ClosestRectCorner(
+						(Rectangle){
+							.x = player->entity.position.x + player->entity.hitbox.x,
+							.y = player->entity.position.y + player->entity.hitbox.y,
+							.width = player->entity.hitbox.width,
+							.height = player->entity.hitbox.height
+						},
+						level->entities[i].entity.position
+					);
+					Direction dir = GetPointDirThreshold(
+						level->entities[i].entity.position,
+						closestCorner,
+						level->entities[i].entity.hitbox.width,
+						level->entities[i].entity.hitbox.height
+					);
+
+					// Hitbox is close enough to player, ignore movement.
+					if (dir == NO_DIRECTION) {
+						continue;
+					}
+					level->entities[i].entity.dir = (Direction) dir;
+					bool isUp = IsBitSet(dir, 4);
+					bool isDown = IsBitSet(dir, 3);
+					bool isLeft = IsBitSet(dir, 2);
+					bool isRight = IsBitSet(dir, 1);
+
+					// Have to check if there's another hitbox in the desired direction.
+					float maxSpeed = level->entities[i].speed * dt;
+
+					// Entity hitbox rectangle on its own with the future movement thresholds.
+					float neighbourXThres = isRight ? maxSpeed : (isLeft ? -maxSpeed : 0);
+					float neighbourYThres = isUp ? -maxSpeed : (isDown ? maxSpeed : 0);
+					Rectangle hitBoxArea = {
+						.x = level->entities[i].entity.position.x + level->entities[i].entity.hitbox.x,
+						.y = level->entities[i].entity.position.y + level->entities[i].entity.hitbox.y,
+						.width = level->entities[i].entity.hitbox.width,
+						.height = level->entities[i].entity.hitbox.height
+					};
+					Rectangle movedRect;
+
+					for (int j = 0; j < level->entityCount; j++) {
+						if (!isLeft && !isRight && !isUp && !isDown) {
+							// We found out that the entity cannot move, no need for more calculations.
+							break;
+						}
+						if (j == i) {
+							// Ignore self.
+							continue;
+						}
+						if (!level->entities[j].active) {
+							// Ignore inactive entities.
+							continue;
+						}
+						Rectangle entityWorldHitbox = {
+							.x = level->entities[j].entity.position.x + level->entities[j].entity.hitbox.x,
+							.y = level->entities[j].entity.position.y + level->entities[j].entity.hitbox.y,
+							.width = level->entities[j].entity.hitbox.width,
+							.height = level->entities[j].entity.hitbox.height
+						};
+						if (isLeft) {
+							movedRect = hitBoxArea;
+							movedRect.x += neighbourXThres;
+							if (DoesRectCollideRect(movedRect, entityWorldHitbox)) {
+								isLeft = false;
+								continue;
+							}
+						}
+						if (isRight) {
+							movedRect = hitBoxArea;
+							movedRect.x += neighbourXThres;
+							if (DoesRectCollideRect(movedRect, entityWorldHitbox)) {
+								isRight = false;
+								continue;
+							}
+						}
+						if (isUp) {
+							movedRect = hitBoxArea;
+							if (isLeft || isRight) {
+								movedRect.x += neighbourXThres;
+							}
+							movedRect.y += neighbourYThres;
+							if (DoesRectCollideRect(movedRect, entityWorldHitbox)) {
+								isUp = false;
+								continue;
+							}
+						}
+						if (isDown) {
+							movedRect = hitBoxArea;
+							if (isLeft || isRight) {
+								movedRect.x += neighbourXThres;
+							}
+							movedRect.y += neighbourYThres;
+							if (DoesRectCollideRect(movedRect, entityWorldHitbox)) {
+								isDown = false;
+								continue;
+							}
+						}
+					}
+
+					// If the entity was completely stopped, we can check on next one already.
+					if (!isLeft && !isRight && !isUp && !isDown) {
+						continue;
+					}
+
+					// Final movement.
+					float diagSpeed = maxSpeed * 0.7f;
+					if (isLeft) {
+						level->entities[i].entity.position.x -= (isUp || isDown ? diagSpeed : maxSpeed);
+					}
+					if (isRight) {
+						level->entities[i].entity.position.x += (isUp || isDown ? diagSpeed : maxSpeed);
+					}
+					if (isUp) {
+						level->entities[i].entity.position.y -= (isLeft || isRight ? diagSpeed : maxSpeed);
+					}
+					if (isDown) {
+						level->entities[i].entity.position.y += (isLeft || isRight ? diagSpeed : maxSpeed);
+					}
 				}
+			} else {
+				// Inactive status.
+				// If can be seen in screen or close by, idle behaviour.
+				// Otherwise, completely ignore.
 			}
 		}
 	}

@@ -30,9 +30,28 @@ typedef struct {
 	float radius;
 } Circle;
 
+// We can use a 4 bit value to indicate a direction.
+// 0000 - north south west east
+typedef enum {
+	NO_DIRECTION = 0,
+	EAST = 1,
+	NORTH = 8,
+	SOUTH = 4,
+	WEST = 2,
+	NORTHEAST = 9,
+	NORTHWEST = 10,
+	SOUTHEAST = 5,
+	SOUTHWEST = 6
+} Direction;
+
+Vector2 ClosestRectCorner(Rectangle rect, Vector2 point);
 bool IsPointInRectangle(Vector2 point, Rectangle rect);
 bool DoesRectCollideCircle(Rectangle rect, Circle circle);
 bool IsPointInCircle(Vector2 point, Circle circle);
+bool IsBitSet(int val, int bit);
+Direction GetPointDir(Vector2 origin, Vector2 target);
+Direction GetPointDirThreshold(Vector2 origin, Vector2 target, float xThreshold, float yThreshold);
+bool DoesRectCollideRect(Rectangle rect, Rectangle rect2);
 
 /**
  * Improved initialisation Mersenne Twister for the secondary PRNG.

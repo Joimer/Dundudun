@@ -74,6 +74,12 @@ void DrawEntity(GameEntity* entity, bool withHitbox) {
 			entity->hitbox.height,
 			(Color){ 230, 41, 55, 90 }
 		);
+		// Show current entity direction.
+		int endPosX = entity->dir == EAST || entity->dir == NORTHEAST || entity->dir == SOUTHEAST ?
+			entity->position.x + 25 : (entity->dir == WEST || entity->dir == NORTHWEST || entity->dir == SOUTHWEST ? entity->position.x - 25 : entity->position.x);
+		int endPosY = entity->dir == NORTH || entity->dir == NORTHEAST || entity->dir == NORTHWEST ?
+			entity->position.y - 25 : (entity->dir == SOUTH || entity->dir == SOUTHEAST || entity->dir == SOUTHWEST ? entity->position.y + 25 : entity->position.y);
+		DrawLine(entity->position.x, entity->position.y, endPosX, endPosY, ORANGE);
 	}
 }
 

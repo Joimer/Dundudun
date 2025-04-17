@@ -18,8 +18,6 @@ typedef struct {
 	bool active;
 } Invulnerability;
 
-typedef enum { EAST, NORTH, SOUTH, WEST, NORTHEAST, NORTHWEST, SOUTHEAST, SOUTHWEST } Direction;
-
 typedef struct {
 	Sprite sprite;
 	Vector2 position;
