@@ -28,14 +28,17 @@ Level GenerateLevel(GameContext* context, int floor) {
 	level.tiles[3] = (Tile){ .type = GROUND, .obstacle = false, .damage = 0 };
 	level.tiles[4] = (Tile){ .type = WALL, .obstacle = true, .damage = 10 };
 	for (int i = 0; i < entityCount; i++) {
-		int pos = 64 * i + 64;
+		int pos = 128 * i + 128;
 		level.entities[i] = (Enemy){
+			.active = true,
 			.activeRadius = DEFAULT_ENEMY_RADIUS,
 			.behaviour = APPROACH,
 			.entity = (GameEntity){
 				.sprite = (Sprite){
 					.rect = (Rectangle){ 0, 0, 32, 32 },
 					.position = (Vector2){ -16, -16 },
+					.visible = true,
+					.layer = 4
 				},
 				.position = (Vector2){ pos, pos },
 				.health = 30,
@@ -47,3 +50,4 @@ Level GenerateLevel(GameContext* context, int floor) {
 
 	return level;
 }
+

@@ -71,10 +71,19 @@ void Update(GameContext* context, Player* player, Level* level) {
 	// Update all active entities.
 	if (player != NULL && level != NULL && level->entityCount > 0) {
 		for (int i = 0; i < level->entityCount; i++) {
+			if (!level->entities[i].active) {
+				continue;
+			}
 			// Check if player is within the entity's active area.
-			if (IsPointInCircle(player->entity.position, level->entities[i].entity.position, level->entities[i].activeRadius)) {
-				LogDebug("Enemy %d: Player inside entity active area!", i);
+			if (IsPointInCircle(
+				player->entity.position,
+				(Circle){ level->entities[i].entity.position, level->entities[i].activeRadius }
+			)) {
+				//LogDebug("Enemy %d: Player inside entity active area!", i);
 				// TODO
+				if (level->entities[i].behaviour == APPROACH) {
+					// Min distance is entity hitbox in front of player hitbox.
+				}
 			}
 		}
 	}

@@ -26,16 +26,19 @@ Player CreatePlayer(Texture2D* characterTexture) {
 		.entity = (GameEntity){
 			.health = 50,
 			.position = (Vector2){ initialPos.x, initialPos.y },
+			.dir = SOUTH,
 			.sprite = (Sprite){
 				.texture = characterTexture,
 				.position = { halfWidth, halfHeight },
 				.rect = { 0.0f, 0.0f, characterTexture->width, characterTexture->height },
+				.visible = true,
+				.layer = 5
 			},
 			.hitbox = (Rectangle){
 				.x = -(halfWidth / 2.0f),
 				.y = -(halfHeight / 2.0f),
 				.width = halfWidth,
-				.height = halfHeight,
+				.height = halfHeight
 			}
 		}
 	};
@@ -57,13 +60,38 @@ void UpdatePlayer(GameContext* context, Player* player, float delta) {
 		return;
 	}
 
-	// TODO: This, but better.
-	bool isLeft = IsActionPressed(LEFT);
-	bool isRight = IsActionPressed(RIGHT);
-	bool isUp = IsActionPressed(UP);
-	bool isDown = IsActionPressed(DOWN);
+	// Movement actions being pressed.
+	bool isLeft = IsActionPressed(GO_LEFT);
+	bool isRight = IsActionPressed(GO_RIGHT);
+	bool isUp = IsActionPressed(GO_UP);
+	bool isDown = IsActionPressed(GO_DOWN);
 
-	// Movement actions.
+	// The player direction is set only when there are no conflicting inputs.
+	// When there's a conflicting input, the direction will not be updated.
+	// Thus, active direction is always the last valid one.
+	if (isLeft && !isRight) {
+		if (isUp && !isDown) {
+			player->entity.dir = NORTHWEST;
+		} else if (!isUp && isDown) {
+			player->entity.dir = SOUTHWEST;
+		} else {
+			player->entity.dir = WEST;
+		}
+	} else if (!isLeft && isRight) {
+		if (isUp && !isDown) {
+			player->entity.dir = NORTHEAST;
+		} else if (!isUp && isDown) {
+			player->entity.dir = SOUTHEAST;
+		} else {
+			player->entity.dir = EAST;
+		}
+	} else if (isUp && !isDown) {
+		player->entity.dir = NORTH;
+	} else if (!isUp && isDown) {
+		player->entity.dir = SOUTH;
+	}
+
+	// Execute movement.
 	if (isLeft) {
 		player->entity.position.x -= (isUp || isDown ? PLAYER_SPEED_DIAGONAL : PLAYER_SPEED) * delta;
 	}
@@ -81,35 +109,20 @@ void UpdatePlayer(GameContext* context, Player* player, float delta) {
 	if (IsActionPressed(ACTION_D)) {
 		player->dash.dashing = true;
 		float dashSpeed = PLAYER_SPEED * DASH_SPEED_MULT;
-		float angle;
+		float angle = DEG_270;
 		if (context->options->dashMode == MOUSE) {
 			Vector2 mpos = GetWorldMousePos(context);
 			angle = Vector2LineAngle(player->entity.position, mpos);
 		} else {
-			// TODO: Set default dash direction to last direction when stopped.
-			if (isUp) {
-				if (isLeft) {
-					angle = DEG_135;
-				} else if (isRight) {
-					angle = DEG_45;
-				} else {
-					angle = DEG_90;
-				}
-			}
-			if (isDown) {
-				if (isLeft) {
-					angle = DEG_225;
-				} else if (isRight) {
-					angle = DEG_315;
-				} else {
-					angle = DEG_270;
-				}
-			}
-			if (isLeft && !isUp && !isDown) {
-				angle = PI;
-			}
-			if (isRight && !isUp && !isDown) {
-				angle = DEG_360;
+			switch (player->entity.dir) {
+				case NORTH: angle = DEG_90; break;
+				case SOUTH: angle = DEG_270; break;
+				case EAST: angle = DEG_360; break;
+				case WEST: angle = PI; break;
+				case NORTHEAST: angle = DEG_45; break;
+				case NORTHWEST: angle = DEG_135; break;
+				case SOUTHEAST: angle = DEG_315; break;
+				case SOUTHWEST: angle = DEG_225; break;
 			}
 		}
 		player->dash.direction = (Vector2){ .x = cosf(angle) * dashSpeed, .y = -(sinf(angle) * dashSpeed) };

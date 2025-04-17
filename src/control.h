@@ -3,10 +3,10 @@
 
 typedef enum {
 	NONE,
-	LEFT,
-	RIGHT,
-	UP,
-	DOWN,
+	GO_LEFT,
+	GO_RIGHT,
+	GO_UP,
+	GO_DOWN,
 	ACCEPT,
 	CANCEL,
 	ACTION_A,

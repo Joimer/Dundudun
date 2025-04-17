@@ -18,12 +18,15 @@ typedef struct {
 	bool active;
 } Invulnerability;
 
+typedef enum { EAST, NORTH, SOUTH, WEST, NORTHEAST, NORTHWEST, SOUTHEAST, SOUTHWEST } Direction;
+
 typedef struct {
 	Sprite sprite;
 	Vector2 position;
 	int health;
 	Invulnerability invuln;
 	Rectangle hitbox;
+	Direction dir;
 } GameEntity;
 
 typedef struct {

@@ -21,11 +21,18 @@ typedef struct {
 	Texture2D* texture;
 	Rectangle rect;
 	Vector2 position;
+	bool visible;
+	int layer;
 } Sprite;
 
+typedef struct {
+	Vector2 center;
+	float radius;
+} Circle;
+
 bool IsPointInRectangle(Vector2 point, Rectangle rect);
-bool DoesRectCollideCircle(Rectangle rect, Vector2 circleCenter, float radius);
-bool IsPointInCircle(Vector2 point, Vector2 circleCenter, float radius);
+bool DoesRectCollideCircle(Rectangle rect, Circle circle);
+bool IsPointInCircle(Vector2 point, Circle circle);
 
 /**
  * Improved initialisation Mersenne Twister for the secondary PRNG.

@@ -23,6 +23,7 @@ typedef struct {
 	GameEntity entity;
 	float activeRadius;
 	EnemyBehaviour behaviour;
+	bool active;
 } Enemy;
 
 typedef struct {

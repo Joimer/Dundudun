@@ -45,11 +45,11 @@ void DrawCursor(GameContext* context) {
 	);
 }
 
-void DrawSprite(Sprite *sprite) {
+void DrawSprite(Sprite* sprite) {
 	DrawTextureRec(*sprite->texture, sprite->rect, sprite->position, WHITE);
 }
 
-void DrawEntity(GameEntity *entity, bool withHitbox) {
+void DrawEntity(GameEntity* entity, bool withHitbox) {
 	if (entity == NULL) {
 		LogDebug("NULL pointer to entity!");
 		return;
@@ -117,7 +117,7 @@ static void RenderWorld(
 	// Draw level entities.
 	if (level != NULL && level->entities != NULL && level->entityCount > 0) {
 		for (int i = 0; i < level->entityCount; i++) {
-			DrawEntity(&level->entities[i], context->options->showGizmos);
+			DrawEntity(&level->entities[i].entity, context->options->showGizmos);
 			if (context->options->showGizmos) {
 				DrawCircleV(level->entities[i].entity.position, level->entities[i].activeRadius, (Color){ 255, 109, 194, 90 });
 			}

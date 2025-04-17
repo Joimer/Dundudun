@@ -1,7 +1,7 @@
 #include <math.h>
 #include "lib.h"
 
-bool IsPointInRectangle(Vector2 point, Rectangle rect) {
+inline bool IsPointInRectangle(Vector2 point, Rectangle rect) {
 	return (
 		point.x >= rect.x
 		&& point.x <= rect.x + rect.width
@@ -10,29 +10,26 @@ bool IsPointInRectangle(Vector2 point, Rectangle rect) {
 	);
 }
 
-bool DoesRectCollideCircle(Rectangle rect, Vector2 circleCenter, float radius) {
-	if (IsPointInRectangle(circleCenter, rect)) {
+bool DoesRectCollideCircle(Rectangle rect, Circle circle) {
+	if (IsPointInRectangle(circle.center, rect)) {
 		return true;
 	}
-	float closestX = circleCenter.x < rect.x ? rect.x : rect.x + rect.width;
-	float closestY = circleCenter.y < rect.y ? rect.y : rect.y + rect.height;
-	float xDist = circleCenter.x - closestX;
-	float yDist = circleCenter.y - closestY;
-	float squareDist = (xDist * xDist) + (yDist * yDist);
+	float closestX = circle.center.x < rect.x ? rect.x : rect.x + rect.width;
+	float closestY = circle.center.y < rect.y ? rect.y : rect.y + rect.height;
 
-	return squareDist < (radius * radius);
+	return IsPointInCircle((Vector2){ closestX, closestY }, circle);
 }
 
-bool IsPointInCircle(Vector2 point, Vector2 circleCenter, float radius) {
-	float xDistance = fabs(point.x - circleCenter.x);
-	float yDistance = fabs(point.y - circleCenter.y);
-	if (xDistance > radius || yDistance > radius) {
+inline bool IsPointInCircle(Vector2 point, Circle circle) {
+	float xDistance = fabs(point.x - circle.center.x);
+	float yDistance = fabs(point.y - circle.center.y);
+	if (xDistance > circle.radius || yDistance > circle.radius) {
 		return false;
 	}
-	if (xDistance + yDistance <= radius) {
+	if (xDistance + yDistance <= circle.radius) {
 		return true;
 	}
-	return (xDistance * xDistance + yDistance * yDistance <= radius * radius);
+	return (xDistance * xDistance + yDistance * yDistance <= circle.radius * circle.radius);
 }
 
 // initializes mt[N] with a seed
