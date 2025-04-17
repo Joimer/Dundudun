@@ -163,6 +163,8 @@ void Update(GameContext* context, Player* player, Level* level) {
 							.width = level->entities[j].entity.hitbox.width,
 							.height = level->entities[j].entity.hitbox.height
 						};
+						// Check future hitbox for intended movements for each axis.
+						// We'll block unavailable movements per axis if necessary.
 						if (isLeft) {
 							if (DoesRectCollideRect(movedRectX, entityWorldHitbox)) {
 								isLeft = false;

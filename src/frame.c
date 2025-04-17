@@ -171,7 +171,8 @@ void CalculateScreenSize(GameContext* context) {
 
 static void RenderScreen(
 	GameContext* context,
-	RenderTexture2D* worldRender
+	RenderTexture2D* worldRender,
+	Player* player
 ) {
 	// Draw the texture in the actual screen resolution.
 	BeginDrawing();
@@ -184,6 +185,26 @@ static void RenderScreen(
 	// Draw UI elements.
 	DrawFPS(GetScreenWidth() - 95, 10);
 	DrawText(TextFormat("Seed: %s", context->state->seedStr), 10, 10, 25, PURPLE);
+	if (player != NULL) {
+		// HP Bar.
+		int screenHeight = GetScreenHeight();
+		DrawRectangle(20, screenHeight - 40, 255, 25, GOLD);
+		Color hpColor = DARKGREEN;
+		int hpBarWidth = 251;
+		int maxHp = player->entity.maxHealth ? player->entity.maxHealth : player->entity.health;
+		if (player->entity.health == 0) {
+			hpColor = BLACK;
+		} else if (player->entity.health < maxHp) {
+			DrawRectangle(22, screenHeight - 38, hpBarWidth, 21, BLACK);
+			int pct = player->entity.health * 100 / maxHp;
+			hpBarWidth = 251 * pct / 100;
+			if (pct < 95) {
+				hpColor = (pct > 75) ? YELLOW : (pct > 32 ? ORANGE : RED);
+			}
+		}
+		DrawRectangle(22, screenHeight - 38, hpBarWidth, 21, hpColor);
+		DrawText(TextFormat("%d HP", player->entity.health), 285, screenHeight - 40, 22, DARKGREEN);
+	}
 
 	// We are done, show the frame.
 	EndDrawing();
@@ -196,7 +217,7 @@ void Render(
 	Level* level
 ) {
 	RenderWorld(context, worldRender, player, level);
-	RenderScreen(context, worldRender);
+	RenderScreen(context, worldRender, player);
 }
 
 void LoadCustomCursor(GameOptions* options) {

@@ -45,6 +45,7 @@ Level GenerateLevel(GameContext* context, int floor) {
 				},
 				.position = (Vector2){ pos, pos },
 				.health = 30,
+				.maxHealth = 30,
 				.invuln = {},
 				.hitbox = { 0, 0, 16, 16 },
 				.dir = SOUTH

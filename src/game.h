@@ -21,6 +21,7 @@ typedef struct {
 typedef struct {
 	Sprite sprite;
 	Vector2 position;
+	int maxHealth;
 	int health;
 	Invulnerability invuln;
 	Rectangle hitbox;

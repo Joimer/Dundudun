@@ -25,6 +25,7 @@ Player CreatePlayer(Texture2D* characterTexture) {
 	return (Player){
 		.entity = (GameEntity){
 			.health = 50,
+			.maxHealth = 50,
 			.position = (Vector2){ initialPos.x, initialPos.y },
 			.dir = SOUTH,
 			.sprite = (Sprite){
