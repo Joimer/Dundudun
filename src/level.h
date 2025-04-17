@@ -4,14 +4,36 @@
 #define SEED_LENGTH 8
 #define BITS_PER_SEED_CHAR 6
 
-typedef struct {
+#include "lib.h"
+#include "game.h"
 
+#define DEFAULT_ENEMY_RADIUS 200.0f
+
+typedef enum { WALL = 0, GROUND = 1, GRASS = 2 } TileType;
+
+typedef struct {
+	TileType type;
+	bool obstacle;
+	int damage;
 } Tile;
 
-typedef struct {
+typedef enum { APPROACH, STAND, DISTANCE } EnemyBehaviour;
 
+typedef struct {
+	GameEntity entity;
+	float activeRadius;
+	EnemyBehaviour behaviour;
+} Enemy;
+
+typedef struct {
+	int floor;
+	int tileCount;
+	Tile* tiles;
+	int entityCount;
+	Enemy* entities;
 } Level;
 
-Level generateLevel(int floor, unsigned long seed);
+Level GenerateLevel(GameContext* context, int floor);
+void Update(GameContext* context, Player* player, Level* level);
 
 #endif

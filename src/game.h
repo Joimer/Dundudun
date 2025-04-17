@@ -42,7 +42,7 @@ typedef enum { DIRECTIONAL, MOUSE } DashMode;
 typedef struct {
 	DashMode dashMode;
 	int targetFps;
-	bool showHitbox;
+	bool showGizmos;
 	Rectangle screenSize;
 	bool systemCursor;
 	Sprite cursor;
@@ -67,7 +67,6 @@ typedef struct {
 	Dash dash;
 } Player;
 
-void Update(GameContext* context, Player* player);
 int RunGame(GameContext* context);
 unsigned long GenerateGameSeed();
 const char* SeedToString(unsigned long seed);

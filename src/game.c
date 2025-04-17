@@ -58,12 +58,25 @@ void SetupGamePRNG(GameContext* context) {
 	context->state->mtrand = SeedMTRand(context->state->seed);
 }
 
-void Update(GameContext* context, Player* player) {
+void Update(GameContext* context, Player* player, Level* level) {
 	float dt = GetFrameTime();
-	UpdatePlayer(context, player, dt);
-	context->state->camera.target = player->entity.position;
+	if (player != NULL) {
+		UpdatePlayer(context, player, dt);
+		context->state->camera.target = player->entity.position;
+	}
 	if (IsKeyPressed(KEY_H)) {
-		context->options->showHitbox = !context->options->showHitbox;
+		context->options->showGizmos = !context->options->showGizmos;
+	}
+
+	// Update all active entities.
+	if (player != NULL && level != NULL && level->entityCount > 0) {
+		for (int i = 0; i < level->entityCount; i++) {
+			// Check if player is within the entity's active area.
+			if (IsPointInCircle(player->entity.position, level->entities[i].entity.position, level->entities[i].activeRadius)) {
+				LogDebug("Enemy %d: Player inside entity active area!", i);
+				// TODO
+			}
+		}
 	}
 }
 
@@ -85,16 +98,21 @@ int RunGame(GameContext* context) {
 	// Generate initial seed (can be set by player later, too).
 	SetupGamePRNG(context);
 
+	// For development and testing, generate when appropriate and manage within context.
+	Level level = GenerateLevel(context, 1);
+
 	// Main game loop
 	while (!WindowShouldClose()) {
 		// First run the logic updates.
-		Update(context, &player);
+		Update(context, &player, &level);
 
 		// Run draw frame logic.
+		// TODO: Only playing level render needs player and level.
 		Render(
 			context,
 			&worldRender,
-			&player
+			&player,
+			&level
 		);
 	}
 
@@ -103,7 +121,7 @@ int RunGame(GameContext* context) {
 
 	// Free used memory.
 	if (context->state->seedStr != NULL) {
-		free(context->state->seedStr);
+		free((char*)context->state->seedStr);
 	}
 	CloseWindow();
 

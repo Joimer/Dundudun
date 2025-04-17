@@ -1,5 +1,6 @@
 #include <raylib.h>
 #include <string.h>
+#include <raymath.h>
 #include "frame.h"
 #include "screens.h"
 #include "control.h"
@@ -7,6 +8,7 @@
 #include "game.h"
 #include "resource.h"
 #include "lib.h"
+#include "level.h"
 
 const ScreenSize worldSize = { 480, 270 };
 const ScreenSize resolutions[5] = {
@@ -48,20 +50,29 @@ void DrawSprite(Sprite *sprite) {
 }
 
 void DrawEntity(GameEntity *entity, bool withHitbox) {
-	DrawTextureRec(
-		*entity->sprite.texture,
-		entity->sprite.rect,
-		// For a GameEntity, its Sprite position is relative to the entity position.
-		Vector2Subtract(entity->position, entity->sprite.position),
-		WHITE
-	);
+	if (entity == NULL) {
+		LogDebug("NULL pointer to entity!");
+		return;
+	}
+	if (entity->sprite.texture != NULL) {
+		DrawTextureRec(
+			*entity->sprite.texture,
+			entity->sprite.rect,
+			// For a GameEntity, its Sprite position is relative to the entity position.
+			Vector2Subtract(entity->position, entity->sprite.position),
+			WHITE
+		);
+	} else {
+		// Draw red square if no texture loaded for the entity.
+		DrawRectangleV(Vector2SubtractValue(entity->position, 16), (Vector2){ 32, 32 }, RED);
+	}
 	if (withHitbox) {
 		DrawRectangle(
 			entity->position.x + entity->hitbox.x,
 			entity->position.y + entity->hitbox.y,
 			entity->hitbox.width,
 			entity->hitbox.height,
-			(Color){ 230, 41, 55, 128 }
+			(Color){ 230, 41, 55, 90 }
 		);
 	}
 }
@@ -69,7 +80,8 @@ void DrawEntity(GameEntity *entity, bool withHitbox) {
 static void RenderWorld(
 	GameContext *context,
 	RenderTexture2D *worldRender,
-	Player *player
+	Player *player,
+	Level* level
 ) {
 	// First, create the frame for the world on its fixed resolution.
 	BeginTextureMode(*worldRender);
@@ -97,7 +109,20 @@ static void RenderWorld(
 	}
 
 	// Draw character.
-	DrawEntity(&player->entity, context->options->showHitbox);
+	DrawEntity(&player->entity, context->options->showGizmos);
+
+	if (level != NULL && level->tiles != NULL && level->tileCount > 0) {
+		// TODO
+	}
+	// Draw level entities.
+	if (level != NULL && level->entities != NULL && level->entityCount > 0) {
+		for (int i = 0; i < level->entityCount; i++) {
+			DrawEntity(&level->entities[i], context->options->showGizmos);
+			if (context->options->showGizmos) {
+				DrawCircleV(level->entities[i].entity.position, level->entities[i].activeRadius, (Color){ 255, 109, 194, 90 });
+			}
+		}
+	}
 
 	// Draw custom cursor last.
 	if (!context->options->systemCursor) {
@@ -161,9 +186,10 @@ static void RenderScreen(
 void Render(
 	GameContext* context,
 	RenderTexture2D* worldRender,
-	Player* player
+	Player* player,
+	Level* level
 ) {
-	RenderWorld(context, worldRender, player);
+	RenderWorld(context, worldRender, player, level);
 	RenderScreen(context, worldRender);
 }
 
@@ -180,7 +206,7 @@ void SetupGameWindow(GameContext* context) {
 	int monitor = GetCurrentMonitor();
 	int monitorWidth = GetMonitorWidth(monitor);
 	int monitorHeight = GetMonitorHeight(monitor);
-	int scale = clamp(fmin(
+	int scale = (int) Clamp(fmin(
 		floor(monitorWidth / worldSize.width),
 		floor(monitorHeight / worldSize.height)
 	), 1, 10);

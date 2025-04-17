@@ -23,8 +23,9 @@ typedef struct {
 	Vector2 position;
 } Sprite;
 
-int clamp(int num, int min, int max);
-float clampf(float num, float min, float max);
+bool IsPointInRectangle(Vector2 point, Rectangle rect);
+bool DoesRectCollideCircle(Rectangle rect, Vector2 circleCenter, float radius);
+bool IsPointInCircle(Vector2 point, Vector2 circleCenter, float radius);
 
 /**
  * Improved initialisation Mersenne Twister for the secondary PRNG.

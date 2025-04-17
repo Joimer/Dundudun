@@ -6,6 +6,7 @@
 #include <raylib.h>
 #include "game.h"
 #include "character.h"
+#include "level.h"
 
 typedef struct {
 	int width;
@@ -23,7 +24,8 @@ void SetupGameWindow(GameContext* context);
 void Render(
 	GameContext* context,
 	RenderTexture2D* render,
-	Player* player
+	Player* player,
+	Level* level
 );
 
 // Drawing game related objects.

@@ -1,23 +1,38 @@
+#include <math.h>
 #include "lib.h"
 
-int clamp(int num, int min, int max) {
-	if (num < min) {
-		return min;
-	}
-	if (num > max) {
-		return max;
-	}
-	return num;
+bool IsPointInRectangle(Vector2 point, Rectangle rect) {
+	return (
+		point.x >= rect.x
+		&& point.x <= rect.x + rect.width
+		&& point.y >= rect.y
+		&& point.y <= rect.y + rect.height
+	);
 }
 
-float clampf(float num, float min, float max) {
-	if (num < min) {
-		return min;
+bool DoesRectCollideCircle(Rectangle rect, Vector2 circleCenter, float radius) {
+	if (IsPointInRectangle(circleCenter, rect)) {
+		return true;
 	}
-	if (num > max) {
-		return max;
+	float closestX = circleCenter.x < rect.x ? rect.x : rect.x + rect.width;
+	float closestY = circleCenter.y < rect.y ? rect.y : rect.y + rect.height;
+	float xDist = circleCenter.x - closestX;
+	float yDist = circleCenter.y - closestY;
+	float squareDist = (xDist * xDist) + (yDist * yDist);
+
+	return squareDist < (radius * radius);
+}
+
+bool IsPointInCircle(Vector2 point, Vector2 circleCenter, float radius) {
+	float xDistance = fabs(point.x - circleCenter.x);
+	float yDistance = fabs(point.y - circleCenter.y);
+	if (xDistance > radius || yDistance > radius) {
+		return false;
 	}
-	return num;
+	if (xDistance + yDistance <= radius) {
+		return true;
+	}
+	return (xDistance * xDistance + yDistance * yDistance <= radius * radius);
 }
 
 // initializes mt[N] with a seed

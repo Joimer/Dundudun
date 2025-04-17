@@ -10,7 +10,7 @@ int main(void) {
 	GameOptions options = {
 		.dashMode = DIRECTIONAL,
 		.targetFps = 150,
-		.showHitbox = false,
+		.showGizmos = false,
 		.screenSize = (Rectangle){ 0, 0, 1920, 1080 }
 	};
 
