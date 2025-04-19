@@ -17,6 +17,18 @@ typedef struct {
 	int damage;
 } Tile;
 
+typedef struct {
+	int damage;
+	float duration;
+	// Distance from the center of the attacker and the center of the attack.
+	float centerDist;
+	int type;
+	union AttackType {
+		struct { float width; float height; } hitbox;
+		float radius;
+	} data;
+} Attack;
+
 typedef enum { APPROACH, STAND, DISTANCE } EnemyBehaviour;
 
 typedef struct {
@@ -25,7 +37,17 @@ typedef struct {
 	EnemyBehaviour behaviour;
 	bool active;
 	float speed;
+	float lastAttack;
+	float attackCd;
+	Attack* attack;
 } Enemy;
+
+typedef struct {
+	Attack* attack;
+	float start;
+	Vector2 center;
+	Rectangle hitbox;
+} ActiveAttack;
 
 typedef struct {
 	int floor;
@@ -33,9 +55,16 @@ typedef struct {
 	Tile* tiles;
 	int entityCount;
 	Enemy* entities;
+	int attackIndexStart;
+	int attackIndexEnd;
+	float playTime;
+	ActiveAttack* attacks;
 } Level;
 
 Level GenerateLevel(GameContext* context, int floor);
 void Update(GameContext* context, Player* player, Level* level);
+float MaxAttackRange(Enemy* enemy);
+Rectangle HitboxWorldPosition(GameEntity* entity);
+void UpdateLevel(GameContext* context, Player* player, Level* level, float dt);
 
 #endif

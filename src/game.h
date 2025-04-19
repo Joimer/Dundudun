@@ -13,7 +13,7 @@
 extern const Vector2 initialPos;
 
 typedef struct {
-	float start;
+	float elapsed;
 	float duration;
 	bool active;
 } Invulnerability;
@@ -72,5 +72,6 @@ typedef struct {
 int RunGame(GameContext* context);
 unsigned long GenerateGameSeed();
 const char* SeedToString(unsigned long seed);
+void UpdateInvuln(GameEntity* entity, float dt);
 
 #endif

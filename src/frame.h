@@ -31,7 +31,7 @@ void Render(
 // Drawing game related objects.
 void DrawCursor(GameContext* context);
 void DrawSprite(Sprite* sprite);
-void DrawEntity(GameEntity* entity, bool withHitbox);
+void DrawEntity(GameEntity* entity, bool withGizmo);
 
 Vector2 GetWorldMousePos(GameContext* context);
 

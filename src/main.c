@@ -10,7 +10,7 @@ int main(void) {
 	GameOptions options = {
 		.dashMode = DIRECTIONAL,
 		.targetFps = 150,
-		.showGizmos = false,
+		.showGizmos = true,
 		.screenSize = (Rectangle){ 0, 0, 1920, 1080 }
 	};
 
@@ -22,7 +22,8 @@ int main(void) {
 
 	// Set up the initial game state.
 	GameState gameState = {
-		.currentScreen = LOGO,
+		//.currentScreen = LOGO,
+		.currentScreen = GAMEPLAY,
 		.nextScreen = TITLE,
 		// 2d World camera.
 		.camera = {

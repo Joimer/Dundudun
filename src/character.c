@@ -11,13 +11,13 @@
 #define DASH_SPEED_MULT 4.0f
 #define DASH_DURATION 0.25f
 #define DASH_LENGTH 150.0f
-#define DEG_360 PI * 2
-#define DEG_45 PI / 4
-#define DEG_90 PI / 2
-#define DEG_135 3 * PI / 4
-#define DEG_225 5 * PI / 4
-#define DEG_270 3 * PI / 2
-#define DEG_315 7 * PI / 4
+#define DEG_360 PI * 2.0f
+#define DEG_45 PI / 4.0f
+#define DEG_90 PI / 2.0f
+#define DEG_135 3.0f * PI / 4.0f
+#define DEG_225 5.0f * PI / 4.0f
+#define DEG_270 3.0f * PI / 2.0f
+#define DEG_315 7.0f * PI / 4.0f
 
 Player CreatePlayer(Texture2D* characterTexture) {
 	float halfWidth = (float) characterTexture->width / 2.0f;
@@ -40,12 +40,16 @@ Player CreatePlayer(Texture2D* characterTexture) {
 				.y = -(halfHeight / 2.0f),
 				.width = halfWidth,
 				.height = halfHeight
-			}
+			},
+			.invuln = (Invulnerability){ .duration = 1.0f }
 		}
 	};
 }
 
 void UpdatePlayer(GameContext* context, Player* player, float delta) {
+	// Check invulnerability status.
+	UpdateInvuln(&player->entity, delta);
+
 	// Player is mid dash, no control on actions until it is finished.
 	if (player->dash.dashing) {
 		player->dash.elapsed += delta;
@@ -125,6 +129,7 @@ void UpdatePlayer(GameContext* context, Player* player, float delta) {
 				case NORTHWEST: angle = DEG_135; break;
 				case SOUTHEAST: angle = DEG_315; break;
 				case SOUTHWEST: angle = DEG_225; break;
+				case NO_DIRECTION: break;
 			}
 		}
 		player->dash.direction = (Vector2){ .x = cosf(angle) * dashSpeed, .y = -(sinf(angle) * dashSpeed) };

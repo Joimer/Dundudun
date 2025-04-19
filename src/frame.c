@@ -49,10 +49,21 @@ void DrawSprite(Sprite* sprite) {
 	DrawTextureRec(*sprite->texture, sprite->rect, sprite->position, WHITE);
 }
 
-void DrawEntity(GameEntity* entity, bool withHitbox) {
+void DrawEntity(GameEntity* entity, bool withGizmo) {
 	if (entity == NULL) {
 		LogDebug("NULL pointer to entity!");
 		return;
+	}
+	bool doDraw = true;
+	if (entity->invuln.active) {
+		// Check if we should blink the character.
+		const int blinksPerSec = 10;
+		const int blinkParts = blinksPerSec * 2;
+		const float durationPerPart = entity->invuln.duration / (float)blinkParts;
+		const int whichPart = (int)(entity->invuln.elapsed / durationPerPart);
+		if (whichPart % 2 == 0) {
+			doDraw = false;
+		}
 	}
 	if (entity->sprite.texture != NULL) {
 		DrawTextureRec(
@@ -60,20 +71,15 @@ void DrawEntity(GameEntity* entity, bool withHitbox) {
 			entity->sprite.rect,
 			// For a GameEntity, its Sprite position is relative to the entity position.
 			Vector2Subtract(entity->position, entity->sprite.position),
-			WHITE
+			doDraw ? WHITE : (Color){ 255, 255, 255, 10 }
 		);
 	} else {
 		// Draw red square if no texture loaded for the entity.
-		DrawRectangleV(Vector2SubtractValue(entity->position, 16), (Vector2){ 32, 32 }, RED);
+		DrawRectangleV(Vector2SubtractValue(entity->position, 16), (Vector2){ 32, 32 }, doDraw ? RED : (Color){ 230, 41, 55, 10 });
 	}
-	if (withHitbox) {
-		DrawRectangle(
-			entity->position.x + entity->hitbox.x,
-			entity->position.y + entity->hitbox.y,
-			entity->hitbox.width,
-			entity->hitbox.height,
-			(Color){ 230, 41, 55, 90 }
-		);
+	if (withGizmo) {
+		DrawRectangleRec(HitboxWorldPosition(entity), (Color){ 230, 41, 55, 60 });
+
 		// Show current entity direction.
 		int endPosX = entity->dir == EAST || entity->dir == NORTHEAST || entity->dir == SOUTHEAST ?
 			entity->position.x + 25 : (entity->dir == WEST || entity->dir == NORTHWEST || entity->dir == SOUTHWEST ? entity->position.x - 25 : entity->position.x);
@@ -118,14 +124,40 @@ static void RenderWorld(
 	DrawEntity(&player->entity, context->options->showGizmos);
 
 	if (level != NULL && level->tiles != NULL && level->tileCount > 0) {
-		// TODO
+		// TODO: Tiles from generated level.
 	}
+
 	// Draw level entities.
-	if (level != NULL && level->entities != NULL && level->entityCount > 0) {
-		for (int i = 0; i < level->entityCount; i++) {
-			DrawEntity(&level->entities[i].entity, context->options->showGizmos);
-			if (context->options->showGizmos) {
-				DrawCircleV(level->entities[i].entity.position, level->entities[i].activeRadius, (Color){ 255, 109, 194, 90 });
+	if (level != NULL) {
+		// Enemies.
+		if (level->entities != NULL && level->entityCount > 0) {
+			for (int i = 0; i < level->entityCount; i++) {
+				DrawEntity(&level->entities[i].entity, context->options->showGizmos);
+				if (context->options->showGizmos) {
+					DrawCircleV(level->entities[i].entity.position, level->entities[i].activeRadius, (Color){ 255, 109, 194, 60 });
+					DrawLineV(level->entities[i].entity.position, player->entity.position, DARKGRAY);
+				}
+			}
+		}
+
+		// Attacks.
+		if (level->attackIndexStart < level->attackIndexEnd) {
+			for (int i = level->attackIndexStart; i < level->attackIndexEnd; i++) {
+				if (level->attacks[i].start + level->attacks[i].attack->duration < level->playTime) {
+					continue;
+				}
+				if (level->attacks[i].attack->type == 1) {
+					// TODO: Attack animation here.
+					if (context->options->showGizmos) {
+						DrawRectangleRec(level->attacks[i].hitbox, (Color){ 125, 11, 22, 230 });
+					}
+				}
+				if (level->attacks[i].attack->type == 2) {
+					// TODO: Attack animation here.
+					if (context->options->showGizmos) {
+						DrawCircleV(level->attacks[i].center, level->attacks[i].attack->data.radius, (Color){ 125, 11, 22, 230 });
+					}
+				}
 			}
 		}
 	}
@@ -234,8 +266,8 @@ void SetupGameWindow(GameContext* context) {
 	int monitorWidth = GetMonitorWidth(monitor);
 	int monitorHeight = GetMonitorHeight(monitor);
 	int scale = (int) Clamp(fmin(
-		floor(monitorWidth / worldSize.width),
-		floor(monitorHeight / worldSize.height)
+		monitorWidth / worldSize.width,
+		monitorHeight / worldSize.height
 	), 1, 10);
 	ScreenSize newSize = { worldSize.width * scale, worldSize.height * scale };
 	ResizeWindow(context, newSize);
