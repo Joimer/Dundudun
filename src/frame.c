@@ -1,6 +1,7 @@
 #include <raylib.h>
 #include <string.h>
 #include <raymath.h>
+#include <stdlib.h>
 #include "frame.h"
 #include "screens.h"
 #include "control.h"
@@ -89,6 +90,62 @@ void DrawEntity(GameEntity* entity, bool withGizmo) {
 	}
 }
 
+bool DrawAttackCallback(void* poolItem, va_list args) {
+	if (poolItem == NULL) {
+		return true;
+	}
+	ActiveAttack* attack = (ActiveAttack*) poolItem;
+	if (attack->attack == NULL) {
+		return true;
+	}
+	if (attack->elapsed >= attack->attack->duration) {
+		// Do not mark as finished on draw, let Update manage it.
+		return false;
+	}
+	bool showGizmos = va_arg(args, int);
+	if (attack->attack->type == 1) {
+		// TODO: Attack animation here.
+		if (showGizmos) {
+			DrawRectangleRec(attack->hitbox, (Color){ 125, 11, 22, 230 });
+		}
+	}
+	if (attack->attack->type == 2) {
+		// TODO: Attack animation here.
+		if (showGizmos) {
+			DrawCircleV(attack->center, attack->attack->data.radius, (Color){ 125, 11, 22, 230 });
+		}
+	}
+
+	return false;
+}
+
+bool DrawTextCallback(void* poolItem, va_list args) {
+	if (poolItem == NULL) {
+		return true;
+	}
+	ActiveText* text = (ActiveText*) poolItem;
+	if (text->content == NULL) {
+		return true;
+	}
+	float playTime = (float) va_arg(args, double);
+	if (playTime > text->endTime) {
+		// Need to free the text string when we are done with it.
+		free(text->content);
+		return true;
+	}
+
+	// Text movement vector is text->start to text->end in (text->endTime - text->startTime) time.
+	// We just need to translate the position through the elapsed time.
+	float elapsed = playTime - text->startTime;
+	float pct = elapsed * 100.0f / (text->endTime - text->startTime);
+	float yPosDiff = (text->end.y - text->start.y) * pct / 100.0f;
+	float xPosDiff = (text->end.x - text->start.x) * pct / 100.0f;
+	// TODO: If 2 texts are overlapping, move one a bit? how?
+	DrawText(text->content, text->start.x + xPosDiff, text->start.y + yPosDiff, text->fontSize, text->color);
+
+	return false;
+}
+
 static void RenderWorld(
 	GameContext *context,
 	RenderTexture2D *worldRender,
@@ -141,24 +198,13 @@ static void RenderWorld(
 		}
 
 		// Attacks.
-		if (level->attackIndexStart < level->attackIndexEnd) {
-			for (int i = level->attackIndexStart; i < level->attackIndexEnd; i++) {
-				if (level->attacks[i].start + level->attacks[i].attack->duration < level->playTime) {
-					continue;
-				}
-				if (level->attacks[i].attack->type == 1) {
-					// TODO: Attack animation here.
-					if (context->options->showGizmos) {
-						DrawRectangleRec(level->attacks[i].hitbox, (Color){ 125, 11, 22, 230 });
-					}
-				}
-				if (level->attacks[i].attack->type == 2) {
-					// TODO: Attack animation here.
-					if (context->options->showGizmos) {
-						DrawCircleV(level->attacks[i].center, level->attacks[i].attack->data.radius, (Color){ 125, 11, 22, 230 });
-					}
-				}
-			}
+		if (level->attacks.activeItems > 0) {
+			IteratePool(&level->attacks, &DrawAttackCallback, context->options->showGizmos);
+		}
+
+		// Damage texts.
+		if (level->texts.activeItems > 0) {
+			IteratePool(&level->texts, &DrawTextCallback, level->playTime);
 		}
 	}
 

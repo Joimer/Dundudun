@@ -17,6 +17,9 @@
 #define LogDebug(...)
 #endif
 
+#define MemberSize(type, member) (sizeof(((type*) 0)->member))
+#define CreatePoolOf(type, length) CreatePool(length, sizeof(type));
+
 typedef struct {
 	Texture2D* texture;
 	Rectangle rect;
@@ -44,6 +47,16 @@ typedef enum {
 	SOUTHWEST = 6
 } Direction;
 
+typedef struct {
+	int length;
+	int activeItems;
+	size_t itemSize;
+	bool* active;
+	void* data;
+} ObjectPool;
+
+typedef bool (*PoolItemCallback)(void*, va_list);
+
 Vector2 ClosestRectCorner(Rectangle rect, Vector2 point);
 bool IsPointInRectangle(Vector2 point, Rectangle rect);
 bool DoesRectCollideCircle(Rectangle rect, Circle circle);
@@ -52,6 +65,10 @@ bool IsBitSet(int val, int bit);
 Direction GetPointDir(Vector2 origin, Vector2 target);
 Direction GetPointDirThreshold(Vector2 origin, Vector2 target, float xThreshold, float yThreshold);
 bool DoesRectCollideRect(Rectangle rect, Rectangle rect2);
+ObjectPool CreatePool(const int length, const size_t itemSize);
+void* AddToPool(ObjectPool* pool, void* item);
+void* PoolIndexAddress(ObjectPool* pool, int index);
+void IteratePool(ObjectPool* pool, PoolItemCallback callback, ...);
 
 /**
  * Improved initialisation Mersenne Twister for the secondary PRNG.

@@ -44,10 +44,20 @@ typedef struct {
 
 typedef struct {
 	Attack* attack;
-	float start;
+	float elapsed;
 	Vector2 center;
 	Rectangle hitbox;
 } ActiveAttack;
+
+typedef struct {
+	char* content;
+	Vector2 start;
+	Vector2 end;
+	float startTime;
+	float endTime;
+	int fontSize;
+	Color color;
+} ActiveText;
 
 typedef struct {
 	int floor;
@@ -55,10 +65,9 @@ typedef struct {
 	Tile* tiles;
 	int entityCount;
 	Enemy* entities;
-	int attackIndexStart;
-	int attackIndexEnd;
 	float playTime;
-	ActiveAttack* attacks;
+	ObjectPool attacks;
+	ObjectPool texts;
 } Level;
 
 Level GenerateLevel(GameContext* context, int floor);

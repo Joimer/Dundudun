@@ -17,7 +17,7 @@ Attack attacks[2] = {
 		.data = { .hitbox = { 24.0f, 24.0f } }
 	},
 	{
-		.damage = 5,
+		.damage = 6,
 		.duration = 0.33f,
 		.centerDist = 32.0f,
 		.type = 2,
@@ -82,9 +82,9 @@ Level GenerateLevel(GameContext* context, int floor) {
 			}
 		};
 	}
-	// XD
 	// Number of attacks to allocate should be calculated by total enemies and their attack cadence.
-	level.attacks = malloc(sizeof(Attack) * 5000);
+	level.attacks = CreatePoolOf(ActiveAttack, 32);
+	level.texts = CreatePoolOf(ActiveText, 32);
 
 	return level;
 }
@@ -136,11 +136,17 @@ static void UpdateEnemy(GameContext* context, Player* player, Level* level, Enem
 				.width = enemy->attack->data.hitbox.width,
 				.height = enemy->attack->data.hitbox.height
 			};
-			level->attacks[level->attackIndexEnd++] = (ActiveAttack) {
+			ActiveAttack att = {
 				.attack = enemy->attack,
-				.start = level->playTime,
+				//.start = level->playTime,
+				.elapsed = 0.0f,
 				.hitbox = attackHitbox
 			};
+			void* result = AddToPool(&level->attacks, &att);
+			if (result == NULL) {
+				LogDebug("Failed to allocate attack to pool");
+			}
+			LogDebug("Amount of active items: %d", level->attacks.activeItems);
 			return;
 		}
 
@@ -153,7 +159,7 @@ static void UpdateEnemy(GameContext* context, Player* player, Level* level, Enem
 			float yDiff = fabs(player->entity.position.y - enemy->entity.position.y);
 			float xThreshold = player->entity.hitbox.width / 2.0f + enemy->entity.hitbox.width / 2.0f;
 			float yThreshold = player->entity.hitbox.height / 2.0f + enemy->entity.hitbox.height / 2.0f;
-			float vecDist = Vector2Distance(player->entity.position, enemy->entity.position);
+			//float vecDist = Vector2Distance(player->entity.position, enemy->entity.position);
 
 			// Entity is close enough to player, ignore movement.
 			if (xDiff <= xThreshold && yDiff <= yThreshold) {
@@ -257,7 +263,7 @@ static void UpdateEnemy(GameContext* context, Player* player, Level* level, Enem
 
 			// If the entity was completely stopped, we can check on next one already.
 			if (!isLeft && !isRight && !isUp && !isDown) {
-				LogDebug("Enemy cannot move, obstacle");
+				//LogDebug("Enemy cannot move, obstacle");
 				// TODO: Find angle in respect to blocking entity and find a way around it to get to the player.
 				return;
 			}
@@ -280,6 +286,70 @@ static void UpdateEnemy(GameContext* context, Player* player, Level* level, Enem
 	}
 }
 
+bool AttackCallback(void* poolItem, va_list args) {
+	if (poolItem == NULL) {
+		return false;
+	}
+
+	// I do not like when the compiler yells warnings at me
+	ActiveAttack* attack = (ActiveAttack*) poolItem;
+
+	// Float gets promoted to double when passed through ...
+	float dt = (float)va_arg(args, double);
+	attack->elapsed += dt;
+	if (attack->attack == NULL) {
+		// Warning or something?
+		// This means some pointer is pointing at invalid data.
+		return true;
+	}
+	if (attack->elapsed >= attack->attack->duration) {
+		// This attack finished.
+		return true;
+	}
+	Player* player = va_arg(args, Player*);
+	if (player != NULL && !player->dash.dashing && !player->entity.invuln.active) {
+		Rectangle playerHitbox = HitboxWorldPosition(&player->entity);
+		if (attack->attack->type == 1) {
+			LogDebug("Checking hit collision");
+			// TODO: Potentially 0 damage attacks that have effects.
+			if (DoesRectCollideRect(attack->hitbox, playerHitbox) && attack->attack->damage > 0) {
+				LogDebug("It did hit");
+				// Attack is hitting player.
+				player->entity.invuln.active = true;
+				player->entity.health -= attack->attack->damage;
+				Vector2 playerSpritePos = Vector2Subtract(player->entity.position, player->entity.sprite.position);
+				float startX = playerSpritePos.x + player->entity.sprite.rect.width / 2.0f;
+				char* damageText = malloc(floor(log10(attack->attack->damage)) + 1);
+				sprintf(damageText, "%d", attack->attack->damage);
+				float levelTime = (float)va_arg(args, double);
+				ActiveText txt = {
+					.content = damageText,
+					.start = (Vector2){ startX, playerSpritePos.y },
+					.end = (Vector2){ startX, playerSpritePos.y - 32.0f },
+					.startTime = levelTime,
+					.endTime = levelTime + 1.0f,
+					.fontSize = 15,
+					.color = RED
+				};
+				ObjectPool* textPool = va_arg(args, ObjectPool*);
+				void* result = AddToPool(textPool, &txt);
+				if (result == NULL) {
+					LogDebug("Failed to allocate text to pool");
+				}
+			}
+		}
+		if (attack->attack->type == 2) {
+			/*Circle attackHitbox = {
+				.center = attack->center,
+				.radius = attack->attack->data.radius
+			};*/
+			// TODO
+		}
+	}
+
+	return false;
+}
+
 void UpdateLevel(GameContext* context, Player* player, Level* level, float dt) {
 	if (level == NULL) {
 		return;
@@ -293,31 +363,8 @@ void UpdateLevel(GameContext* context, Player* player, Level* level, float dt) {
 
 	// Run ongoing attacks.
 	// Attacks are instantiated by enemies from a template and ran on their on afterwards.
-	if (level->attackIndexStart < level->attackIndexEnd) {
-		for (int i = level->attackIndexStart; i < level->attackIndexEnd; i++) {
-			if (level->attacks[i].start + level->attacks[i].attack->duration < level->playTime) {
-				// This attack finished.
-				level->attackIndexStart++;
-				continue;
-			}
-
-			// Check if ongoing attack is hitting player.
-			if (player != NULL && !player->dash.dashing && !player->entity.invuln.active) {
-				Rectangle playerHitbox = HitboxWorldPosition(&player->entity);
-				if (level->attacks[i].attack->type == 1) {
-					if (DoesRectCollideRect(level->attacks[i].hitbox, playerHitbox)) {
-						// Attack is hitting player.
-						player->entity.invuln.active = true;
-					}
-				}
-				if (level->attacks[i].attack->type == 2) {
-					Circle attackHitbox = {
-						.center = level->attacks[i].center,
-						.radius = level->attacks[i].attack->data.radius
-					};
-				}
-			}
-		}
+	if (level->attacks.activeItems > 0) {
+		IteratePool(&level->attacks, &AttackCallback, dt, player, level->playTime, &level->texts);
 	}
 
 	// Update all active entities.
