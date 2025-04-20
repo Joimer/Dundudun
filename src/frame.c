@@ -129,8 +129,7 @@ void DrawTextCallback(ObjectPool* pool, int index, void* args) {
 	if (playTime > text->endTime) {
 		// Need to free the text string when we are done with it.
 		free(text->content);
-		cleanup: RemoveFromPool(pool, index);
-		return;
+		goto cleanup;
 	}
 
 	// Text movement vector is text->start to text->end in (text->endTime - text->startTime) time.
@@ -141,6 +140,9 @@ void DrawTextCallback(ObjectPool* pool, int index, void* args) {
 	float xPosDiff = (text->end.x - text->start.x) * pct / 100.0f;
 	// TODO: If 2 texts are overlapping, move one a bit? how?
 	DrawText(text->content, text->start.x + xPosDiff, text->start.y + yPosDiff, text->fontSize, text->color);
+	return;
+
+	cleanup: RemoveFromPool(pool, index);
 }
 
 static void RenderWorld(

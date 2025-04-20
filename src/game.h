@@ -63,8 +63,8 @@ typedef struct {
 	int consecutive;
 	// Total cooldown after a dash sequence
 	float cooldown;
-	// Time last dash ended.
-	float lastDash;
+	// Time to wait until player can dash again.
+	float cdLeft;
 } Dash;
 
 typedef struct {

@@ -8,7 +8,7 @@
 
 #define PLAYER_SPEED 200.0f
 #define PLAYER_SPEED_DIAGONAL 140.0f
-#define DASH_SPEED_MULT 4.0f
+#define DASH_SPEED_MULT 2.5f
 #define DASH_DURATION 0.25f
 #define DASH_LENGTH 150.0f
 #define DEG_360 PI * 2.0f
@@ -42,6 +42,10 @@ Player CreatePlayer(Texture2D* characterTexture) {
 				.height = halfHeight
 			},
 			.invuln = (Invulnerability){ .duration = 1.0f }
+		},
+		.dash = (Dash){
+			.max = 1,
+			.cooldown = 0.5f
 		}
 	};
 }
@@ -59,10 +63,19 @@ void UpdatePlayer(GameContext* context, Player* player, float delta) {
 			float diff = player->dash.elapsed - DASH_DURATION;
 			trueDelta -= diff;
 			player->dash.dashing = false;
+			if (player->dash.consecutive >= player->dash.max) {
+				player->dash.cdLeft = player->dash.cooldown - diff;
+				player->dash.consecutive = 0;
+			}
 		}
 		Vector2 moveVector = (Vector2){ .x = player->dash.direction.x * trueDelta, .y = player->dash.direction.y * trueDelta };
 		player->entity.position = Vector2Add(player->entity.position, moveVector);
 		return;
+	}
+
+	// Update physic state counters.
+	if (player->dash.cdLeft > 0) {
+		player->dash.cdLeft -= delta > player->dash.cdLeft ? player->dash.cdLeft : delta;
 	}
 
 	// TODO: Add pushback here.
@@ -112,8 +125,9 @@ void UpdatePlayer(GameContext* context, Player* player, float delta) {
 	}
 
 	// Execute dash.
-	if (IsActionPressed(ACTION_D)) {
+	if (IsActionPressed(ACTION_D) && player->dash.cdLeft == 0.0f) {
 		player->dash.dashing = true;
+		player->dash.consecutive++;
 		float dashSpeed = PLAYER_SPEED * DASH_SPEED_MULT;
 		float angle = DEG_270;
 		if (context->options->dashMode == MOUSE) {

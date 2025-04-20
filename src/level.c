@@ -297,10 +297,9 @@ void AttackCallback(ObjectPool* pool, int index, void* args) {
 		// This means some pointer is pointing at invalid data.
 		goto cleanup;
 	}
+	// This attack has finished.
 	if (attack->elapsed >= attack->attack->duration) {
-		// This attack finished.
-		cleanup: RemoveFromPool(pool, index);
-		return;
+		goto cleanup;
 	}
 
 	AttackCbArgs* cbArgs = (AttackCbArgs*) args;
@@ -343,6 +342,9 @@ void AttackCallback(ObjectPool* pool, int index, void* args) {
 			// TODO
 		}
 	}
+	return;
+
+	cleanup: RemoveFromPool(pool, index);
 }
 
 void UpdateLevel(GameContext* context, Player* player, Level* level, float dt) {
