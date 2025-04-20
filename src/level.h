@@ -70,6 +70,13 @@ typedef struct {
 	ObjectPool texts;
 } Level;
 
+typedef struct {
+	float dt;
+	Player* player;
+	float levelTime;
+	ObjectPool* textPool;
+} AttackCbArgs;
+
 Level GenerateLevel(GameContext* context, int floor);
 void Update(GameContext* context, Player* player, Level* level);
 float MaxAttackRange(Enemy* enemy);

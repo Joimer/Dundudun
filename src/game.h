@@ -61,6 +61,10 @@ typedef struct {
 	Vector2 direction;
 	int max;
 	int consecutive;
+	// Total cooldown after a dash sequence
+	float cooldown;
+	// Time last dash ended.
+	float lastDash;
 } Dash;
 
 typedef struct {

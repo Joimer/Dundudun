@@ -8,7 +8,7 @@
 
 #define ENEMY_DEFAULT_SPEED 150.0f
 
-Attack attacks[2] = {
+static Attack attacks[2] = {
 	{
 		.damage = 5,
 		.duration = 0.33f,
@@ -286,53 +286,50 @@ static void UpdateEnemy(GameContext* context, Player* player, Level* level, Enem
 	}
 }
 
-bool AttackCallback(void* poolItem, va_list args) {
-	if (poolItem == NULL) {
-		return false;
+void AttackCallback(ObjectPool* pool, int index, void* args) {
+	// Ignore CB with invalid args, but does not mean item itself is invalid.
+	if (args == NULL) {
+		return;
 	}
-
-	// I do not like when the compiler yells warnings at me
-	ActiveAttack* attack = (ActiveAttack*) poolItem;
-
-	// Float gets promoted to double when passed through ...
-	float dt = (float)va_arg(args, double);
-	attack->elapsed += dt;
-	if (attack->attack == NULL) {
+	ActiveAttack* attack = PoolIndexAddress(pool, index);
+	if (attack == NULL || attack->attack == NULL) {
 		// Warning or something?
 		// This means some pointer is pointing at invalid data.
-		return true;
+		goto cleanup;
 	}
 	if (attack->elapsed >= attack->attack->duration) {
 		// This attack finished.
-		return true;
+		cleanup: RemoveFromPool(pool, index);
+		return;
 	}
-	Player* player = va_arg(args, Player*);
-	if (player != NULL && !player->dash.dashing && !player->entity.invuln.active) {
-		Rectangle playerHitbox = HitboxWorldPosition(&player->entity);
+
+	AttackCbArgs* cbArgs = (AttackCbArgs*) args;
+	// Add elapsed time.
+	attack->elapsed += cbArgs->dt;
+	if (cbArgs->player != NULL && !cbArgs->player->dash.dashing && !cbArgs->player->entity.invuln.active) {
+		Rectangle playerHitbox = HitboxWorldPosition(&cbArgs->player->entity);
 		if (attack->attack->type == 1) {
 			LogDebug("Checking hit collision");
 			// TODO: Potentially 0 damage attacks that have effects.
 			if (DoesRectCollideRect(attack->hitbox, playerHitbox) && attack->attack->damage > 0) {
 				LogDebug("It did hit");
 				// Attack is hitting player.
-				player->entity.invuln.active = true;
-				player->entity.health -= attack->attack->damage;
-				Vector2 playerSpritePos = Vector2Subtract(player->entity.position, player->entity.sprite.position);
-				float startX = playerSpritePos.x + player->entity.sprite.rect.width / 2.0f;
-				char* damageText = malloc(floor(log10(attack->attack->damage)) + 1);
-				sprintf(damageText, "%d", attack->attack->damage);
-				float levelTime = (float)va_arg(args, double);
+				cbArgs->player->entity.invuln.active = true;
+				// TODO: Instantiate blood splash on ground.
+				int damage = attack->attack->damage > cbArgs->player->entity.health ? cbArgs->player->entity.health : attack->attack->damage;
+				cbArgs->player->entity.health -= damage;
+				Vector2 playerSpritePos = Vector2Subtract(cbArgs->player->entity.position, cbArgs->player->entity.sprite.position);
+				float startX = playerSpritePos.x + cbArgs->player->entity.sprite.rect.width / 2.0f;
 				ActiveText txt = {
-					.content = damageText,
+					.content = IntToString(damage),
 					.start = (Vector2){ startX, playerSpritePos.y },
 					.end = (Vector2){ startX, playerSpritePos.y - 32.0f },
-					.startTime = levelTime,
-					.endTime = levelTime + 1.0f,
+					.startTime = cbArgs->levelTime,
+					.endTime = cbArgs->levelTime + 1.0f,
 					.fontSize = 15,
 					.color = RED
 				};
-				ObjectPool* textPool = va_arg(args, ObjectPool*);
-				void* result = AddToPool(textPool, &txt);
+				void* result = AddToPool(cbArgs->textPool, &txt);
 				if (result == NULL) {
 					LogDebug("Failed to allocate text to pool");
 				}
@@ -346,8 +343,6 @@ bool AttackCallback(void* poolItem, va_list args) {
 			// TODO
 		}
 	}
-
-	return false;
 }
 
 void UpdateLevel(GameContext* context, Player* player, Level* level, float dt) {
@@ -364,7 +359,13 @@ void UpdateLevel(GameContext* context, Player* player, Level* level, float dt) {
 	// Run ongoing attacks.
 	// Attacks are instantiated by enemies from a template and ran on their on afterwards.
 	if (level->attacks.activeItems > 0) {
-		IteratePool(&level->attacks, &AttackCallback, dt, player, level->playTime, &level->texts);
+		AttackCbArgs args = {
+			.dt = dt,
+			.player = player,
+			.levelTime = level->playTime,
+			.textPool = &level->texts
+		};
+		IteratePool(&level->attacks, &AttackCallback, &args);
 	}
 
 	// Update all active entities.

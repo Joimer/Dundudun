@@ -55,7 +55,7 @@ typedef struct {
 	void* data;
 } ObjectPool;
 
-typedef bool (*PoolItemCallback)(void*, va_list);
+typedef void (*PoolItemCallback)(ObjectPool* pool, int index, void* args);
 
 Vector2 ClosestRectCorner(Rectangle rect, Vector2 point);
 bool IsPointInRectangle(Vector2 point, Rectangle rect);
@@ -67,8 +67,10 @@ Direction GetPointDirThreshold(Vector2 origin, Vector2 target, float xThreshold,
 bool DoesRectCollideRect(Rectangle rect, Rectangle rect2);
 ObjectPool CreatePool(const int length, const size_t itemSize);
 void* AddToPool(ObjectPool* pool, void* item);
+void RemoveFromPool(ObjectPool* pool, int index);
 void* PoolIndexAddress(ObjectPool* pool, int index);
-void IteratePool(ObjectPool* pool, PoolItemCallback callback, ...);
+void IteratePool(ObjectPool* pool, PoolItemCallback callback, void* args);
+char* IntToString(int val);
 
 /**
  * Improved initialisation Mersenne Twister for the secondary PRNG.

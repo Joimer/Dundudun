@@ -90,19 +90,19 @@ void DrawEntity(GameEntity* entity, bool withGizmo) {
 	}
 }
 
-bool DrawAttackCallback(void* poolItem, va_list args) {
-	if (poolItem == NULL) {
-		return true;
+void DrawAttackCallback(ObjectPool* pool, int index, void* args) {
+	if (args == NULL) {
+		return;
 	}
-	ActiveAttack* attack = (ActiveAttack*) poolItem;
-	if (attack->attack == NULL) {
-		return true;
+	ActiveAttack* attack = PoolIndexAddress(pool, index);
+	if (attack == NULL || attack->attack == NULL) {
+		return;
 	}
 	if (attack->elapsed >= attack->attack->duration) {
-		// Do not mark as finished on draw, let Update manage it.
-		return false;
+		return;
 	}
-	bool showGizmos = va_arg(args, int);
+
+	bool showGizmos = *((bool*) args);
 	if (attack->attack->type == 1) {
 		// TODO: Attack animation here.
 		if (showGizmos) {
@@ -115,23 +115,22 @@ bool DrawAttackCallback(void* poolItem, va_list args) {
 			DrawCircleV(attack->center, attack->attack->data.radius, (Color){ 125, 11, 22, 230 });
 		}
 	}
-
-	return false;
 }
 
-bool DrawTextCallback(void* poolItem, va_list args) {
-	if (poolItem == NULL) {
-		return true;
+void DrawTextCallback(ObjectPool* pool, int index, void* args) {
+	if (args == NULL) {
+		return;
 	}
-	ActiveText* text = (ActiveText*) poolItem;
-	if (text->content == NULL) {
-		return true;
+	ActiveText* text = PoolIndexAddress(pool, index);
+	if (text == NULL || text->content == NULL) {
+		goto cleanup;
 	}
-	float playTime = (float) va_arg(args, double);
+	float playTime = *((float*) args);
 	if (playTime > text->endTime) {
 		// Need to free the text string when we are done with it.
 		free(text->content);
-		return true;
+		cleanup: RemoveFromPool(pool, index);
+		return;
 	}
 
 	// Text movement vector is text->start to text->end in (text->endTime - text->startTime) time.
@@ -142,8 +141,6 @@ bool DrawTextCallback(void* poolItem, va_list args) {
 	float xPosDiff = (text->end.x - text->start.x) * pct / 100.0f;
 	// TODO: If 2 texts are overlapping, move one a bit? how?
 	DrawText(text->content, text->start.x + xPosDiff, text->start.y + yPosDiff, text->fontSize, text->color);
-
-	return false;
 }
 
 static void RenderWorld(
@@ -199,12 +196,12 @@ static void RenderWorld(
 
 		// Attacks.
 		if (level->attacks.activeItems > 0) {
-			IteratePool(&level->attacks, &DrawAttackCallback, context->options->showGizmos);
+			IteratePool(&level->attacks, &DrawAttackCallback, &context->options->showGizmos);
 		}
 
 		// Damage texts.
 		if (level->texts.activeItems > 0) {
-			IteratePool(&level->texts, &DrawTextCallback, level->playTime);
+			IteratePool(&level->texts, &DrawTextCallback, &level->playTime);
 		}
 	}
 
