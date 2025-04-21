@@ -5,6 +5,7 @@
 #include "control.h"
 #include "frame.h"
 #include "game.h"
+#include "item.h"
 
 #define PLAYER_SPEED 200.0f
 #define PLAYER_SPEED_DIAGONAL 140.0f
@@ -153,6 +154,30 @@ void UpdatePlayer(GameContext* context, Player* player, float delta) {
 
 	// Attack.
 	if (IsActionPressed(ACTION_A)) {
-
+		LogDebug("Atttaaaaack");
 	}
+}
+
+int EquipWeapon(Player* player, Weapon* weapon) {
+	if (player->gear.weapons[0] == NULL) {
+		player->gear.weapons[0] = weapon;
+		return 0;
+	}
+	if (player->gear.weapons[1] == NULL) {
+		player->gear.weapons[1] = weapon;
+		return 1;
+	}
+	// TODO: Drop current weapon
+	player->gear.weapons[player->gear.weaponSlot] = weapon;
+
+	return player->gear.weaponSlot;
+}
+
+int SwapWeapon(Player* player) {
+	player->gear.weaponSlot++;
+	if (player->gear.weaponSlot >= player->gear.maxWeaps) {
+		player->gear.weaponSlot = 0;
+	}
+
+	return player->gear.weaponSlot;
 }

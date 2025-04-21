@@ -126,3 +126,10 @@ void UpdateInvuln(GameEntity* entity, float dt) {
 		}
 	}
 }
+
+void SetStance(GameEntity* entity, Stance stance) {
+	if (entity->stance != stance) {
+		entity->stance = stance;
+		entity->stanceTime = 0.0f;
+	}
+}

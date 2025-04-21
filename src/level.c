@@ -14,14 +14,14 @@ static Attack attacks[2] = {
 		.duration = 0.33f,
 		.centerDist = 32.0f,
 		.type = 1,
-		.data = { .hitbox = { 24.0f, 24.0f } }
+		.hitbox = { .rect = { 24.0f, 24.0f } }
 	},
 	{
 		.damage = 6,
 		.duration = 0.33f,
 		.centerDist = 32.0f,
 		.type = 2,
-		.data = 24.0f
+		.hitbox = 24.0f
 	}
 };
 
@@ -95,193 +95,217 @@ float MaxAttackRange(Enemy* enemy) {
 	}
 	float baseDist = enemy->attack->centerDist;
 	if (enemy->attack->type == 1) {
-		baseDist += enemy->attack->data.hitbox.height / 2.0f;
+		baseDist += enemy->attack->hitbox.rect.height / 2.0f;
 	}
 	if (enemy->attack->type == 2) {
-		baseDist += enemy->attack->data.radius;
+		baseDist += enemy->attack->hitbox.radius;
 	}
 
 	return baseDist + 1.0f;
 }
 
 static void UpdateEnemy(GameContext* context, Player* player, Level* level, Enemy* enemy, float dt) {
+	enemy->entity.stanceTime += dt;
+
 	// TODO: Own functions for entities for movement/action and state machine for those.
 	// Check if player is within the entity's active area.
-	if (player == NULL || !IsPointInCircle(
-		player->entity.position,
-		(Circle){ enemy->entity.position, enemy->activeRadius }
+	if (player == NULL || !CheckCollisionPointCircle(
+		player->entity.position,enemy->entity.position, enemy->activeRadius
 	)) {
 		// Inactive status.
 		// If can be seen in screen or close by, idle behaviour.
 		// Otherwise, completely ignore.
-	} else {
-		// Check if player is within range of entity attack.
-		float maxRange = MaxAttackRange(enemy);
-		float dist = Vector2Distance(enemy->entity.position, player->entity.position);
+		SetStance(&enemy->entity, STANDING);
+		return;
+	}
 
-		// In range for attack and no cooldown.
-		if (dist <= maxRange && (enemy->lastAttack == 0.0f || enemy->lastAttack + enemy->attackCd < level->playTime)) {
-			enemy->lastAttack = level->playTime;
-			float angle = Vector2LineAngle(enemy->entity.position, player->entity.position);
-			Vector2 attackPos = Vector2Add(
-				enemy->entity.position,
-				(Vector2){
-					.x = cosf(angle) * enemy->attack->centerDist - enemy->attack->data.hitbox.width / 2.0f,
-					.y = -(sinf(angle) * enemy->attack->centerDist + enemy->attack->data.hitbox.height / 2.0f)
-				}
-			);
-			Rectangle attackHitbox = {
-				.x = attackPos.x,
-				.y = attackPos.y,
-				.width = enemy->attack->data.hitbox.width,
-				.height = enemy->attack->data.hitbox.height
-			};
-			ActiveAttack att = {
-				.attack = enemy->attack,
-				//.start = level->playTime,
-				.elapsed = 0.0f,
-				.hitbox = attackHitbox
-			};
-			void* result = AddToPool(&level->attacks, &att);
-			if (result == NULL) {
-				LogDebug("Failed to allocate attack to pool");
-			}
-			LogDebug("Amount of active items: %d", level->attacks.activeItems);
+	// Check if player is within range of entity attack.
+	float maxRange = MaxAttackRange(enemy);
+	float dist = Vector2Distance(enemy->entity.position, player->entity.position);
+
+	// Enemy is winding up an attack.
+	if (enemy->entity.stance == ATTACKING) {
+		if (enemy->entity.stanceTime < enemy->attack->windup) {
+			// Winding up attack, nothing to do here.
 			return;
 		}
 
-		// TODO If mid pushback, cannot move nor attack.
-
-		if (enemy->behaviour == APPROACH) {
-			// Set direction towards player.
-			// Min distance is entity hitbox in front of player hitbox.
-			float xDiff = fabs(player->entity.position.x - enemy->entity.position.x);
-			float yDiff = fabs(player->entity.position.y - enemy->entity.position.y);
-			float xThreshold = player->entity.hitbox.width / 2.0f + enemy->entity.hitbox.width / 2.0f;
-			float yThreshold = player->entity.hitbox.height / 2.0f + enemy->entity.hitbox.height / 2.0f;
-			//float vecDist = Vector2Distance(player->entity.position, enemy->entity.position);
-
-			// Entity is close enough to player, ignore movement.
-			if (xDiff <= xThreshold && yDiff <= yThreshold) {
-				return;
+		// Attack windup has finished, instantiate actual attack hitbox.
+		float angle = Vector2LineAngle(enemy->entity.position, player->entity.position);
+		Vector2 attackPos = Vector2Add(
+			enemy->entity.position,
+			(Vector2){
+				.x = cosf(angle) * enemy->attack->centerDist - enemy->attack->hitbox.rect.width / 2.0f,
+				.y = -(sinf(angle) * enemy->attack->centerDist + enemy->attack->hitbox.rect.height / 2.0f)
 			}
+		);
+		Rectangle attackHitbox = {
+			.x = attackPos.x,
+			.y = attackPos.y,
+			.width = enemy->attack->hitbox.rect.width,
+			.height = enemy->attack->hitbox.rect.height
+		};
+		ActiveAttack att = {
+			.attack = enemy->attack,
+			.elapsed = 0.0f,
+			.hitbox = attackHitbox,
+			.target = T_PLAYER
+		};
+		void* result = AddToPool(&level->attacks, &att);
+		if (result == NULL) {
+			LogDebug("Failed to allocate attack to pool");
+		}
+		LogDebug("Amount of active items: %d", level->attacks.activeItems);
+		SetStance(&enemy->entity, STANDING);
+		return;
+	}
 
-			// Get the closest player hitbox corner to the enemy position.
-			Vector2 closestCorner = ClosestRectCorner(
-				(Rectangle){
-					.x = player->entity.position.x + player->entity.hitbox.x,
-					.y = player->entity.position.y + player->entity.hitbox.y,
-					.width = player->entity.hitbox.width,
-					.height = player->entity.hitbox.height
-				},
-				enemy->entity.position
-			);
-			Direction dir = GetPointDirThreshold(
-				enemy->entity.position,
-				closestCorner,
-				enemy->entity.hitbox.width,
-				enemy->entity.hitbox.height
-			);
+	// In range for attack and no cooldown.
+	if (
+		dist <= maxRange
+		&& enemy->entity.stance != ATTACKING
+		&& (enemy->lastAttack == 0.0f || enemy->lastAttack + enemy->attackCd < level->playTime)
+	) {
+		SetStance(&enemy->entity, ATTACKING);
+		enemy->lastAttack = level->playTime;
+		return;
+	}
 
-			// Hitbox is close enough to player, ignore movement.
-			if (dir == NO_DIRECTION) {
-				return;
-			}
-			enemy->entity.dir = (Direction) dir;
-			bool isUp = IsBitSet(dir, 4);
-			bool isDown = IsBitSet(dir, 3);
-			bool isLeft = IsBitSet(dir, 2);
-			bool isRight = IsBitSet(dir, 1);
+	// TODO If mid pushback, cannot move nor attack.
 
-			// Have to check if there's another hitbox in the desired direction.
-			float maxSpeed = enemy->speed * dt;
+	if (enemy->behaviour == APPROACH) {
+		// Set direction towards player.
+		// Min distance is entity hitbox in front of player hitbox.
+		float xDiff = fabs(player->entity.position.x - enemy->entity.position.x);
+		float yDiff = fabs(player->entity.position.y - enemy->entity.position.y);
+		float xThreshold = player->entity.hitbox.width / 2.0f + enemy->entity.hitbox.width / 2.0f;
+		float yThreshold = player->entity.hitbox.height / 2.0f + enemy->entity.hitbox.height / 2.0f;
+		//float vecDist = Vector2Distance(player->entity.position, enemy->entity.position);
 
-			// Entity hitbox rectangle on its own with the future movement thresholds.
-			float neighbourXThres = isRight ? maxSpeed : (isLeft ? -maxSpeed : 0);
-			float neighbourYThres = isUp ? -maxSpeed : (isDown ? maxSpeed : 0);
+		// Entity is close enough to player, ignore movement.
+		if (xDiff <= xThreshold && yDiff <= yThreshold) {
+			SetStance(&enemy->entity, STANDING);
+			return;
+		}
 
-			// Pre-calculate all potential hitboxes so no need to recalcualte for every entity.
-			Rectangle hitBoxArea = {
-				.x = enemy->entity.position.x + enemy->entity.hitbox.x,
-				.y = enemy->entity.position.y + enemy->entity.hitbox.y,
-				.width = enemy->entity.hitbox.width,
-				.height = enemy->entity.hitbox.height
-			};
-			Rectangle movedRectX = hitBoxArea;
-			movedRectX.x += neighbourXThres;
-			Rectangle movedRectY = hitBoxArea;
-			movedRectY.y += neighbourYThres;
-			Rectangle movedRectBoth = hitBoxArea;
-			movedRectBoth.x += neighbourXThres;
-			movedRectBoth.y += neighbourYThres;
-			Rectangle entityWorldHitbox;
+		// Get the closest player hitbox corner to the enemy position.
+		Vector2 closestCorner = ClosestRectCorner(
+			(Rectangle){
+				.x = player->entity.position.x + player->entity.hitbox.x,
+				.y = player->entity.position.y + player->entity.hitbox.y,
+				.width = player->entity.hitbox.width,
+				.height = player->entity.hitbox.height
+			},
+			enemy->entity.position
+		);
+		Direction dir = GetPointDirThreshold(
+			enemy->entity.position,
+			closestCorner,
+			enemy->entity.hitbox.width,
+			enemy->entity.hitbox.height
+		);
 
-			for (int j = 0; j < level->entityCount; j++) {
-				if (!isLeft && !isRight && !isUp && !isDown) {
-					// We found out that the entity cannot move, no need for more calculations.
-					break;
-				}
-				if (enemy == &level->entities[j]) {
-					// Ignore self.
-					continue;
-				}
-				if (!level->entities[j].active) {
-					// Ignore inactive entities.
-					continue;
-				}
-				entityWorldHitbox = (Rectangle){
-					.x = level->entities[j].entity.position.x + level->entities[j].entity.hitbox.x,
-					.y = level->entities[j].entity.position.y + level->entities[j].entity.hitbox.y,
-					.width = level->entities[j].entity.hitbox.width,
-					.height = level->entities[j].entity.hitbox.height
-				};
-				// Check future hitbox for intended movements for each axis.
-				// We'll block unavailable movements per axis if necessary.
-				if (isLeft) {
-					if (DoesRectCollideRect(movedRectX, entityWorldHitbox)) {
-						isLeft = false;
-					}
-				}
-				if (isRight) {
-					if (DoesRectCollideRect(movedRectX, entityWorldHitbox)) {
-						isRight = false;
-					}
-				}
-				if (isUp) {
-					if (DoesRectCollideRect((isLeft || isRight ? movedRectBoth : movedRectY), entityWorldHitbox)) {
-						isUp = false;
-						continue;
-					}
-				}
-				if (isDown) {
-					if (DoesRectCollideRect((isLeft || isRight ? movedRectBoth : movedRectY), entityWorldHitbox)) {
-						isDown = false;
-						continue;
-					}
-				}
-			}
+		// Hitbox is close enough to player, ignore movement.
+		if (dir == NO_DIRECTION) {
+			SetStance(&enemy->entity, STANDING);
+			return;
+		}
+		enemy->entity.dir = (Direction) dir;
+		bool isUp = IsBitSet(dir, 4);
+		bool isDown = IsBitSet(dir, 3);
+		bool isLeft = IsBitSet(dir, 2);
+		bool isRight = IsBitSet(dir, 1);
 
-			// If the entity was completely stopped, we can check on next one already.
+		// Have to check if there's another hitbox in the desired direction.
+		float maxSpeed = enemy->speed * dt;
+
+		// Entity hitbox rectangle on its own with the future movement thresholds.
+		float neighbourXThres = isRight ? maxSpeed : (isLeft ? -maxSpeed : 0);
+		float neighbourYThres = isUp ? -maxSpeed : (isDown ? maxSpeed : 0);
+
+		// Pre-calculate all potential hitboxes so no need to recalcualte for every entity.
+		Rectangle hitBoxArea = {
+			.x = enemy->entity.position.x + enemy->entity.hitbox.x,
+			.y = enemy->entity.position.y + enemy->entity.hitbox.y,
+			.width = enemy->entity.hitbox.width,
+			.height = enemy->entity.hitbox.height
+		};
+		Rectangle movedRectX = hitBoxArea;
+		movedRectX.x += neighbourXThres;
+		Rectangle movedRectY = hitBoxArea;
+		movedRectY.y += neighbourYThres;
+		Rectangle movedRectBoth = hitBoxArea;
+		movedRectBoth.x += neighbourXThres;
+		movedRectBoth.y += neighbourYThres;
+		Rectangle entityWorldHitbox;
+
+		for (int j = 0; j < level->entityCount; j++) {
 			if (!isLeft && !isRight && !isUp && !isDown) {
-				//LogDebug("Enemy cannot move, obstacle");
-				// TODO: Find angle in respect to blocking entity and find a way around it to get to the player.
-				return;
+				// We found out that the entity cannot move, no need for more calculations.
+				break;
 			}
-
-			// Final movement.
-			float diagSpeed = maxSpeed * 0.7f;
+			if (enemy == &level->entities[j]) {
+				// Ignore self.
+				continue;
+			}
+			if (!level->entities[j].active) {
+				// Ignore inactive entities.
+				continue;
+			}
+			entityWorldHitbox = (Rectangle){
+				.x = level->entities[j].entity.position.x + level->entities[j].entity.hitbox.x,
+				.y = level->entities[j].entity.position.y + level->entities[j].entity.hitbox.y,
+				.width = level->entities[j].entity.hitbox.width,
+				.height = level->entities[j].entity.hitbox.height
+			};
+			// Check future hitbox for intended movements for each axis.
+			// We'll block unavailable movements per axis if necessary.
 			if (isLeft) {
-				enemy->entity.position.x -= (isUp || isDown ? diagSpeed : maxSpeed);
+				if (DoesRectCollideRect(movedRectX, entityWorldHitbox)) {
+					isLeft = false;
+				}
 			}
 			if (isRight) {
-				enemy->entity.position.x += (isUp || isDown ? diagSpeed : maxSpeed);
+				if (DoesRectCollideRect(movedRectX, entityWorldHitbox)) {
+					isRight = false;
+				}
 			}
 			if (isUp) {
-				enemy->entity.position.y -= (isLeft || isRight ? diagSpeed : maxSpeed);
+				if (DoesRectCollideRect((isLeft || isRight ? movedRectBoth : movedRectY), entityWorldHitbox)) {
+					isUp = false;
+					continue;
+				}
 			}
 			if (isDown) {
-				enemy->entity.position.y += (isLeft || isRight ? diagSpeed : maxSpeed);
+				if (DoesRectCollideRect((isLeft || isRight ? movedRectBoth : movedRectY), entityWorldHitbox)) {
+					isDown = false;
+					continue;
+				}
 			}
+		}
+
+		// If the entity was completely stopped, we can check on next one already.
+		if (!isLeft && !isRight && !isUp && !isDown) {
+			//LogDebug("Enemy cannot move, obstacle");
+			// TODO: Find angle in respect to blocking entity and find a way around it to get to the player.
+			SetStance(&enemy->entity, STANDING);
+			return;
+		}
+
+		// Final movement.
+		SetStance(&enemy->entity, WALKING);
+		float diagSpeed = maxSpeed * 0.7f;
+		if (isLeft) {
+			enemy->entity.position.x -= (isUp || isDown ? diagSpeed : maxSpeed);
+		}
+		if (isRight) {
+			enemy->entity.position.x += (isUp || isDown ? diagSpeed : maxSpeed);
+		}
+		if (isUp) {
+			enemy->entity.position.y -= (isLeft || isRight ? diagSpeed : maxSpeed);
+		}
+		if (isDown) {
+			enemy->entity.position.y += (isLeft || isRight ? diagSpeed : maxSpeed);
 		}
 	}
 }

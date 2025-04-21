@@ -9,8 +9,8 @@ bool IsActionPressed(GameAction action) {
 		case GO_DOWN: return IsKeyDown(KEY_DOWN) || IsKeyDown(KEY_S);
 		case ACCEPT: return IsKeyDown(KEY_ENTER);
 		case CANCEL: return IsKeyDown(KEY_X);
-		case ACTION_A: return IsKeyDown(KEY_Z);
-		case ACTION_B: return IsKeyDown(KEY_X);
+		case ACTION_A: return IsKeyDown(KEY_Z) || IsMouseButtonPressed(MOUSE_BUTTON_LEFT);
+		case ACTION_B: return IsKeyDown(KEY_X) || IsMouseButtonPressed(MOUSE_BUTTON_RIGHT);
 		case ACTION_C: return IsKeyDown(KEY_C);
 		case ACTION_D: return IsKeyDown(KEY_SPACE);
 		default: return false;

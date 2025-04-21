@@ -4,21 +4,18 @@
 #include <stdio.h>
 #include <raylib.h>
 
-#define LOG_DEBUG
 #define NULL ((void *)0)
 #define MAX_LEVEL 10
 #define LOG_YELL "\e[0;33m"
 #define LOG_PURP "\e[0;35m"
 #define LOG_ENDC "\e[0m"
 
+#define LOG_DEBUG
 #ifdef LOG_DEBUG
 #define LogDebug(fmt, ...) printf((LOG_YELL "[DEBUG]" LOG_ENDC LOG_PURP "[%s:%d]" LOG_ENDC " %s: " fmt "\n"), __FILE__, __LINE__, __PRETTY_FUNCTION__, ##__VA_ARGS__);
 #else
 #define LogDebug(...)
 #endif
-
-#define MemberSize(type, member) (sizeof(((type*) 0)->member))
-#define CreatePoolOf(type, length) CreatePool(length, sizeof(type));
 
 typedef struct {
 	Texture2D* texture;
@@ -47,29 +44,11 @@ typedef enum {
 	SOUTHWEST = 6
 } Direction;
 
-typedef struct {
-	int length;
-	int activeItems;
-	size_t itemSize;
-	bool* active;
-	void* data;
-} ObjectPool;
-
-typedef void (*PoolItemCallback)(ObjectPool* pool, int index, void* args);
-
 Vector2 ClosestRectCorner(Rectangle rect, Vector2 point);
-bool IsPointInRectangle(Vector2 point, Rectangle rect);
-bool DoesRectCollideCircle(Rectangle rect, Circle circle);
-bool IsPointInCircle(Vector2 point, Circle circle);
 bool IsBitSet(int val, int bit);
 Direction GetPointDir(Vector2 origin, Vector2 target);
 Direction GetPointDirThreshold(Vector2 origin, Vector2 target, float xThreshold, float yThreshold);
 bool DoesRectCollideRect(Rectangle rect, Rectangle rect2);
-ObjectPool CreatePool(const int length, const size_t itemSize);
-void* AddToPool(ObjectPool* pool, void* item);
-void RemoveFromPool(ObjectPool* pool, int index);
-void* PoolIndexAddress(ObjectPool* pool, int index);
-void IteratePool(ObjectPool* pool, PoolItemCallback callback, void* args);
 char* IntToString(int val);
 
 /**

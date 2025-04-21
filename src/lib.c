@@ -3,40 +3,10 @@
 #include <string.h>
 #include "lib.h"
 
-inline bool IsPointInRectangle(Vector2 point, Rectangle rect) {
-	return (
-		point.x >= rect.x
-		&& point.x <= rect.x + rect.width
-		&& point.y >= rect.y
-		&& point.y <= rect.y + rect.height
-	);
-}
-
 inline Vector2 ClosestRectCorner(Rectangle rect, Vector2 point) {
 	float closestX = point.x < rect.x ? rect.x : rect.x + rect.width;
 	float closestY = point.y < rect.y ? rect.y : rect.y + rect.height;
 	return (Vector2){ closestX, closestY };
-}
-
-inline bool IsPointInCircle(Vector2 point, Circle circle) {
-	float xDistance = fabs(point.x - circle.center.x);
-	float yDistance = fabs(point.y - circle.center.y);
-	if (xDistance > circle.radius || yDistance > circle.radius) {
-		return false;
-	}
-	if (xDistance + yDistance <= circle.radius) {
-		return true;
-	}
-	return (xDistance * xDistance + yDistance * yDistance <= circle.radius * circle.radius);
-}
-
-bool DoesRectCollideCircle(Rectangle rect, Circle circle) {
-	if (IsPointInRectangle(circle.center, rect)) {
-		return true;
-	}
-	Vector2 closestCorner = ClosestRectCorner(rect, circle.center);
-
-	return IsPointInCircle(closestCorner, circle);
 }
 
 bool DoesRectCollideRect(Rectangle rect, Rectangle rect2) {
@@ -111,6 +81,21 @@ inline Direction GetPointDirThreshold(Vector2 origin, Vector2 target, float xThr
 	return (Direction) dirs;
 }
 
+char* IntToString(int val) {
+	if (val == 0) {
+		char* text = malloc(2);
+		text[0] = '0';
+		text[1] = '\0';
+		return text;
+	}
+	int needed = snprintf(0, 0, "%d", val);
+	char* text = malloc(needed);
+	sprintf(text, "%d", val);
+
+	// Caller needs to remember to free.
+	return text;
+}
+
 // initializes mt[N] with a seed
 static inline void InitGenRand(MTRand* rand, unsigned long seed) {
 	rand->mt[0] = seed & 0xffffffffUL;
@@ -156,67 +141,4 @@ unsigned long GetRandomMTValue(MTRand* rand) {
 	y ^= (y >> 18);
 
 	return y;
-}
-
-ObjectPool CreatePool(const int length, const size_t itemSize) {
-	return (ObjectPool){
-		.length = length,
-		.itemSize = itemSize,
-		.active = malloc(sizeof(bool) * length),
-		.data = malloc(itemSize * length)
-	};
-}
-
-void* AddToPool(ObjectPool* pool, void* item) {
-	for (int i = 0; i < pool->length; i++) {
-		if (!pool->active[i]) {
-			pool->active[i] = true;
-			pool->activeItems++;
-			void* index = PoolIndexAddress(pool, i);
-			return memcpy(index, item, pool->itemSize);
-		}
-	}
-	return NULL;
-}
-
-void* PoolIndexAddress(ObjectPool* pool, int index) {
-	return (void*)((size_t)(pool->data) + (index * pool->itemSize));
-}
-
-void RemoveFromPool(ObjectPool* pool, int index) {
-	if (!pool->active[index]) {
-		return;
-	}
-	pool->active[index] = false;
-	pool->activeItems--;
-}
-
-void IteratePool(ObjectPool* pool, PoolItemCallback callback, void* args) {
-	if (pool == NULL || callback == NULL || pool->activeItems == 0 || pool->length == 0) {
-		return;
-	}
-	int i = 0, j = 0;
-	int maxActive = pool->activeItems;
-	while (j < maxActive && i < pool->length) {
-		if (pool->active[i]) {
-			callback(pool, i, args);
-			j++;
-		}
-		i++;
-	}
-}
-
-char* IntToString(int val) {
-	if (val == 0) {
-		char* text = malloc(2);
-		text[0] = '0';
-		text[1] = '\0';
-		return text;
-	}
-	int needed = snprintf(0, 0, "%d", val);
-	char* text = malloc(needed);
-	sprintf(text, "%d", val);
-
-	// Caller needs to remember to free.
-	return text;
 }

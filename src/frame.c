@@ -112,7 +112,7 @@ void DrawAttackCallback(ObjectPool* pool, int index, void* args) {
 	if (attack->attack->type == 2) {
 		// TODO: Attack animation here.
 		if (showGizmos) {
-			DrawCircleV(attack->center, attack->attack->data.radius, (Color){ 125, 11, 22, 230 });
+			DrawCircleV(attack->center, attack->attack->hitbox.radius, (Color){ 125, 11, 22, 230 });
 		}
 	}
 }

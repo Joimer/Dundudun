@@ -18,6 +18,14 @@ typedef struct {
 	bool active;
 } Invulnerability;
 
+// Hitboxes are either rectangles or circles.
+typedef union {
+	struct { float width; float height; } rect;
+	float radius;
+} Hitbox;
+
+typedef enum { STANDING, ATTACKING, WALKING, RUNNING, FLYING } Stance;
+
 typedef struct {
 	Sprite sprite;
 	Vector2 position;
@@ -26,6 +34,8 @@ typedef struct {
 	Invulnerability invuln;
 	Rectangle hitbox;
 	Direction dir;
+	Stance stance;
+	float stanceTime;
 } GameEntity;
 
 typedef struct {
@@ -55,27 +65,10 @@ typedef struct {
 	GameOptions* options;
 } GameContext;
 
-typedef struct {
-	bool dashing;
-	float elapsed;
-	Vector2 direction;
-	int max;
-	int consecutive;
-	// Total cooldown after a dash sequence
-	float cooldown;
-	// Time to wait until player can dash again.
-	float cdLeft;
-} Dash;
-
-typedef struct {
-	GameEntity entity;
-	float speed;
-	Dash dash;
-} Player;
-
 int RunGame(GameContext* context);
 unsigned long GenerateGameSeed();
 const char* SeedToString(unsigned long seed);
 void UpdateInvuln(GameEntity* entity, float dt);
+void SetStance(GameEntity* entity, Stance stance);
 
 #endif
