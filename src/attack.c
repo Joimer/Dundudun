@@ -23,7 +23,7 @@ Attack attacks[TOTAL_ATTACKS] = {
 	// Player melee hit.
 	{
 		.damage = 7,
-		.duration = 0.25f,
+		.duration = 0.15f,
 		.centerDist = 32.0f,
 		.type = HB_RECT,
 		.hitbox = { .rect = { 32.0f, 32.0f } },
@@ -31,7 +31,7 @@ Attack attacks[TOTAL_ATTACKS] = {
 	// Player shooting.
 	{
 		.damage = 5,
-		.duration = 0.33f,
+		.duration = 0.05f,
 		.centerDist = 0.0f,
 		.type = HB_CIRCLE,
 		.hitbox = { .radius = 2.5f }

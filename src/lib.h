@@ -56,7 +56,6 @@ Vector2 ClosestRectCorner(Rectangle rect, Vector2 point);
 bool IsBitSet(int val, int bit);
 Direction GetPointDir(Vector2 origin, Vector2 target);
 Direction GetPointDirThreshold(Vector2 origin, Vector2 target, float xThreshold, float yThreshold);
-bool DoesRectCollideRect(Rectangle rect, Rectangle rect2);
 char* IntToString(int val);
 
 /**

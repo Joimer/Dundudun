@@ -55,7 +55,7 @@ typedef struct {
 typedef struct {
 	float dt;
 	Player* player;
-	float levelTime;
+	Level* level;
 	ObjectPool* textPool;
 } AttackCbArgs;
 

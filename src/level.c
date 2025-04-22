@@ -59,9 +59,9 @@ Level GenerateLevel(GameContext* context, int floor) {
 					.layer = 4
 				},
 				.position = (Vector2){ pos, pos },
-				.health = 30,
-				.maxHealth = 30,
-				.invuln = {},
+				.health = 40,
+				.maxHealth = 40,
+				.invuln = (Invulnerability){ .duration = 0.5f },
 				.hitbox = { 0, 0, 16, 16 },
 				.dir = SOUTH
 			}
@@ -89,13 +89,23 @@ float MaxAttackRange(Enemy* enemy) {
 	return baseDist + 1.0f;
 }
 
+// TODO: This seems like it could use being broken down to a handful of functions
 static void UpdateEnemy(GameContext* context, Player* player, Level* level, Enemy* enemy, float dt) {
+	// Check for death.
+	if (enemy->entity.health <= 0) {
+		enemy->active = false;
+		// TODO: Death animation :)
+		return;
+	}
+
+	// Check invulnerability status.
+	UpdateInvuln(&enemy->entity, dt);
 	enemy->entity.stanceTime += dt;
 
 	// TODO: Own functions for entities for movement/action and state machine for those.
 	// Check if player is within the entity's active area.
 	if (player == NULL || !CheckCollisionPointCircle(
-		player->entity.position,enemy->entity.position, enemy->activeRadius
+		player->entity.position, enemy->entity.position, enemy->activeRadius
 	)) {
 		// Inactive status.
 		// If can be seen in screen or close by, idle behaviour.
@@ -190,12 +200,7 @@ static void UpdateEnemy(GameContext* context, Player* player, Level* level, Enem
 		float neighbourYThres = isUp ? -maxSpeed : (isDown ? maxSpeed : 0);
 
 		// Pre-calculate all potential hitboxes so no need to recalcualte for every entity.
-		Rectangle hitBoxArea = {
-			.x = enemy->entity.position.x + enemy->entity.hitbox.x,
-			.y = enemy->entity.position.y + enemy->entity.hitbox.y,
-			.width = enemy->entity.hitbox.width,
-			.height = enemy->entity.hitbox.height
-		};
+		Rectangle hitBoxArea = HitboxWorldPosition(&enemy->entity);
 		Rectangle movedRectX = hitBoxArea;
 		movedRectX.x += neighbourXThres;
 		Rectangle movedRectY = hitBoxArea;
@@ -218,32 +223,28 @@ static void UpdateEnemy(GameContext* context, Player* player, Level* level, Enem
 				// Ignore inactive entities.
 				continue;
 			}
-			entityWorldHitbox = (Rectangle){
-				.x = level->entities[j].entity.position.x + level->entities[j].entity.hitbox.x,
-				.y = level->entities[j].entity.position.y + level->entities[j].entity.hitbox.y,
-				.width = level->entities[j].entity.hitbox.width,
-				.height = level->entities[j].entity.hitbox.height
-			};
+
+			entityWorldHitbox = HitboxWorldPosition(&level->entities[j].entity);
 			// Check future hitbox for intended movements for each axis.
 			// We'll block unavailable movements per axis if necessary.
 			if (isLeft) {
-				if (DoesRectCollideRect(movedRectX, entityWorldHitbox)) {
+				if (CheckCollisionRecs(movedRectX, entityWorldHitbox)) {
 					isLeft = false;
 				}
 			}
 			if (isRight) {
-				if (DoesRectCollideRect(movedRectX, entityWorldHitbox)) {
+				if (CheckCollisionRecs(movedRectX, entityWorldHitbox)) {
 					isRight = false;
 				}
 			}
 			if (isUp) {
-				if (DoesRectCollideRect((isLeft || isRight ? movedRectBoth : movedRectY), entityWorldHitbox)) {
+				if (CheckCollisionRecs((isLeft || isRight ? movedRectBoth : movedRectY), entityWorldHitbox)) {
 					isUp = false;
 					continue;
 				}
 			}
 			if (isDown) {
-				if (DoesRectCollideRect((isLeft || isRight ? movedRectBoth : movedRectY), entityWorldHitbox)) {
+				if (CheckCollisionRecs((isLeft || isRight ? movedRectBoth : movedRectY), entityWorldHitbox)) {
 					isDown = false;
 					continue;
 				}
@@ -276,6 +277,43 @@ static void UpdateEnemy(GameContext* context, Player* player, Level* level, Enem
 	}
 }
 
+static void AttackHitEntity(AttackCbArgs* cbArgs, GameEntity* entity, ActiveAttack* attack) {
+	Rectangle hitbox = HitboxWorldPosition(entity);
+	if (attack->attack->type == 1) {
+		LogDebug("Checking hit collision");
+		if (CheckCollisionRecs(attack->hitbox, hitbox)) {
+			LogDebug("It did hit");
+			// Attack is hitting player.
+			entity->invuln.active = true;
+			// TODO: Instantiate blood splash on ground.
+			int damage = attack->attack->damage > entity->health ? entity->health : attack->attack->damage;
+			entity->health -= damage;
+			Vector2 spritePos = Vector2Subtract(entity->position, entity->sprite.position);
+			float startX = spritePos.x + entity->sprite.rect.width / 2.0f;
+			ActiveText txt = {
+				.content = IntToString(damage),
+				.start = (Vector2){ startX, spritePos.y },
+				.end = (Vector2){ startX, spritePos.y - 32.0f },
+				.startTime = cbArgs->level->playTime,
+				.endTime = cbArgs->level->playTime + 1.0f,
+				.fontSize = 15,
+				.color = attack->target == T_ENEMY ? DARKGREEN : RED
+			};
+			void* result = AddToPool(cbArgs->textPool, &txt);
+			if (result == NULL) {
+				LogDebug("Failed to allocate text to pool");
+			}
+		}
+	}
+	if (attack->attack->type == 2) {
+		/*Circle attackHitbox = {
+			.center = attack->center,
+			.radius = attack->attack->data.radius
+		};*/
+		// TODO
+	}
+}
+
 void AttackCallback(ObjectPool* pool, int index, void* args) {
 	// Ignore CB with invalid args, but does not mean item itself is invalid.
 	if (args == NULL) {
@@ -296,51 +334,36 @@ void AttackCallback(ObjectPool* pool, int index, void* args) {
 	// Add elapsed time.
 	attack->elapsed += cbArgs->dt;
 	if (
-		attack->target == T_PLAYER
+		(attack->target == T_PLAYER || attack->target == T_ALL)
 		&& cbArgs->player != NULL
 		&& CanPlayerBeHit(cbArgs->player)
 	) {
-		Rectangle playerHitbox = HitboxWorldPosition(&cbArgs->player->entity);
-		if (attack->attack->type == 1) {
-			LogDebug("Checking hit collision");
-			// TODO: Potentially 0 damage attacks that have effects.
-			if (DoesRectCollideRect(attack->hitbox, playerHitbox) && attack->attack->damage > 0) {
-				LogDebug("It did hit");
-				// Attack is hitting player.
-				cbArgs->player->entity.invuln.active = true;
-				// TODO: Instantiate blood splash on ground.
-				int damage = attack->attack->damage > cbArgs->player->entity.health ? cbArgs->player->entity.health : attack->attack->damage;
-				cbArgs->player->entity.health -= damage;
-				Vector2 playerSpritePos = Vector2Subtract(cbArgs->player->entity.position, cbArgs->player->entity.sprite.position);
-				float startX = playerSpritePos.x + cbArgs->player->entity.sprite.rect.width / 2.0f;
-				ActiveText txt = {
-					.content = IntToString(damage),
-					.start = (Vector2){ startX, playerSpritePos.y },
-					.end = (Vector2){ startX, playerSpritePos.y - 32.0f },
-					.startTime = cbArgs->levelTime,
-					.endTime = cbArgs->levelTime + 1.0f,
-					.fontSize = 15,
-					.color = RED
-				};
-				void* result = AddToPool(cbArgs->textPool, &txt);
-				if (result == NULL) {
-					LogDebug("Failed to allocate text to pool");
-				}
+		return AttackHitEntity(cbArgs, &cbArgs->player->entity, attack);
+	}
+
+	// Attack that can hit enemies, go over them.
+	// Attacks can modify intended enemy status and it's likely there'll be more attacks than enemies,
+	// thus we'd rather loop enemies here than attacks on enemy update.
+	if (cbArgs->level->entityCount > 0 && (attack->target == T_ENEMY || attack->target == T_ALL)) {
+		for (int i = 0; i < cbArgs->level->entityCount; i++) {
+			if (!cbArgs->level->entities[i].active) {
+				continue;
 			}
-		}
-		if (attack->attack->type == 2) {
-			/*Circle attackHitbox = {
-				.center = attack->center,
-				.radius = attack->attack->data.radius
-			};*/
-			// TODO
+			if (cbArgs->level->entities[i].entity.invuln.active
+				|| !CheckCollisionRecs(
+				attack->hitbox,
+				HitboxWorldPosition(&cbArgs->level->entities[i].entity)
+			)) {
+				continue;
+			}
+			// Attack hit this this entity.
+			AttackHitEntity(cbArgs, &cbArgs->level->entities[i].entity, attack);
 		}
 	}
 	return;
 
 	cleanup: RemoveFromPool(pool, index);
 }
-
 
 static void UpdatePlayer(GameContext* context, Level* level, Player* player, float delta) {
 	// Check invulnerability status.
@@ -368,25 +391,22 @@ static void UpdatePlayer(GameContext* context, Level* level, Player* player, flo
 		Weapon* usedWeapon = player->gear.weapons[player->gear.weaponSlot];
 		// If we are here, weapon cannot be null because it was used to start the attack.
 		// Check if the attack is complete.
-		if (player->entity.stanceTime < usedWeapon->attack->duration) {
-			// Attack is executing, player control is paused.
-			return;
+		if (player->entity.stanceTime > usedWeapon->attack->duration) {
+			// Attack finished.
+			SetStance(&player->entity, STANDING);
 		}
-		// Attack finished.
-		SetStance(&player->entity, STANDING);
 	}
 
 	// Movement actions being pressed to pick current direction.
 	Direction newDir = PlayerUpdateDirection(player);
 
 	// Execute dash.
-	if (IsActionPressed(ACTION_D) && player->dash.cdLeft == 0.0f) {
+	if (player->entity.stance != ATTACKING && IsActionPressed(ACTION_D) && player->dash.cdLeft == 0.0f) {
 		return PlayerStartDash(context, player);
 	}
 
-	Vector2 playerDir = DirectionToVector(player->entity.dir);
 	// Attack action.
-	if (IsActionPressed(ACTION_A)) {
+	if (player->entity.stance != ATTACKING && IsActionPressed(ACTION_A)) {
 		Weapon* usedWeapon = player->gear.weapons[player->gear.weaponSlot];
 		if (usedWeapon != NULL && usedWeapon->elapsed == 0.0f) {
 			if (usedWeapon->attack == NULL) {
@@ -407,6 +427,7 @@ static void UpdatePlayer(GameContext* context, Level* level, Player* player, flo
 
 	// Execute movement. Last action so other actions that may require directionality take precedence.
 	if (newDir != NO_DIRECTION) {
+		Vector2 playerDir = DirectionToVector(player->entity.dir);
 		player->entity.position = Vector2Add(player->entity.position, (Vector2){
 			playerDir.x * PLAYER_SPEED * delta,
 			playerDir.y * PLAYER_SPEED * delta,
@@ -431,7 +452,7 @@ void UpdateLevel(GameContext* context, Player* player, Level* level, float dt) {
 		AttackCbArgs args = {
 			.dt = dt,
 			.player = player,
-			.levelTime = level->playTime,
+			.level = level,
 			.textPool = &level->texts
 		};
 		IteratePool(&level->attacks, &AttackCallback, &args);

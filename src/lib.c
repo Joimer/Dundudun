@@ -9,23 +9,6 @@ inline Vector2 ClosestRectCorner(Rectangle rect, Vector2 point) {
 	return (Vector2){ closestX, closestY };
 }
 
-bool DoesRectCollideRect(Rectangle rect, Rectangle rect2) {
-	if (rect.x > rect2.x + rect2.width) {
-		return false;
-	}
-	if (rect2.x > rect.x + rect.width) {
-		return false;
-	}
-	if (rect.y + rect.height < rect2.y) {
-		return false;
-	}
-	if (rect2.y + rect2.height < rect.y) {
-		return false;
-	}
-
-	return true;
-}
-
 inline bool IsBitSet(int val, int bit) {
 	return val & (1 << (bit - 1));
 }

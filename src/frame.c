@@ -34,7 +34,7 @@ void DrawSprite(Sprite* sprite) {
 	DrawTextureRec(*sprite->texture, sprite->rect, sprite->position, WHITE);
 }
 
-void DrawEntity(GameEntity* entity, bool withGizmo) {
+static void DrawEntity(GameEntity* entity, bool withGizmo) {
 	if (entity == NULL) {
 		LogDebug("NULL pointer to entity!");
 		return;
@@ -173,6 +173,9 @@ static void RenderWorld(
 		// Enemies.
 		if (level->entities != NULL && level->entityCount > 0) {
 			for (int i = 0; i < level->entityCount; i++) {
+				if (!level->entities[i].active) {
+					continue;
+				}
 				DrawEntity(&level->entities[i].entity, context->options->showGizmos);
 				if (context->options->showGizmos) {
 					DrawCircleV(level->entities[i].entity.position, level->entities[i].activeRadius, (Color){ 255, 109, 194, 60 });
