@@ -5,6 +5,13 @@
 #include "game.h"
 #include "item.h"
 
+#define PLAYER_SPEED 200.0f
+#define PLAYER_MAX_WEAPONS 2
+
+#define DASH_SPEED_MULT 2.5f
+#define DASH_DURATION 0.25f
+#define DASH_LENGTH 150.0f
+
 typedef struct {
 	bool dashing;
 	float elapsed;
@@ -24,10 +31,12 @@ typedef struct {
 	Gear gear;
 } Player;
 
-
 Player CreatePlayer(Texture2D* characterTexture);
-void UpdatePlayer(GameContext* context, Player* player, float delta);
 int EquipWeapon(Player* player, Weapon* weapon);
 int SwapWeapon(Player* player);
+bool CanPlayerBeHit(Player* player);
+void PlayerDashUpdate(Player* player, float dt);
+void PlayerStartDash(GameContext* context, Player* player);
+Direction PlayerUpdateDirection(Player* player);
 
 #endif

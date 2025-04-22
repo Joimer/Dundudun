@@ -1,13 +1,12 @@
 #ifndef LEVEL_H
 #define LEVEL_H
 
-#define SEED_LENGTH 8
-#define BITS_PER_SEED_CHAR 6
-
+#include <raylib.h>
 #include "lib.h"
 #include "game.h"
 #include "object-pool.h"
 #include "character.h"
+#include "attack.h"
 
 #define DEFAULT_ENEMY_RADIUS 200.0f
 
@@ -18,17 +17,6 @@ typedef struct {
 	bool obstacle;
 	int damage;
 } Tile;
-
-typedef struct {
-	int damage;
-	float windup;
-	float duration;
-	// Distance from the center of the attacker and the center of the attack.
-	float centerDist;
-	// Hitbox type
-	int type;
-	Hitbox hitbox;
-} Attack;
 
 typedef enum { APPROACH, STAND, DISTANCE } EnemyBehaviour;
 
@@ -42,16 +30,6 @@ typedef struct {
 	float attackCd;
 	Attack* attack;
 } Enemy;
-
-typedef enum { T_PLAYER, T_ENEMY, T_ALL } AttackTarget;
-
-typedef struct {
-	Attack* attack;
-	float elapsed;
-	Vector2 center;
-	Rectangle hitbox;
-	AttackTarget target;
-} ActiveAttack;
 
 typedef struct {
 	char* content;

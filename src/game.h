@@ -9,6 +9,8 @@
 #include "screens.h"
 
 #define GAME_CLOSE_SUCCESS 0
+#define SEED_LENGTH 8
+#define BITS_PER_SEED_CHAR 6
 
 extern const Vector2 initialPos;
 
@@ -18,13 +20,7 @@ typedef struct {
 	bool active;
 } Invulnerability;
 
-// Hitboxes are either rectangles or circles.
-typedef union {
-	struct { float width; float height; } rect;
-	float radius;
-} Hitbox;
-
-typedef enum { STANDING, ATTACKING, WALKING, RUNNING, FLYING } Stance;
+typedef enum { STANDING, ATTACKING, WALKING, RUNNING, FLYING, DASHING } Stance;
 
 typedef struct {
 	Sprite sprite;
@@ -70,5 +66,6 @@ unsigned long GenerateGameSeed();
 const char* SeedToString(unsigned long seed);
 void UpdateInvuln(GameEntity* entity, float dt);
 void SetStance(GameEntity* entity, Stance stance);
+Vector2 GetWorldMousePos(GameContext* context);
 
 #endif

@@ -3,6 +3,9 @@
 
 #include <raylib.h>
 #include "game.h"
+#include "attack.h"
+
+#define TOTAL_WEAPONS 2
 
 typedef enum { MELEE, SHOOTING } WeaponType;
 
@@ -12,12 +15,15 @@ typedef struct {
 	float force;
 } Bullet;
 
+// A Weapon holds a type of attack.
+// Attacks have a windup and duration, but cooldown for usage is dependent on weapon.
+// TODO FIXME uuuh maybe attack.windup, duration, should be on the weapon and attack just be a collection of hitboxes with damage and associated sprite?
+// Later on I must add attack strings for melee weapons, therefor a single weapon should hold several attacks, but the cadence, cd, etc. is all on the weapon
 typedef struct {
-	int damage;
+	Attack* attack;
 	WeaponType type;
 	float cooldown;
-	Hitbox hitbox;
-	float centerDist;
+	float elapsed;
 } Weapon;
 
 typedef struct {
@@ -31,5 +37,7 @@ typedef struct {
 	Weapon** weapons;
 	Boots* boots;
 } Gear;
+
+Weapon* GetWeapon(int i);
 
 #endif

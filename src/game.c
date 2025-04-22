@@ -133,3 +133,19 @@ void SetStance(GameEntity* entity, Stance stance) {
 		entity->stanceTime = 0.0f;
 	}
 }
+
+Vector2 GetWorldMousePos(GameContext* context) {
+	Vector2 mousePos = GetMousePosition();
+	float worldHeight = (float) worldSize.height;
+	float worldWidth = (float) worldSize.width;
+	if (
+		context->options->screenSize.width != worldWidth
+		|| context->options->screenSize.height != worldHeight
+	) {
+		mousePos.x *= worldWidth / context->options->screenSize.width;
+		mousePos.y *= worldHeight / context->options->screenSize.height;
+	}
+	Vector2 realWorld = GetScreenToWorld2D(mousePos, context->state->camera);
+
+	return realWorld;
+}

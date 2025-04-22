@@ -6,6 +6,8 @@
 #define MemberSize(type, member) (sizeof(((type*) 0)->member))
 #define CreatePoolOf(type, length) CreatePool(length, sizeof(type));
 
+typedef enum { LEVEL_TEXT_POOL, LEVEL_ATTACK_POOL } PoolId;
+
 typedef struct {
 	int length;
 	int activeItems;

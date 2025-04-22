@@ -20,22 +20,6 @@ const ScreenSize resolutions[5] = {
 	{ .width = 1920, .height = 1080 },
 };
 
-Vector2 GetWorldMousePos(GameContext* context) {
-	Vector2 mousePos = GetMousePosition();
-	float worldHeight = (float) worldSize.height;
-	float worldWidth = (float) worldSize.width;
-	if (
-		context->options->screenSize.width != worldWidth
-		|| context->options->screenSize.height != worldHeight
-	) {
-		mousePos.x *= worldWidth / context->options->screenSize.width;
-		mousePos.y *= worldHeight / context->options->screenSize.height;
-	}
-	Vector2 realWorld = GetScreenToWorld2D(mousePos, context->state->camera);
-
-	return realWorld;
-}
-
 void DrawCursor(GameContext* context) {
 	context->options->cursor.position = GetWorldMousePos(context);
 	DrawTexture(
@@ -106,13 +90,14 @@ void DrawAttackCallback(ObjectPool* pool, int index, void* args) {
 	if (attack->attack->type == 1) {
 		// TODO: Attack animation here.
 		if (showGizmos) {
-			DrawRectangleRec(attack->hitbox, (Color){ 125, 11, 22, 230 });
+			Color color = attack->target == T_ENEMY ? (Color){ 0, 208, 8, 210 } : (Color){ 125, 11, 22, 210 };
+			DrawRectangleRec(attack->hitbox, color);
 		}
 	}
 	if (attack->attack->type == 2) {
 		// TODO: Attack animation here.
 		if (showGizmos) {
-			DrawCircleV(attack->center, attack->attack->hitbox.radius, (Color){ 125, 11, 22, 230 });
+			DrawCircleV(attack->center, attack->attack->hitbox.radius, (Color){ 125, 11, 22, 210 });
 		}
 	}
 }

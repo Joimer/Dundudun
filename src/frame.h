@@ -33,6 +33,4 @@ void DrawCursor(GameContext* context);
 void DrawSprite(Sprite* sprite);
 void DrawEntity(GameEntity* entity, bool withGizmo);
 
-Vector2 GetWorldMousePos(GameContext* context);
-
 #endif

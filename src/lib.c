@@ -142,3 +142,20 @@ unsigned long GetRandomMTValue(MTRand* rand) {
 
 	return y;
 }
+
+Vector2 DirectionToVector(Direction dir) {
+	float angle;
+	switch (dir) {
+		case NORTH: angle = DEG_90; break;
+		case SOUTH: angle = DEG_270; break;
+		case EAST: angle = DEG_360; break;
+		case WEST: angle = PI; break;
+		case NORTHEAST: angle = DEG_45; break;
+		case NORTHWEST: angle = DEG_135; break;
+		case SOUTHEAST: angle = DEG_315; break;
+		case SOUTHWEST: angle = DEG_225; break;
+		case NO_DIRECTION: angle = DEG_270; break;
+	}
+
+	return (Vector2){ .x = cosf(angle), .y = -(sinf(angle)) };
+}

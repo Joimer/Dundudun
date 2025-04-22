@@ -1,29 +1,14 @@
 #include <stdlib.h>
 #include <raylib.h>
 #include <string.h>
+#include "control.h"
 #include "level.h"
 #include "lib.h"
 #include "game.h"
 #include "character.h"
+#include "attack.h"
 
 #define ENEMY_DEFAULT_SPEED 150.0f
-
-static Attack attacks[2] = {
-	{
-		.damage = 5,
-		.duration = 0.33f,
-		.centerDist = 32.0f,
-		.type = 1,
-		.hitbox = { .rect = { 24.0f, 24.0f } }
-	},
-	{
-		.damage = 6,
-		.duration = 0.33f,
-		.centerDist = 32.0f,
-		.type = 2,
-		.hitbox = 24.0f
-	}
-};
 
 Rectangle HitboxWorldPosition(GameEntity* entity) {
 	return (Rectangle) {
@@ -63,7 +48,7 @@ Level GenerateLevel(GameContext* context, int floor) {
 			.activeRadius = DEFAULT_ENEMY_RADIUS,
 			.behaviour = APPROACH,
 			.speed = ENEMY_DEFAULT_SPEED,
-			.attack = &attacks[0],
+			.attack = GetAttack(0),
 			.lastAttack = 0.0f,
 			.attackCd = 2.0f,
 			.entity = (GameEntity){
@@ -94,10 +79,10 @@ float MaxAttackRange(Enemy* enemy) {
 		return 0.0f;
 	}
 	float baseDist = enemy->attack->centerDist;
-	if (enemy->attack->type == 1) {
+	if (enemy->attack->type == HB_RECT) {
 		baseDist += enemy->attack->hitbox.rect.height / 2.0f;
 	}
-	if (enemy->attack->type == 2) {
+	if (enemy->attack->type == HB_CIRCLE) {
 		baseDist += enemy->attack->hitbox.radius;
 	}
 
@@ -119,6 +104,8 @@ static void UpdateEnemy(GameContext* context, Player* player, Level* level, Enem
 		return;
 	}
 
+	// TODO If mid pushback, cannot move nor attack.
+
 	// Check if player is within range of entity attack.
 	float maxRange = MaxAttackRange(enemy);
 	float dist = Vector2Distance(enemy->entity.position, player->entity.position);
@@ -131,29 +118,10 @@ static void UpdateEnemy(GameContext* context, Player* player, Level* level, Enem
 		}
 
 		// Attack windup has finished, instantiate actual attack hitbox.
-		float angle = Vector2LineAngle(enemy->entity.position, player->entity.position);
-		Vector2 attackPos = Vector2Add(
-			enemy->entity.position,
-			(Vector2){
-				.x = cosf(angle) * enemy->attack->centerDist - enemy->attack->hitbox.rect.width / 2.0f,
-				.y = -(sinf(angle) * enemy->attack->centerDist + enemy->attack->hitbox.rect.height / 2.0f)
-			}
-		);
-		Rectangle attackHitbox = {
-			.x = attackPos.x,
-			.y = attackPos.y,
-			.width = enemy->attack->hitbox.rect.width,
-			.height = enemy->attack->hitbox.rect.height
-		};
-		ActiveAttack att = {
-			.attack = enemy->attack,
-			.elapsed = 0.0f,
-			.hitbox = attackHitbox,
-			.target = T_PLAYER
-		};
+		ActiveAttack att = InitiateAttack(&enemy->entity, &player->entity.position, enemy->attack, T_PLAYER);
 		void* result = AddToPool(&level->attacks, &att);
 		if (result == NULL) {
-			LogDebug("Failed to allocate attack to pool");
+			LogDebug("Failed to allocate enemy attack on object pool");
 		}
 		LogDebug("Amount of active items: %d", level->attacks.activeItems);
 		SetStance(&enemy->entity, STANDING);
@@ -170,8 +138,6 @@ static void UpdateEnemy(GameContext* context, Player* player, Level* level, Enem
 		enemy->lastAttack = level->playTime;
 		return;
 	}
-
-	// TODO If mid pushback, cannot move nor attack.
 
 	if (enemy->behaviour == APPROACH) {
 		// Set direction towards player.
@@ -329,7 +295,11 @@ void AttackCallback(ObjectPool* pool, int index, void* args) {
 	AttackCbArgs* cbArgs = (AttackCbArgs*) args;
 	// Add elapsed time.
 	attack->elapsed += cbArgs->dt;
-	if (cbArgs->player != NULL && !cbArgs->player->dash.dashing && !cbArgs->player->entity.invuln.active) {
+	if (
+		attack->target == T_PLAYER
+		&& cbArgs->player != NULL
+		&& CanPlayerBeHit(cbArgs->player)
+	) {
 		Rectangle playerHitbox = HitboxWorldPosition(&cbArgs->player->entity);
 		if (attack->attack->type == 1) {
 			LogDebug("Checking hit collision");
@@ -371,6 +341,79 @@ void AttackCallback(ObjectPool* pool, int index, void* args) {
 	cleanup: RemoveFromPool(pool, index);
 }
 
+
+static void UpdatePlayer(GameContext* context, Level* level, Player* player, float delta) {
+	// Check invulnerability status.
+	UpdateInvuln(&player->entity, delta);
+
+	// Update physics and status counters.
+	// Each entity has their own because they could be individually frozen.
+	player->entity.stanceTime += delta;
+
+	// Player is mid dash, no control on actions until it is finished.
+	if (player->dash.dashing) {
+		return PlayerDashUpdate(player, delta);
+	}
+
+	// Update dash cooldown only after it has finished, as it is set at the end of the dash.
+	if (player->dash.cdLeft > 0) {
+		player->dash.cdLeft -= delta > player->dash.cdLeft ? player->dash.cdLeft : delta;
+	}
+
+	// TODO: Add pushback here.
+	// Player cannot move or act during a pushback action.
+
+	// Check if player is in the middle of an attack sequence.
+	if (player->entity.stance == ATTACKING) {
+		Weapon* usedWeapon = player->gear.weapons[player->gear.weaponSlot];
+		// If we are here, weapon cannot be null because it was used to start the attack.
+		// Check if the attack is complete.
+		if (player->entity.stanceTime < usedWeapon->attack->duration) {
+			// Attack is executing, player control is paused.
+			return;
+		}
+		// Attack finished.
+		SetStance(&player->entity, STANDING);
+	}
+
+	// Movement actions being pressed to pick current direction.
+	Direction newDir = PlayerUpdateDirection(player);
+
+	// Execute dash.
+	if (IsActionPressed(ACTION_D) && player->dash.cdLeft == 0.0f) {
+		return PlayerStartDash(context, player);
+	}
+
+	Vector2 playerDir = DirectionToVector(player->entity.dir);
+	// Attack action.
+	if (IsActionPressed(ACTION_A)) {
+		Weapon* usedWeapon = player->gear.weapons[player->gear.weaponSlot];
+		if (usedWeapon != NULL && usedWeapon->elapsed == 0.0f) {
+			if (usedWeapon->attack == NULL) {
+				LogDebug("NULL attack on player weapon! %d %f", usedWeapon->type, usedWeapon->cooldown);
+				return;
+			}
+			//usedWeapon->centerDist;
+			SetStance(&player->entity, ATTACKING);
+			// Create attack.
+			Vector2 mpos = GetWorldMousePos(context);
+			ActiveAttack att = InitiateAttack(&player->entity, &mpos, usedWeapon->attack, T_ENEMY);
+			void* result = AddToPool(&level->attacks, &att);
+			if (result == NULL) {
+				LogDebug("Failed to allocate character attack on object pool");
+			}
+		}
+	}
+
+	// Execute movement. Last action so other actions that may require directionality take precedence.
+	if (newDir != NO_DIRECTION) {
+		player->entity.position = Vector2Add(player->entity.position, (Vector2){
+			playerDir.x * PLAYER_SPEED * delta,
+			playerDir.y * PLAYER_SPEED * delta,
+		});
+	}
+}
+
 void UpdateLevel(GameContext* context, Player* player, Level* level, float dt) {
 	if (level == NULL) {
 		return;
@@ -378,7 +421,7 @@ void UpdateLevel(GameContext* context, Player* player, Level* level, float dt) {
 	level->playTime += dt;
 
 	if (player != NULL) {
-		UpdatePlayer(context, player, dt);
+		UpdatePlayer(context, level, player, dt);
 		context->state->camera.target = player->entity.position;
 	}
 

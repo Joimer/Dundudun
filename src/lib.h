@@ -17,6 +17,14 @@
 #define LogDebug(...)
 #endif
 
+#define DEG_360 PI * 2.0f
+#define DEG_45 PI / 4.0f
+#define DEG_90 PI / 2.0f
+#define DEG_135 3.0f * PI / 4.0f
+#define DEG_225 5.0f * PI / 4.0f
+#define DEG_270 3.0f * PI / 2.0f
+#define DEG_315 7.0f * PI / 4.0f
+
 typedef struct {
 	Texture2D* texture;
 	Rectangle rect;
@@ -73,5 +81,6 @@ typedef struct {
 
 MTRand SeedMTRand(unsigned long seed);
 unsigned long GetRandomMTValue(MTRand* rand);
+Vector2 DirectionToVector(Direction dir);
 
 #endif

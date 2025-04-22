@@ -17,6 +17,9 @@
 		"stdint.h": "c",
 		"types.h": "c",
 		"resource.h": "c",
-		"stdbool.h": "c"
+		"stdbool.h": "c",
+		"object-pool.h": "c",
+		"attack.h": "c",
+		"item.h": "c"
 	}
 }
