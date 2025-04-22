@@ -53,7 +53,15 @@ static void DrawEntity(GameEntity* entity, bool withGizmo) {
 	if (entity->sprite.texture != NULL) {
 		DrawTextureRec(
 			*entity->sprite.texture,
-			entity->sprite.rect,
+			// Hacky flip for going left for now.
+			IsBitSet(entity->dir, 2) ?
+				(Rectangle){
+					entity->sprite.rect.x,
+					entity->sprite.rect.y,
+					entity->sprite.rect.width * -1,
+					entity->sprite.rect.height
+				}
+				: entity->sprite.rect,
 			// For a GameEntity, its Sprite position is relative to the entity position.
 			Vector2Subtract(entity->position, entity->sprite.position),
 			doDraw ? WHITE : (Color){ 255, 255, 255, 10 }

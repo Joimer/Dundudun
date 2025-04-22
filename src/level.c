@@ -89,6 +89,27 @@ float MaxAttackRange(Enemy* enemy) {
 	return baseDist + 1.0f;
 }
 
+static bool DoesCollideAny(Level* level, GameEntity* self, Rectangle* newPos) {
+	for (int j = 0; j < level->entityCount; j++) {
+		if (!level->entities[j].active) {
+			// Ignore inactive entities.
+			continue;
+		}
+		if (self == &level->entities[j].entity) {
+			// Ignore self.
+			continue;
+		}
+
+		// Check collision with entity.
+		Rectangle entityWorldHitbox = HitboxWorldPosition(&level->entities[j].entity);
+		if (CheckCollisionRecs(entityWorldHitbox, *newPos)) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
 // TODO: This seems like it could use being broken down to a handful of functions
 static void UpdateEnemy(GameContext* context, Player* player, Level* level, Enemy* enemy, float dt) {
 	// Check for death.
@@ -267,10 +288,14 @@ static void UpdateEnemy(GameContext* context, Player* player, Level* level, Enem
 
 	// Update entity position according to its movement.
 	if (enemy->entity.speed > 0.0f) {
-		enemy->entity.position = Vector2Add(enemy->entity.position, (Vector2){
+		// TODO: When colliding with pushback, full stop is not the most adequate...
+		Vector2 newPos = Vector2Add(enemy->entity.position, (Vector2){
 			enemy->entity.anglev.x * enemy->entity.speed * dt,
 			enemy->entity.anglev.y * enemy->entity.speed * dt,
 		});
+		if (!DoesCollideAny(level, &enemy->entity, &newPos)) {
+			enemy->entity.position = newPos;
+		}
 	}
 	return;
 
