@@ -37,6 +37,8 @@ typedef struct {
 	Vector2 center;
 	Rectangle hitbox;
 	AttackTarget target;
+	float stunDuration;
+	float pushForce;
 } ActiveAttack;
 
 ActiveAttack InitiateAttack(GameEntity* attacker, Vector2* target, Attack* attack, AttackTarget at);

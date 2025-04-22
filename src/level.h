@@ -25,6 +25,8 @@ typedef struct {
 	float activeRadius;
 	EnemyBehaviour behaviour;
 	bool active;
+	// This is the base speed of the enemy.
+	// Can be modified. Entity holds final speed.
 	float speed;
 	float lastAttack;
 	float attackCd;

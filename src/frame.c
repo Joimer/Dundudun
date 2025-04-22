@@ -63,7 +63,7 @@ static void DrawEntity(GameEntity* entity, bool withGizmo) {
 		DrawRectangleV(Vector2SubtractValue(entity->position, 16), (Vector2){ 32, 32 }, doDraw ? RED : (Color){ 230, 41, 55, 10 });
 	}
 	if (withGizmo) {
-		DrawRectangleRec(HitboxWorldPosition(entity), (Color){ 230, 41, 55, 60 });
+		DrawRectangleRec(HitboxWorldPosition(entity), (Color){ 135, 60, 190, 80 });
 
 		// Show current entity direction.
 		int endPosX = entity->dir == EAST || entity->dir == NORTHEAST || entity->dir == SOUTHEAST ?
@@ -89,16 +89,16 @@ void DrawAttackCallback(ObjectPool* pool, int index, void* args) {
 	bool showGizmos = *((bool*) args);
 	if (attack->attack->type == 1) {
 		// TODO: Attack animation here.
-		if (showGizmos) {
+		//if (showGizmos) {
 			Color color = attack->target == T_ENEMY ? (Color){ 0, 208, 8, 210 } : (Color){ 125, 11, 22, 210 };
 			DrawRectangleRec(attack->hitbox, color);
-		}
+		//}
 	}
 	if (attack->attack->type == 2) {
 		// TODO: Attack animation here.
-		if (showGizmos) {
+		//if (showGizmos) {
 			DrawCircleV(attack->center, attack->attack->hitbox.radius, (Color){ 125, 11, 22, 210 });
-		}
+		//}
 	}
 }
 

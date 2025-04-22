@@ -29,9 +29,20 @@ typedef struct {
 	int health;
 	Invulnerability invuln;
 	Rectangle hitbox;
+	// Direction the entity is facing.
+	// Cues sprite position.
 	Direction dir;
+	// Movement vector out of an angle.
+	Vector2 anglev;
+	// Speed at which the entity will move in its angle.
+	float speed;
+	// Entity state and the time it's been in that state.
 	Stance stance;
 	float stanceTime;
+	// Stun status.
+	bool stunned;
+	float stunElapsed;
+	float stunDuration;
 } GameEntity;
 
 typedef struct {

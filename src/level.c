@@ -62,7 +62,7 @@ Level GenerateLevel(GameContext* context, int floor) {
 				.health = 40,
 				.maxHealth = 40,
 				.invuln = (Invulnerability){ .duration = 0.5f },
-				.hitbox = { 0, 0, 16, 16 },
+				.hitbox = { -8, -8, 16, 16 },
 				.dir = SOUTH
 			}
 		};
@@ -102,26 +102,18 @@ static void UpdateEnemy(GameContext* context, Player* player, Level* level, Enem
 	UpdateInvuln(&enemy->entity, dt);
 	enemy->entity.stanceTime += dt;
 
-	// TODO: Own functions for entities for movement/action and state machine for those.
-	// Check if player is within the entity's active area.
-	if (player == NULL || !CheckCollisionPointCircle(
-		player->entity.position, enemy->entity.position, enemy->activeRadius
-	)) {
-		// Inactive status.
-		// If can be seen in screen or close by, idle behaviour.
-		// Otherwise, completely ignore.
-		SetStance(&enemy->entity, STANDING);
-		return;
+	// Check stunned status.
+	if (enemy->entity.stunned) {
+		enemy->entity.stunElapsed += dt;
+		if (enemy->entity.stunElapsed >= enemy->entity.stunDuration) {
+			enemy->entity.stunned = false;
+			// TODO: Probably better to manage these forces in a different way...
+			enemy->entity.speed = 0.0f;
+		}
 	}
 
-	// TODO If mid pushback, cannot move nor attack.
-
-	// Check if player is within range of entity attack.
-	float maxRange = MaxAttackRange(enemy);
-	float dist = Vector2Distance(enemy->entity.position, player->entity.position);
-
 	// Enemy is winding up an attack.
-	if (enemy->entity.stance == ATTACKING) {
+	if (!enemy->entity.stunned && enemy->entity.stance == ATTACKING) {
 		if (enemy->entity.stanceTime < enemy->attack->windup) {
 			// Winding up attack, nothing to do here.
 			return;
@@ -134,176 +126,163 @@ static void UpdateEnemy(GameContext* context, Player* player, Level* level, Enem
 			LogDebug("Failed to allocate enemy attack on object pool");
 		}
 		LogDebug("Amount of active items: %d", level->attacks.activeItems);
-		SetStance(&enemy->entity, STANDING);
-		return;
+		goto stand;
 	}
 
-	// In range for attack and no cooldown.
-	if (
-		dist <= maxRange
-		&& enemy->entity.stance != ATTACKING
-		&& (enemy->lastAttack == 0.0f || enemy->lastAttack + enemy->attackCd < level->playTime)
-	) {
-		SetStance(&enemy->entity, ATTACKING);
-		enemy->lastAttack = level->playTime;
-		return;
+	// TODO: Own functions for entities for movement/action and state machine for those.
+	// Check if player is within the entity's active area.
+	if (!enemy->entity.stunned && (player == NULL || !CheckCollisionPointCircle(
+		player->entity.position, enemy->entity.position, enemy->activeRadius
+	))) {
+		// Inactive status.
+		// If can be seen in screen or close by, idle behaviour.
+		// Otherwise, completely ignore.
+		// TODO: Idle.
+		goto stand;
 	}
 
-	if (enemy->behaviour == APPROACH) {
-		// Set direction towards player.
-		// Min distance is entity hitbox in front of player hitbox.
-		float xDiff = fabs(player->entity.position.x - enemy->entity.position.x);
-		float yDiff = fabs(player->entity.position.y - enemy->entity.position.y);
-		float xThreshold = player->entity.hitbox.width / 2.0f + enemy->entity.hitbox.width / 2.0f;
-		float yThreshold = player->entity.hitbox.height / 2.0f + enemy->entity.hitbox.height / 2.0f;
-		//float vecDist = Vector2Distance(player->entity.position, enemy->entity.position);
+	// Check for attacking behaviour.
+	if (!enemy->entity.stunned) {
+		// Check if entity status allows for attack.
+		if (
+			enemy->entity.stance != ATTACKING
+			&& (enemy->lastAttack == 0.0f || enemy->lastAttack + enemy->attackCd < level->playTime)
+		) {
+			// Check if player is within range of entity attack.
+			float maxRange = MaxAttackRange(enemy);
+			float dist = Vector2Distance(enemy->entity.position, player->entity.position);
 
-		// Entity is close enough to player, ignore movement.
-		if (xDiff <= xThreshold && yDiff <= yThreshold) {
-			SetStance(&enemy->entity, STANDING);
-			return;
+			// In range for attack and no cooldown.
+			if (dist <= maxRange) {
+				// Initiate attack and finish.
+				SetStance(&enemy->entity, ATTACKING);
+				enemy->lastAttack = level->playTime;
+				return;
+			}
 		}
 
-		// Get the closest player hitbox corner to the enemy position.
-		Vector2 closestCorner = ClosestRectCorner(
-			(Rectangle){
-				.x = player->entity.position.x + player->entity.hitbox.x,
-				.y = player->entity.position.y + player->entity.hitbox.y,
-				.width = player->entity.hitbox.width,
-				.height = player->entity.hitbox.height
-			},
-			enemy->entity.position
-		);
-		Direction dir = GetPointDirThreshold(
-			enemy->entity.position,
-			closestCorner,
-			enemy->entity.hitbox.width,
-			enemy->entity.hitbox.height
-		);
+		if (enemy->behaviour == APPROACH) {
+			// Set direction towards player.
+			// Min distance is entity hitbox in front of player hitbox.
+			float xDiff = fabs(player->entity.position.x - enemy->entity.position.x);
+			float yDiff = fabs(player->entity.position.y - enemy->entity.position.y);
+			float xThreshold = player->entity.hitbox.width / 2.0f + enemy->entity.hitbox.width / 2.0f;
+			float yThreshold = player->entity.hitbox.height / 2.0f + enemy->entity.hitbox.height / 2.0f;
+			//float vecDist = Vector2Distance(player->entity.position, enemy->entity.position);
 
-		// Hitbox is close enough to player, ignore movement.
-		if (dir == NO_DIRECTION) {
-			SetStance(&enemy->entity, STANDING);
-			return;
-		}
-		enemy->entity.dir = (Direction) dir;
-		bool isUp = IsBitSet(dir, 4);
-		bool isDown = IsBitSet(dir, 3);
-		bool isLeft = IsBitSet(dir, 2);
-		bool isRight = IsBitSet(dir, 1);
-
-		// Have to check if there's another hitbox in the desired direction.
-		float maxSpeed = enemy->speed * dt;
-
-		// Entity hitbox rectangle on its own with the future movement thresholds.
-		float neighbourXThres = isRight ? maxSpeed : (isLeft ? -maxSpeed : 0);
-		float neighbourYThres = isUp ? -maxSpeed : (isDown ? maxSpeed : 0);
-
-		// Pre-calculate all potential hitboxes so no need to recalcualte for every entity.
-		Rectangle hitBoxArea = HitboxWorldPosition(&enemy->entity);
-		Rectangle movedRectX = hitBoxArea;
-		movedRectX.x += neighbourXThres;
-		Rectangle movedRectY = hitBoxArea;
-		movedRectY.y += neighbourYThres;
-		Rectangle movedRectBoth = hitBoxArea;
-		movedRectBoth.x += neighbourXThres;
-		movedRectBoth.y += neighbourYThres;
-		Rectangle entityWorldHitbox;
-
-		for (int j = 0; j < level->entityCount; j++) {
-			if (!isLeft && !isRight && !isUp && !isDown) {
-				// We found out that the entity cannot move, no need for more calculations.
-				break;
-			}
-			if (enemy == &level->entities[j]) {
-				// Ignore self.
-				continue;
-			}
-			if (!level->entities[j].active) {
-				// Ignore inactive entities.
-				continue;
+			// Entity is close enough to player, ignore movement.
+			if (xDiff <= xThreshold && yDiff <= yThreshold) {
+				goto stand;
 			}
 
-			entityWorldHitbox = HitboxWorldPosition(&level->entities[j].entity);
-			// Check future hitbox for intended movements for each axis.
-			// We'll block unavailable movements per axis if necessary.
-			if (isLeft) {
-				if (CheckCollisionRecs(movedRectX, entityWorldHitbox)) {
-					isLeft = false;
+			// Get the closest player hitbox corner to the enemy position.
+			Vector2 closestCorner = ClosestRectCorner(
+				(Rectangle){
+					.x = player->entity.position.x + player->entity.hitbox.x,
+					.y = player->entity.position.y + player->entity.hitbox.y,
+					.width = player->entity.hitbox.width,
+					.height = player->entity.hitbox.height
+				},
+				enemy->entity.position
+			);
+			Direction dir = GetPointDirThreshold(
+				enemy->entity.position,
+				closestCorner,
+				enemy->entity.hitbox.width,
+				enemy->entity.hitbox.height
+			);
+
+			// Hitbox is close enough to player, ignore movement.
+			if (dir == NO_DIRECTION) {
+				goto stand;
+			}
+
+			// Have to check if there's another hitbox in the desired direction.
+			float maxSpeed = enemy->speed * dt;
+
+			// Entity hitbox rectangle on its own with the future movement thresholds.
+			float neighbourXThres = IsBitSet(dir, 1) ? maxSpeed : (IsBitSet(dir, 2) ? -maxSpeed : 0);
+			float neighbourYThres = IsBitSet(dir, 4) ? -maxSpeed : (IsBitSet(dir, 3) ? maxSpeed : 0);
+
+			// Pre-calculate all potential hitboxes so no need to recalcualte for every entity.
+			Rectangle hitBoxArea = HitboxWorldPosition(&enemy->entity);
+			Rectangle movedRectX = hitBoxArea;
+			movedRectX.x += neighbourXThres;
+			Rectangle movedRectY = hitBoxArea;
+			movedRectY.y += neighbourYThres;
+			Rectangle movedRectBoth = hitBoxArea;
+			movedRectBoth.x += neighbourXThres;
+			movedRectBoth.y += neighbourYThres;
+			Rectangle entityWorldHitbox;
+
+			for (int j = 0; j < level->entityCount; j++) {
+				if (dir == NO_DIRECTION) {
+					// We found out that the entity cannot move, no need for more calculations.
+					break;
 				}
-			}
-			if (isRight) {
-				if (CheckCollisionRecs(movedRectX, entityWorldHitbox)) {
-					isRight = false;
-				}
-			}
-			if (isUp) {
-				if (CheckCollisionRecs((isLeft || isRight ? movedRectBoth : movedRectY), entityWorldHitbox)) {
-					isUp = false;
+				if (enemy == &level->entities[j]) {
+					// Ignore self.
 					continue;
 				}
-			}
-			if (isDown) {
-				if (CheckCollisionRecs((isLeft || isRight ? movedRectBoth : movedRectY), entityWorldHitbox)) {
-					isDown = false;
+				if (!level->entities[j].active) {
+					// Ignore inactive entities.
 					continue;
 				}
+
+				entityWorldHitbox = HitboxWorldPosition(&level->entities[j].entity);
+				// Check future hitbox for intended movements for each axis.
+				// We'll block unavailable movements per axis if necessary.
+				if (IsBitSet(dir, 2) && CheckCollisionRecs(movedRectX, entityWorldHitbox)) {
+					dir &= ~(1 << 1);
+				}
+				if (IsBitSet(dir, 1) && CheckCollisionRecs(movedRectX, entityWorldHitbox)) {
+					dir &= ~1;
+				}
+				if (IsBitSet(dir, 4)) {
+					if (CheckCollisionRecs((IsBitSet(dir, 2) || IsBitSet(dir, 1) ? movedRectBoth : movedRectY), entityWorldHitbox)) {
+						dir &= ~(1 << 3);
+						continue;
+					}
+				}
+				if (IsBitSet(dir, 3)) {
+					if (CheckCollisionRecs((IsBitSet(dir, 2) || IsBitSet(dir, 1) ? movedRectBoth : movedRectY), entityWorldHitbox)) {
+						dir &= ~(1 << 2);
+						continue;
+					}
+				}
 			}
-		}
 
-		// If the entity was completely stopped, we can check on next one already.
-		if (!isLeft && !isRight && !isUp && !isDown) {
-			//LogDebug("Enemy cannot move, obstacle");
-			// TODO: Find angle in respect to blocking entity and find a way around it to get to the player.
-			SetStance(&enemy->entity, STANDING);
-			return;
-		}
-
-		// Final movement.
-		SetStance(&enemy->entity, WALKING);
-		float diagSpeed = maxSpeed * 0.7f;
-		if (isLeft) {
-			enemy->entity.position.x -= (isUp || isDown ? diagSpeed : maxSpeed);
-		}
-		if (isRight) {
-			enemy->entity.position.x += (isUp || isDown ? diagSpeed : maxSpeed);
-		}
-		if (isUp) {
-			enemy->entity.position.y -= (isLeft || isRight ? diagSpeed : maxSpeed);
-		}
-		if (isDown) {
-			enemy->entity.position.y += (isLeft || isRight ? diagSpeed : maxSpeed);
+			// If the entity was completely stopped, we can check on next one already.
+			if (dir == NO_DIRECTION) {
+				//LogDebug("Enemy cannot move, obstacle");
+				// TODO: Find angle in respect to blocking entity and find a way around it to get to the player.
+				goto stand;
+			}
+			SetStance(&enemy->entity, WALKING);
+			enemy->entity.dir = dir;
+			enemy->entity.speed = enemy->speed;
+			enemy->entity.anglev = DirectionToVector(enemy->entity.dir);
 		}
 	}
+
+	// Update entity position according to its movement.
+	if (enemy->entity.speed > 0.0f) {
+		enemy->entity.position = Vector2Add(enemy->entity.position, (Vector2){
+			enemy->entity.anglev.x * enemy->entity.speed * dt,
+			enemy->entity.anglev.y * enemy->entity.speed * dt,
+		});
+	}
+	return;
+
+	stand: SetStance(&enemy->entity, STANDING);
+	enemy->entity.speed = 0.0f;
 }
 
 static void AttackHitEntity(AttackCbArgs* cbArgs, GameEntity* entity, ActiveAttack* attack) {
 	Rectangle hitbox = HitboxWorldPosition(entity);
+	bool doesHit = false;
 	if (attack->attack->type == 1) {
-		LogDebug("Checking hit collision");
-		if (CheckCollisionRecs(attack->hitbox, hitbox)) {
-			LogDebug("It did hit");
-			// Attack is hitting player.
-			entity->invuln.active = true;
-			// TODO: Instantiate blood splash on ground.
-			int damage = attack->attack->damage > entity->health ? entity->health : attack->attack->damage;
-			entity->health -= damage;
-			Vector2 spritePos = Vector2Subtract(entity->position, entity->sprite.position);
-			float startX = spritePos.x + entity->sprite.rect.width / 2.0f;
-			ActiveText txt = {
-				.content = IntToString(damage),
-				.start = (Vector2){ startX, spritePos.y },
-				.end = (Vector2){ startX, spritePos.y - 32.0f },
-				.startTime = cbArgs->level->playTime,
-				.endTime = cbArgs->level->playTime + 1.0f,
-				.fontSize = 15,
-				.color = attack->target == T_ENEMY ? DARKGREEN : RED
-			};
-			void* result = AddToPool(cbArgs->textPool, &txt);
-			if (result == NULL) {
-				LogDebug("Failed to allocate text to pool");
-			}
-		}
+		doesHit = CheckCollisionRecs(attack->hitbox, hitbox);
 	}
 	if (attack->attack->type == 2) {
 		/*Circle attackHitbox = {
@@ -311,6 +290,39 @@ static void AttackHitEntity(AttackCbArgs* cbArgs, GameEntity* entity, ActiveAtta
 			.radius = attack->attack->data.radius
 		};*/
 		// TODO
+	}
+	if (!doesHit) {
+		return;
+	}
+	// Attack is hitting entity.
+	// TODO: Instantiate blood splash on ground.
+	entity->invuln.active = true;
+	int damage = attack->attack->damage > entity->health ? entity->health : attack->attack->damage;
+	entity->health -= damage;
+	Vector2 spritePos = Vector2Subtract(entity->position, entity->sprite.position);
+	float startX = spritePos.x + entity->sprite.rect.width / 2.0f;
+	ActiveText txt = {
+		.content = IntToString(damage),
+		.start = (Vector2){ startX, spritePos.y },
+		.end = (Vector2){ startX, spritePos.y - 32.0f },
+		.startTime = cbArgs->level->playTime,
+		.endTime = cbArgs->level->playTime + 1.0f,
+		.fontSize = 15,
+		.color = attack->target == T_ENEMY ? ORANGE : RED
+	};
+	void* result = AddToPool(cbArgs->textPool, &txt);
+	if (result == NULL) {
+		LogDebug("Failed to allocate text to pool");
+	}
+	if (attack->pushForce > 0.0f) {
+		entity->speed = attack->pushForce;
+		float angle = Vector2LineAngle(attack->center, entity->position);
+		entity->anglev = (Vector2){ .x = cosf(angle), .y = -(sinf(angle)) };
+	}
+	if (attack->stunDuration > 0.0f) {
+		entity->stunned = true;
+		entity->stunDuration = attack->stunDuration;
+		entity->stunElapsed = 0.0f;
 	}
 }
 
@@ -321,7 +333,7 @@ void AttackCallback(ObjectPool* pool, int index, void* args) {
 	}
 	ActiveAttack* attack = PoolIndexAddress(pool, index);
 	if (attack == NULL || attack->attack == NULL) {
-		// Warning or something?
+		LogDebug("Null pointer, invalid attack state");
 		// This means some pointer is pointing at invalid data.
 		goto cleanup;
 	}

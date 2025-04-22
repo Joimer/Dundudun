@@ -7,13 +7,13 @@ static Weapon weapons[TOTAL_WEAPONS] = {
 	{
 		.attack = &attacks[0],
 		.type = MELEE,
-		.cooldown = 0.25f,
+		.cooldown = 0.35f,
 	},
 	// Base shooting weapon: Clip box
 	{
 		.attack = &attacks[1],
 		.type = SHOOTING,
-		.cooldown = 0.2f,
+		.cooldown = 0.25f,
 	}
 };
 

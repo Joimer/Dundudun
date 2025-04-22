@@ -7,6 +7,7 @@ Attack attacks[TOTAL_ATTACKS] = {
 	// Enemy melee hit.
 	{
 		.damage = 5,
+		.windup = 0.25f,
 		.duration = 0.33f,
 		.centerDist = 32.0f,
 		.type = HB_RECT,
@@ -15,6 +16,7 @@ Attack attacks[TOTAL_ATTACKS] = {
 	// Enemy circle explosion like attack?
 	{
 		.damage = 6,
+		.windup = 0.25f,
 		.duration = 0.33f,
 		.centerDist = 32.0f,
 		.type = HB_CIRCLE,
@@ -26,7 +28,7 @@ Attack attacks[TOTAL_ATTACKS] = {
 		.duration = 0.15f,
 		.centerDist = 32.0f,
 		.type = HB_RECT,
-		.hitbox = { .rect = { 32.0f, 32.0f } },
+		.hitbox = { .rect = { 40.0f, 40.0f } },
 	},
 	// Player shooting.
 	{
@@ -44,24 +46,32 @@ ActiveAttack InitiateAttack(GameEntity* attacker, Vector2* target, Attack* attac
 		return (ActiveAttack){};
 	}
 	float angle = Vector2LineAngle(attacker->position, *target);
+	float halfWidth = attack->hitbox.rect.width / 2.0f;
+	float halfHeight = attack->hitbox.rect.height / 2.0f;
 	Vector2 attackPos = Vector2Add(
 		attacker->position,
 		(Vector2){
-			.x = cosf(angle) * attack->centerDist - attack->hitbox.rect.width / 2.0f,
-			.y = -(sinf(angle) * attack->centerDist + attack->hitbox.rect.height / 2.0f)
+			.x = cosf(angle) * attack->centerDist - halfWidth,
+			.y = -(sinf(angle) * attack->centerDist + halfHeight)
 		}
 	);
+	// TODO: Does not work for attacks with circular hitbox
 	Rectangle attackHitbox = {
 		.x = attackPos.x,
 		.y = attackPos.y,
 		.width = attack->hitbox.rect.width,
 		.height = attack->hitbox.rect.height
 	};
+	float stunDuration = at == T_ENEMY ? 0.2f : 0.1f;
+	float pushForce = at == T_ENEMY ? 150.0f : 50.0f;
 	ActiveAttack att = {
 		.attack = attack,
 		.elapsed = 0.0f,
 		.hitbox = attackHitbox,
-		.target = at
+		.target = at,
+		.pushForce = pushForce,
+		.stunDuration = stunDuration,
+		.center = (Vector2){ attackPos.x + halfWidth, attackPos.y - halfHeight }
 	};
 
 	return att;
