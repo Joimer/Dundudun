@@ -20,21 +20,20 @@ const ScreenSize resolutions[5] = {
 	{ .width = 1920, .height = 1080 },
 };
 
-void DrawCursor(GameContext* context) {
-	context->options->cursor.position = GetWorldMousePos(context);
-	DrawTexture(
-		*context->options->cursor.texture,
-		(int)context->options->cursor.position.x,
-		(int)context->options->cursor.position.y,
-		WHITE
-	);
+static void AddDrawCall(DrawQueue* queue, DrawCall call) {
+	if (queue->count + 1 >= queue->max) {
+		LogDebug("Attempted to store a call over the limit! Count: %lu Max: %lu", queue->count, queue->max);
+		return;
+	}
+	queue->calls[queue->count++] = call;
 }
 
+// Unused XD
 void DrawSprite(Sprite* sprite) {
 	DrawTextureRec(*sprite->texture, sprite->rect, sprite->position, WHITE);
 }
 
-static void DrawEntity(GameEntity* entity, bool withGizmo) {
+static void DrawEntity(GameEntity* entity, bool withGizmo, DrawQueue* queue) {
 	if (entity == NULL) {
 		LogDebug("NULL pointer to entity!");
 		return;
@@ -51,7 +50,7 @@ static void DrawEntity(GameEntity* entity, bool withGizmo) {
 		}
 	}
 	if (entity->sprite.texture != NULL) {
-		DrawTextureRec(
+		/*DrawTextureRec(
 			*entity->sprite.texture,
 			// Hacky flip for going left for now.
 			IsBitSet(entity->dir, 2) ?
@@ -65,20 +64,66 @@ static void DrawEntity(GameEntity* entity, bool withGizmo) {
 			// For a GameEntity, its Sprite position is relative to the entity position.
 			Vector2Subtract(entity->position, entity->sprite.position),
 			doDraw ? WHITE : (Color){ 255, 255, 255, 10 }
-		);
+		);*/
+		AddDrawCall(queue, (DrawCall){
+			.fun = DRAW_TEXTURE,
+			.layer = ENTITY_LAYER + entity->position.y * 100,
+			.args = { .texture = {
+				.texture = *entity->sprite.texture,
+				.source = IsBitSet(entity->dir, 2) ?
+					(Rectangle){
+						entity->sprite.rect.x,
+						entity->sprite.rect.y,
+						entity->sprite.rect.width * -1,
+						entity->sprite.rect.height
+					}
+					: entity->sprite.rect
+				,
+				.position = Vector2Subtract(entity->position, entity->sprite.position),
+				.tint = doDraw ? WHITE : (Color){ 255, 255, 255, 10 }
+			}}
+		});
 	} else {
 		// Draw red square if no texture loaded for the entity.
-		DrawRectangleV(Vector2SubtractValue(entity->position, 16), (Vector2){ 32, 32 }, doDraw ? RED : (Color){ 230, 41, 55, 10 });
+		//DrawRectangleV(Vector2SubtractValue(entity->position, 16), (Vector2){ 32, 32 }, doDraw ? RED : (Color){ 230, 41, 55, 10 });
+		Vector2 pos = Vector2SubtractValue(entity->position, 16);
+		AddDrawCall(queue, (DrawCall){
+			.fun = DRAW_RECT,
+			.layer = ENTITY_LAYER + entity->position.y * 100,
+			.args = { .rect = {
+				.rec = (Rectangle){ pos.x, pos.y, 32, 32 },
+				.color = doDraw ? RED : (Color){ 230, 41, 55, 10 }
+			}}
+		});
 	}
 	if (withGizmo) {
-		DrawRectangleRec(HitboxWorldPosition(entity), (Color){ 135, 60, 190, 80 });
+		//DrawRectangleRec(HitboxWorldPosition(entity), (Color){ 135, 60, 190, 80 });
+		AddDrawCall(queue, (DrawCall){
+			.fun = DRAW_RECT,
+			.layer = GIZMO_LAYER + entity->position.y * 100,
+			.args = { .rect = {
+				.rec = HitboxWorldPosition(entity),
+				.color = (Color){ 135, 60, 190, 80 }
+			}}
+		});
 
 		// Show current entity direction.
 		int endPosX = entity->dir == EAST || entity->dir == NORTHEAST || entity->dir == SOUTHEAST ?
 			entity->position.x + 25 : (entity->dir == WEST || entity->dir == NORTHWEST || entity->dir == SOUTHWEST ? entity->position.x - 25 : entity->position.x);
 		int endPosY = entity->dir == NORTH || entity->dir == NORTHEAST || entity->dir == NORTHWEST ?
 			entity->position.y - 25 : (entity->dir == SOUTH || entity->dir == SOUTHEAST || entity->dir == SOUTHWEST ? entity->position.y + 25 : entity->position.y);
-		DrawLine(entity->position.x, entity->position.y, endPosX, endPosY, ORANGE);
+		//DrawLine(entity->position.x, entity->position.y, endPosX, endPosY, ORANGE);
+		AddDrawCall(queue, (DrawCall){
+			.fun = DRAW_LINE,
+			.layer = GIZMO_LAYER + 25 + entity->position.y * 100,
+			.args = { .line = {
+				.startPosX = entity->position.x,
+				.startPosY = entity->position.y,
+				.endPosX = endPosX,
+				.endPosY = endPosY,
+				.color = ORANGE
+			}}
+		});
 	}
 }
 
@@ -94,18 +139,26 @@ void DrawAttackCallback(ObjectPool* pool, int index, void* args) {
 		return;
 	}
 
-	bool showGizmos = *((bool*) args);
+	DrawAttackCbArgs* cbArgs = (DrawAttackCbArgs*) args;
 	if (attack->attack->type == 1) {
 		// TODO: Attack animation here.
-		//if (showGizmos) {
+		//if (cbArgs->showGizmos) {
 			Color color = attack->target == T_ENEMY ? (Color){ 0, 208, 8, 210 } : (Color){ 125, 11, 22, 210 };
-			DrawRectangleRec(attack->hitbox, color);
+			//DrawRectangleRec(attack->hitbox, color);
+			AddDrawCall(cbArgs->queue, (DrawCall){
+				.fun = DRAW_RECT,
+				.layer = ENTITY_LAYER + 1 + attack->center.y * 100,
+				.args = { .rect = {
+					.rec = attack->hitbox,
+					.color = color
+				}}
+			});
 		//}
 	}
 	if (attack->attack->type == 2) {
-		// TODO: Attack animation here.
-		//if (showGizmos) {
-			DrawCircleV(attack->center, attack->attack->hitbox.radius, (Color){ 125, 11, 22, 210 });
+		// TODO
+		//if (cbArgs->showGizmos) {
+			//DrawCircleV(attack->center, attack->attack->hitbox.radius, (Color){ 125, 11, 22, 210 });
 		//}
 	}
 }
@@ -118,8 +171,8 @@ void DrawTextCallback(ObjectPool* pool, int index, void* args) {
 	if (text == NULL || text->content == NULL) {
 		goto cleanup;
 	}
-	float playTime = *((float*) args);
-	if (playTime > text->endTime) {
+	DrawTextCbArgs* cbArgs = (DrawTextCbArgs*) args;
+	if (cbArgs->playTime > text->endTime) {
 		// Need to free the text string when we are done with it.
 		free(text->content);
 		goto cleanup;
@@ -127,35 +180,43 @@ void DrawTextCallback(ObjectPool* pool, int index, void* args) {
 
 	// Text movement vector is text->start to text->end in (text->endTime - text->startTime) time.
 	// We just need to translate the position through the elapsed time.
-	float elapsed = playTime - text->startTime;
+	float elapsed = cbArgs->playTime - text->startTime;
 	float pct = elapsed * 100.0f / (text->endTime - text->startTime);
 	float yPosDiff = (text->end.y - text->start.y) * pct / 100.0f;
 	float xPosDiff = (text->end.x - text->start.x) * pct / 100.0f;
 	// TODO: If 2 texts are overlapping, move one a bit? how?
-	DrawText(text->content, text->start.x + xPosDiff, text->start.y + yPosDiff, text->fontSize, text->color);
+	//DrawText(text->content, text->start.x + xPosDiff, text->start.y + yPosDiff, text->fontSize, text->color);
+	AddDrawCall(cbArgs->queue, (DrawCall){
+		.fun = DRAW_TEXT,
+		.layer = EFFECTS_LAYER + text->start.y + yPosDiff,
+		.args = { .text = {
+			.text = text->content,
+			.posX = text->start.x + xPosDiff,
+			.posY = text->start.y + yPosDiff,
+			.fontSize = text->fontSize,
+			.color = text->color
+		}}
+	});
 	return;
 
 	cleanup: RemoveFromPool(pool, index);
 }
 
-static void RenderWorld(
+static void RenderWorldCalls(
 	GameContext *context,
 	RenderTexture2D *worldRender,
 	Player *player,
-	Level* level
+	Level* level,
+	DrawQueue* queue
 ) {
-	// First, create the frame for the world on its fixed resolution.
-	BeginTextureMode(*worldRender);
-	BeginMode2D(context->state->camera);
-	ClearBackground(RAYWHITE);
-
 	// Draw level background.
 	const int tileSize = 32;
 	const int offset = 10;
 	Color tileColor;
-	for (int x = 0; x < 50; x++) {
-		for (int y = 0; y < 50; y++) {
-			if (x == 0 || y == 0 || x == 49 || y == 49) {
+	// TODO: Check if tile is in camera's sight.
+	for (int x = 0; x < 25; x++) {
+		for (int y = 0; y < 25; y++) {
+			if (x == 0 || y == 0 || x == 24 || y == 24) {
 				tileColor = BLACK;
 			} else {
 				if ((x % 2 == 0 && y % 2 != 0) || (x % 2 != 0 && y % 2 == 0)) {
@@ -164,17 +225,35 @@ static void RenderWorld(
 					tileColor = BROWN;
 				}
 			}
-			DrawRectangle(x * tileSize, y * tileSize, tileSize, tileSize, tileColor);
-			DrawText(TextFormat("%d,%d", x, y), (x * tileSize) + offset, (y * tileSize) + offset, 10, DARKBLUE);
+			//DrawRectangle(x * tileSize, y * tileSize, tileSize, tileSize, tileColor);
+			AddDrawCall(queue, (DrawCall){
+				.fun = DRAW_RECT,
+				.layer = BG_LAYER + y,
+				.args = { .rect = {
+					.rec = (Rectangle) { x * tileSize, y * tileSize, tileSize, tileSize },
+					.color = tileColor
+				}}
+			});
+			//DrawText(TextFormat("%d,%d", x, y), (x * tileSize) + offset, (y * tileSize) + offset, 10, DARKBLUE);
+			/*AddDrawCall(queue, (DrawCall){
+				.fun = DRAW_TEXT,
+				.layer = BG_LAYER + 10 + y,
+				.args = { .text = {
+					.text = TextFormat("%d,%d", x, y),
+					.posX = (x * tileSize) + offset,
+					.posY = (y * tileSize) + offset,
+					.fontSize = 10,
+					.color = DARKBLUE
+				}}
+			});*/
 		}
 	}
+	/*if (level != NULL && level->tiles != NULL && level->tileCount > 0) {
+		// TODO: Tiles from generated level.
+	}*/
 
 	// Draw character.
-	DrawEntity(&player->entity, context->options->showGizmos);
-
-	if (level != NULL && level->tiles != NULL && level->tileCount > 0) {
-		// TODO: Tiles from generated level.
-	}
+	DrawEntity(&player->entity, context->options->showGizmos, queue);
 
 	// Draw level entities.
 	if (level != NULL) {
@@ -184,31 +263,134 @@ static void RenderWorld(
 				if (!level->entities[i].active) {
 					continue;
 				}
-				DrawEntity(&level->entities[i].entity, context->options->showGizmos);
+				// TODO: Check if entity is in camera's sight.
+				DrawEntity(&level->entities[i].entity, context->options->showGizmos, queue);
 				if (context->options->showGizmos) {
-					DrawCircleV(level->entities[i].entity.position, level->entities[i].activeRadius, (Color){ 255, 109, 194, 60 });
-					DrawLineV(level->entities[i].entity.position, player->entity.position, DARKGRAY);
+					//DrawCircleV(level->entities[i].entity.position, level->entities[i].activeRadius, (Color){ 255, 109, 194, 60 });
+					AddDrawCall(queue, (DrawCall){
+						.fun = DRAW_CIRCLE,
+						.layer = GIZMO_LAYER - 1000 + level->entities[i].entity.position.y * 100,
+						.args = { .circle = {
+							.center = level->entities[i].entity.position,
+							.radius = level->entities[i].activeRadius,
+							.color = (Color){ 255, 109, 194, 60 }
+						}}
+					});
+					//DrawLineV(level->entities[i].entity.position, player->entity.position, DARKGRAY);
+					AddDrawCall(queue, (DrawCall){
+						.fun = DRAW_LINE,
+						.layer = GIZMO_LAYER + 500 + level->entities[i].entity.position.y * 100,
+						.args = { .line = {
+							.startPosX = level->entities[i].entity.position.x,
+							.startPosY = level->entities[i].entity.position.y,
+							.endPosX = player->entity.position.x,
+							.endPosY = player->entity.position.y,
+							.color = DARKGRAY
+						}}
+					});
 				}
 			}
 		}
 
 		// Attacks.
 		if (level->attacks.activeItems > 0) {
-			IteratePool(&level->attacks, &DrawAttackCallback, &context->options->showGizmos);
+			DrawAttackCbArgs args = {
+				.showGizmos = context->options->showGizmos,
+				.queue = queue
+			};
+			IteratePool(&level->attacks, &DrawAttackCallback, &args);
 		}
 
 		// Damage texts.
 		if (level->texts.activeItems > 0) {
-			IteratePool(&level->texts, &DrawTextCallback, &level->playTime);
+			DrawTextCbArgs args = {
+				.playTime = level->playTime,
+				.queue = queue
+			};
+			IteratePool(&level->texts, &DrawTextCallback, &args);
+		}
+	}
+}
+
+static int CompareDrawCall(const void* a, const void* b) {
+    return (((DrawCall*)a)->layer - ((DrawCall*)b)->layer);
+}
+
+static void SortDrawCalls(DrawQueue* queue) {
+	//LogDebug("Sorting draw calls...");
+	if (queue->count == 0) {
+		return;
+	}
+	qsort(queue->calls, queue->count, sizeof(DrawCall), CompareDrawCall);
+}
+
+static void RenderWorld(
+	GameContext *context,
+	RenderTexture2D *worldRender,
+	Player *player,
+	Level* level
+) {
+	// Create the draw queue.
+	// Tiles (TODO: change when it's not harcoded) + entities + player entity + attacks + texts + some extra.
+	int maxCalls = (25 * 25 * 1) + (level->entityCount + 1) * 5 + level->attacks.activeItems + level->texts.activeItems + 32;
+	DrawQueue* queue = malloc(sizeof(DrawQueue) + sizeof(DrawCall[maxCalls]));
+	if (queue == NULL) {
+		LogDebug("Failed to allocate DrawQueue!!");
+		return;
+	}
+	queue->max = maxCalls;
+	queue->count = 0;
+
+	// Get all the drawing calls for current state.
+	RenderWorldCalls(context, worldRender, player, level, queue);
+
+	// Order the queue by layer.
+	SortDrawCalls(queue);
+
+	// First, create the frame for the world on its fixed resolution.
+	BeginTextureMode(*worldRender);
+	BeginMode2D(context->state->camera);
+	ClearBackground(RAYWHITE);
+
+	// Run all draw calls in order.
+	for (int i = 0; i < queue->count; i++) {
+		DrawCall call = queue->calls[i];
+		//LogDebug("Running draw call %d on layer %d", i, call.layer);
+		// TODO: dict of enum to function pointer?
+		switch (call.fun) {
+			case DRAW_RECT:
+				DrawRectangleRec(call.args.rect.rec, call.args.rect.color);
+				break;
+			case DRAW_TEXT:
+				if (call.args.text.text != NULL) {
+					DrawText(
+						call.args.text.text,
+						call.args.text.posX,
+						call.args.text.posY,
+						call.args.text.fontSize,
+						call.args.text.color
+					);
+				}
+				break;
+			case DRAW_TEXTURE:
+				DrawTextureRec(
+					call.args.texture.texture,
+					call.args.texture.source,
+					call.args.texture.position,
+					call.args.texture.tint
+				);
+				break;
+			case DRAW_LINE:
+				DrawLine(call.args.line.startPosX, call.args.line.startPosY, call.args.line.endPosX, call.args.line.endPosY, call.args.line.color);
+				break;
+			case DRAW_CIRCLE:
+				DrawCircleV(call.args.circle.center, call.args.circle.radius, call.args.circle.color);
+				break;
 		}
 	}
 
-	// Draw custom cursor last.
-	if (!context->options->systemCursor) {
-		DrawCursor(context);
-	}
-
 	// We finished creating the frame as a texture.
+	free(queue);
 	EndMode2D();
 	EndTextureMode();
 }
@@ -218,14 +400,12 @@ void ResizeWindow(GameContext* context, ScreenSize newSize) {
 	CalculateScreenSize(context);
 }
 
-int gcd(int a, int b) {
-	int remainder = a % b;
-
-	if (remainder == 0) {
-		return b;
-	}
-
-	return gcd(b, remainder);
+static float GetScreenScale() {
+	float screenWidth = (float) GetScreenWidth();
+	float screenHeight = (float) GetScreenHeight();
+	float gameScreenWidth = (float) worldSize.width;
+	float gameScreenHeight = (float) worldSize.height;
+	return fmaxf(fminf(screenWidth / gameScreenWidth, screenHeight / gameScreenHeight), 1.0f);
 }
 
 void CalculateScreenSize(GameContext* context) {
@@ -258,6 +438,8 @@ static void RenderScreen(
 	// Draw UI elements.
 	DrawFPS(GetScreenWidth() - 95, 10);
 	DrawText(TextFormat("Seed: %s", context->state->seedStr), 10, 10, 25, PURPLE);
+
+	// Player status elements in the UI.
 	if (player != NULL) {
 		// HP Bar.
 		int screenHeight = GetScreenHeight();
@@ -277,6 +459,11 @@ static void RenderScreen(
 		}
 		DrawRectangle(22, screenHeight - 38, hpBarWidth, 21, hpColor);
 		DrawText(TextFormat("%d HP", player->entity.health), 285, screenHeight - 40, 22, DARKGREEN);
+	}
+
+	// Mouse pointer.
+	if (!context->options->systemCursor) {
+		DrawTextureEx(*context->options->cursor.texture, GetMousePosition(), 0.0f, GetScreenScale(), WHITE);
 	}
 
 	// We are done, show the frame.

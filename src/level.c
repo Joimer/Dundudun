@@ -379,12 +379,8 @@ static void UpdateEnemy(GameContext* context, Player* player, Level* level, Enem
 	if (enemy->entity.speed > 0.0f) {
 		// TODO: When colliding with pushback, full stop is not the most adequate...
 		Rectangle newHitbox = HitboxWorldPosition(&enemy->entity);
-		if (IsBitSet(enemy->entity.dir, 1) || IsBitSet(enemy->entity.dir, 2)) {
-			newHitbox.x += enemy->entity.anglev.x * enemy->entity.speed * dt;
-		}
-		if (IsBitSet(enemy->entity.dir, 3) || IsBitSet(enemy->entity.dir, 4)) {
-			newHitbox.y += enemy->entity.anglev.y * enemy->entity.speed * dt;
-		}
+		newHitbox.x += enemy->entity.anglev.x * enemy->entity.speed * dt;
+		newHitbox.y += enemy->entity.anglev.y * enemy->entity.speed * dt;
 		if (FindEntityCollision(level, &enemy->entity, &newHitbox) == NULL) {
 			enemy->entity.position = AdvancePointByDir(enemy->entity.position, enemy->entity.dir, enemy->entity.speed * dt);
 		} else {
