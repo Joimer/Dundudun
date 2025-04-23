@@ -1,6 +1,8 @@
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
+#include <raylib.h>
+#include <raymath.h>
 #include "lib.h"
 
 inline Vector2 ClosestRectCorner(Rectangle rect, Vector2 point) {
@@ -126,7 +128,11 @@ unsigned long GetRandomMTValue(MTRand* rand) {
 	return y;
 }
 
-Vector2 DirectionToVector(Direction dir) {
+Vector2 AngleToVector(float angle) {
+	return (Vector2){ .x = cosf(angle), .y = -(sinf(angle)) };
+}
+
+float DirectionToAngle(Direction dir) {
 	float angle;
 	switch (dir) {
 		case NORTH: angle = DEG_90; break;
@@ -140,5 +146,79 @@ Vector2 DirectionToVector(Direction dir) {
 		case NO_DIRECTION: angle = DEG_270; break;
 	}
 
-	return (Vector2){ .x = cosf(angle), .y = -(sinf(angle)) };
+	return angle;
+}
+
+Vector2 DirectionToVector(Direction dir) {
+	float angle = DirectionToAngle(dir);
+	return AngleToVector(angle);
+}
+
+Direction AngleToDirection(float angle, bool strict) {
+	if (angle == 0.0f) {
+		angle = DEG_360;
+	} else {
+		if (angle < 0.0f) {
+			angle = fabsf(angle);
+		}
+		if (angle > DEG_360) {
+			angle = fmodf(angle, DEG_360);
+		}
+	}
+	const float tolerance = 0.02f;
+	const float lower = 1.0f - tolerance;
+	const float higher = 1.0f + tolerance;
+	if (
+		(strict && angle == DEG_90)
+		|| (!strict && angle > DEG_90 * lower && angle < DEG_90 * higher)
+	) {
+		return NORTH;
+	}
+	if (
+		(strict && angle == DEG_270)
+		|| (!strict && angle > DEG_270 * lower && angle < DEG_270 * higher)
+	) {
+		return SOUTH;
+	}
+	if (
+		(strict && angle == DEG_360)
+		|| (!strict && angle > DEG_360 * lower && angle < DEG_360 * tolerance)
+	) {
+		return EAST;
+	}
+	if (
+		(strict && angle == PI)
+		|| (!strict && angle > PI * lower && angle < PI * higher)
+	) {
+		return WEST;
+	}
+	if (angle > 0.0f && angle < DEG_90) {
+		return NORTHEAST;
+	}
+	if (angle > DEG_90 && angle < PI) {
+		return NORTHWEST;
+	}
+	if (angle > DEG_270 && angle < DEG_360) {
+		return SOUTHEAST;
+	}
+	if (angle > PI && angle < DEG_270) {
+		return SOUTHWEST;
+	}
+	return EAST;
+}
+
+Vector2 AdvancePointByAngle(Vector2 start, float angle, float force) {
+	Vector2 anglev = AngleToVector(angle);
+	return Vector2Add(start, (Vector2){
+		anglev.x * force,
+		anglev.y * force,
+	});
+}
+
+Vector2 AdvancePointByDir(Vector2 start, Direction dir, float force) {
+	Vector2 anglev = DirectionToVector(dir);
+	return Vector2Add(start, (Vector2){
+		anglev.x * force,
+		anglev.y * force,
+	});
 }

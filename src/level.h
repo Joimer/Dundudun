@@ -9,6 +9,8 @@
 #include "attack.h"
 
 #define DEFAULT_ENEMY_RADIUS 200.0f
+#define COLL_RAYCAST_ACTIVE 64.0f
+#define COLL_RAYCAST_DIST 16.0f
 
 typedef enum { WALL = 0, GROUND = 1, GRASS = 2 } TileType;
 

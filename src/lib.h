@@ -80,6 +80,11 @@ typedef struct {
 
 MTRand SeedMTRand(unsigned long seed);
 unsigned long GetRandomMTValue(MTRand* rand);
+Vector2 AngleToVector(float angle);
 Vector2 DirectionToVector(Direction dir);
+float DirectionToAngle(Direction dir);
+Direction AngleToDirection(float angle, bool strict);
+Vector2 AdvancePointByAngle(Vector2 start, float angle, float force);
+Vector2 AdvancePointByDir(Vector2 start, Direction dir, float force);
 
 #endif

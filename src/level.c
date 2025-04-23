@@ -1,6 +1,7 @@
 #include <stdlib.h>
-#include <raylib.h>
 #include <string.h>
+#include <math.h>
+#include <raylib.h>
 #include "control.h"
 #include "level.h"
 #include "lib.h"
@@ -11,6 +12,10 @@
 #define ENEMY_DEFAULT_SPEED 150.0f
 
 Rectangle HitboxWorldPosition(GameEntity* entity) {
+	if (entity == NULL) {
+		LogDebug("Invalid entity, returning empty rectangle.");
+		return (Rectangle) {};
+	}
 	return (Rectangle) {
 		entity->position.x + entity->hitbox.x,
 		entity->position.y + entity->hitbox.y,
@@ -74,6 +79,27 @@ Level GenerateLevel(GameContext* context, int floor) {
 	return level;
 }
 
+static GameEntity* FindEntityCollisionPoint(Level* level, Vector2* point, GameEntity* self) {
+	Rectangle entityWorldHitbox;
+	for (int j = 0; j < level->entityCount; j++) {
+		if (!level->entities[j].active) {
+			continue;
+		}
+		if (self != NULL && self == &level->entities[j].entity) {
+			// Ignore self.
+			continue;
+		}
+
+		// Check collision with entity.
+		entityWorldHitbox = HitboxWorldPosition(&level->entities[j].entity);
+		if (CheckCollisionPointRec(*point, entityWorldHitbox)) {
+			return &level->entities[j].entity;
+		}
+	}
+
+	return NULL;
+}
+
 float MaxAttackRange(Enemy* enemy) {
 	if (enemy == NULL || enemy->attack == NULL) {
 		return 0.0f;
@@ -89,13 +115,51 @@ float MaxAttackRange(Enemy* enemy) {
 	return baseDist + 1.0f;
 }
 
-static bool DoesCollideAny(Level* level, GameEntity* self, Rectangle* newPos) {
+Vector2 Raycast(Level* level, Vector2 start, Vector2 end, GameEntity* self) {
+	int x0 = (int)floorf(start.x), y0 = (int)floorf(start.y), x1 = (int)ceilf(end.x), y1 = (int)ceilf(end.y);
+	int dx = abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
+	int dy = -abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
+	int err = dx + dy, e2;
+	int max = (abs(err) * 2) + 1;
+	Vector2 point = {};
+	GameEntity* coll = NULL;
+
+	for (int i = 0; i < max; i++) {
+		point.x = x0;
+		point.y = y0;
+		if (x0 == x1 && y0 == y1) {
+			break;
+		}
+		coll = FindEntityCollisionPoint(level, &point, self);
+		if (coll != NULL && (self == NULL || self != coll)) {
+			// Next point collides.
+			break;
+		}
+		e2 = 2 * err;
+		if (e2 >= dy) {
+			err += dy;
+			x0 += sx;
+		}
+		if (e2 <= dx) {
+			err += dx;
+			y0 += sy;
+		}
+	}
+
+	return point;
+}
+
+static GameEntity* FindEntityCollision(Level* level, GameEntity* self, Rectangle* newPos) {
+	if (level == NULL || newPos == NULL) {
+		LogDebug("Invalid parameter, null pointer");
+		return NULL;
+	}
 	for (int j = 0; j < level->entityCount; j++) {
-		if (!level->entities[j].active) {
+		if (!level->entities[j].active || &level->entities[j].entity == NULL) {
 			// Ignore inactive entities.
 			continue;
 		}
-		if (self == &level->entities[j].entity) {
+		if (self != NULL && self == &level->entities[j].entity) {
 			// Ignore self.
 			continue;
 		}
@@ -103,11 +167,45 @@ static bool DoesCollideAny(Level* level, GameEntity* self, Rectangle* newPos) {
 		// Check collision with entity.
 		Rectangle entityWorldHitbox = HitboxWorldPosition(&level->entities[j].entity);
 		if (CheckCollisionRecs(entityWorldHitbox, *newPos)) {
+			return &level->entities[j].entity;
+		}
+	}
+
+	return NULL;
+}
+
+static bool TestPointDirCollision(Level* level, GameEntity* self, float cornerX, float cornerY, Direction dir) {
+	Vector2 point = { cornerX, cornerY };
+	Vector2 nextPos = AdvancePointByDir(point, dir, COLL_RAYCAST_DIST);
+	Vector2 hit = Raycast(level, point, nextPos, self);
+	return (hit.x != ceilf(nextPos.x) || hit.y != ceilf(nextPos.y));
+}
+
+// Find if a new position hitbox for the game entity will find an obstacle in the attempted direction.
+static bool TestRectDirCollision(Level* level, GameEntity* self, Rectangle hitbox, Direction dir) {
+	float cornerX, cornerY;
+
+	// If the movement is diagonal, must first test the corner for that diagonal.
+	// If this does not hit, then the other 2 corners in opposite sides.
+	if ((IsBitSet(dir, 1) || IsBitSet(dir, 2)) && (IsBitSet(dir, 3) || IsBitSet(dir, 4))) {
+		cornerX = IsBitSet(dir, 2) ? hitbox.x : hitbox.x + hitbox.width;
+		cornerY = IsBitSet(dir, 3) ? hitbox.y + hitbox.height : hitbox.y;
+		if (TestPointDirCollision(level, self, cornerX, cornerY, dir)) {
 			return true;
 		}
 	}
 
-	return false;
+	// Test corner A.
+	cornerX = dir == EAST ? hitbox.x + hitbox.width : hitbox.x;
+	cornerY = (dir == NORTHWEST || dir == SOUTHEAST || dir == SOUTH) ? hitbox.y + hitbox.height : hitbox.y;
+	if (TestPointDirCollision(level, self, cornerX, cornerY, dir)) {
+		return true;
+	}
+
+	// Test corner B.
+	cornerX = dir == WEST ? hitbox.x : hitbox.x + hitbox.width;
+	cornerY = (dir == NORTHEAST || dir == EAST || dir == WEST || dir == SOUTH) ? hitbox.y + hitbox.height : hitbox.y;
+	return TestPointDirCollision(level, self, cornerX, cornerY, dir);
 }
 
 // TODO: This seems like it could use being broken down to a handful of functions
@@ -185,27 +283,17 @@ static void UpdateEnemy(GameContext* context, Player* player, Level* level, Enem
 		if (enemy->behaviour == APPROACH) {
 			// Set direction towards player.
 			// Min distance is entity hitbox in front of player hitbox.
-			float xDiff = fabs(player->entity.position.x - enemy->entity.position.x);
-			float yDiff = fabs(player->entity.position.y - enemy->entity.position.y);
 			float xThreshold = player->entity.hitbox.width / 2.0f + enemy->entity.hitbox.width / 2.0f;
 			float yThreshold = player->entity.hitbox.height / 2.0f + enemy->entity.hitbox.height / 2.0f;
-			//float vecDist = Vector2Distance(player->entity.position, enemy->entity.position);
+			float vecDist = Vector2Distance(player->entity.position, enemy->entity.position);
 
 			// Entity is close enough to player, ignore movement.
-			if (xDiff <= xThreshold && yDiff <= yThreshold) {
+			if (vecDist < xThreshold + yThreshold) {
 				goto stand;
 			}
 
 			// Get the closest player hitbox corner to the enemy position.
-			Vector2 closestCorner = ClosestRectCorner(
-				(Rectangle){
-					.x = player->entity.position.x + player->entity.hitbox.x,
-					.y = player->entity.position.y + player->entity.hitbox.y,
-					.width = player->entity.hitbox.width,
-					.height = player->entity.hitbox.height
-				},
-				enemy->entity.position
-			);
+			Vector2 closestCorner = ClosestRectCorner(HitboxWorldPosition(&player->entity), enemy->entity.position);
 			Direction dir = GetPointDirThreshold(
 				enemy->entity.position,
 				closestCorner,
@@ -218,65 +306,66 @@ static void UpdateEnemy(GameContext* context, Player* player, Level* level, Enem
 				goto stand;
 			}
 
-			// Have to check if there's another hitbox in the desired direction.
-			float maxSpeed = enemy->speed * dt;
-
-			// Entity hitbox rectangle on its own with the future movement thresholds.
-			float neighbourXThres = IsBitSet(dir, 1) ? maxSpeed : (IsBitSet(dir, 2) ? -maxSpeed : 0);
-			float neighbourYThres = IsBitSet(dir, 4) ? -maxSpeed : (IsBitSet(dir, 3) ? maxSpeed : 0);
-
-			// Pre-calculate all potential hitboxes so no need to recalcualte for every entity.
-			Rectangle hitBoxArea = HitboxWorldPosition(&enemy->entity);
-			Rectangle movedRectX = hitBoxArea;
-			movedRectX.x += neighbourXThres;
-			Rectangle movedRectY = hitBoxArea;
-			movedRectY.y += neighbourYThres;
-			Rectangle movedRectBoth = hitBoxArea;
-			movedRectBoth.x += neighbourXThres;
-			movedRectBoth.y += neighbourYThres;
-			Rectangle entityWorldHitbox;
-
-			for (int j = 0; j < level->entityCount; j++) {
-				if (dir == NO_DIRECTION) {
-					// We found out that the entity cannot move, no need for more calculations.
-					break;
-				}
-				if (enemy == &level->entities[j]) {
-					// Ignore self.
-					continue;
-				}
-				if (!level->entities[j].active) {
-					// Ignore inactive entities.
-					continue;
-				}
-
-				entityWorldHitbox = HitboxWorldPosition(&level->entities[j].entity);
-				// Check future hitbox for intended movements for each axis.
-				// We'll block unavailable movements per axis if necessary.
-				if (IsBitSet(dir, 2) && CheckCollisionRecs(movedRectX, entityWorldHitbox)) {
-					dir &= ~(1 << 1);
-				}
-				if (IsBitSet(dir, 1) && CheckCollisionRecs(movedRectX, entityWorldHitbox)) {
-					dir &= ~1;
-				}
-				if (IsBitSet(dir, 4)) {
-					if (CheckCollisionRecs((IsBitSet(dir, 2) || IsBitSet(dir, 1) ? movedRectBoth : movedRectY), entityWorldHitbox)) {
-						dir &= ~(1 << 3);
-						continue;
+			// Check if future movement will collide with something.
+			// If far away, we check with next hitbox.
+			// If getting close 2 tiles, we raycast a tile.
+			// We draw a line from both advancing front corners to see if any edge would hit a box.
+			// TODO: If a rect is in the way and there is a smaller collision box,
+			// it will not be found by raycast from corner, but found by ray from center.
+			// Do 3 casts per attempt? Too much? Test 3 rays vs displace rect and test that rect per point.
+			bool willCollide = false;
+			if (vecDist < COLL_RAYCAST_ACTIVE) {
+				Rectangle hitbox = HitboxWorldPosition(&enemy->entity);
+				willCollide = TestRectDirCollision(level, &enemy->entity, hitbox, dir);
+				// Decided direction collides.
+				// If previous direction is different to new one, attempt to follow through.
+				if (willCollide && dir != enemy->entity.dir && enemy->entity.dir != NO_DIRECTION) {
+					willCollide = TestRectDirCollision(level, &enemy->entity, hitbox, enemy->entity.dir);
+					if (!willCollide) {
+						dir = enemy->entity.dir;
 					}
 				}
-				if (IsBitSet(dir, 3)) {
-					if (CheckCollisionRecs((IsBitSet(dir, 2) || IsBitSet(dir, 1) ? movedRectBoth : movedRectY), entityWorldHitbox)) {
-						dir &= ~(1 << 2);
+			} else {
+				Vector2 anglev = DirectionToVector(enemy->entity.dir);
+				Rectangle newHitbox = HitboxWorldPosition(&enemy->entity);
+				newHitbox.x += anglev.x * enemy->speed * dt;
+				newHitbox.y += anglev.y * enemy->speed * dt;
+				willCollide = (FindEntityCollision(level, &enemy->entity, &newHitbox) != NULL);
+			}
+
+			// Entity will collide on new position, try to find another path.
+			// We only check with raycasts here, otherwise a far away enemy could do weird pathing before getting close.
+			if (willCollide) {
+				float angle = DirectionToAngle(dir);
+				dir = NO_DIRECTION;
+				Rectangle hitbox = HitboxWorldPosition(&enemy->entity);
+				// Raycast every 45º to find a decent path around obstacle.
+				// Should try closest angles up to opposite angle: +45, -45, +90, -90, +135, -135, +180
+				Direction newDir;
+				for (int i = 1; i < 8; i++) {
+					switch (i) {
+						case 1: newDir = AngleToDirection(angle + DEG_45, false); break;
+						case 2: newDir = AngleToDirection(angle - DEG_45, false); break;
+						case 3: newDir = AngleToDirection(angle + DEG_90, false); break;
+						case 4: newDir = AngleToDirection(angle - DEG_90, false); break;
+						case 5: newDir = AngleToDirection(angle + DEG_135, false); break;
+						case 6: newDir = AngleToDirection(angle - DEG_135, false); break;
+						case 7: newDir = AngleToDirection(angle + PI, false); break;
+					}
+					if (newDir == dir || newDir == enemy->entity.dir) {
+						// Ignore directions that have already been tested.
 						continue;
+					}
+					// This direction won't collide, can use it.
+					if (!TestRectDirCollision(level, &enemy->entity, hitbox, newDir)) {
+						dir = newDir;
+						break;
 					}
 				}
 			}
 
 			// If the entity was completely stopped, we can check on next one already.
 			if (dir == NO_DIRECTION) {
-				//LogDebug("Enemy cannot move, obstacle");
-				// TODO: Find angle in respect to blocking entity and find a way around it to get to the player.
 				goto stand;
 			}
 			SetStance(&enemy->entity, WALKING);
@@ -289,12 +378,17 @@ static void UpdateEnemy(GameContext* context, Player* player, Level* level, Enem
 	// Update entity position according to its movement.
 	if (enemy->entity.speed > 0.0f) {
 		// TODO: When colliding with pushback, full stop is not the most adequate...
-		Vector2 newPos = Vector2Add(enemy->entity.position, (Vector2){
-			enemy->entity.anglev.x * enemy->entity.speed * dt,
-			enemy->entity.anglev.y * enemy->entity.speed * dt,
-		});
-		if (!DoesCollideAny(level, &enemy->entity, &newPos)) {
-			enemy->entity.position = newPos;
+		Rectangle newHitbox = HitboxWorldPosition(&enemy->entity);
+		if (IsBitSet(enemy->entity.dir, 1) || IsBitSet(enemy->entity.dir, 2)) {
+			newHitbox.x += enemy->entity.anglev.x * enemy->entity.speed * dt;
+		}
+		if (IsBitSet(enemy->entity.dir, 3) || IsBitSet(enemy->entity.dir, 4)) {
+			newHitbox.y += enemy->entity.anglev.y * enemy->entity.speed * dt;
+		}
+		if (FindEntityCollision(level, &enemy->entity, &newHitbox) == NULL) {
+			enemy->entity.position = AdvancePointByDir(enemy->entity.position, enemy->entity.dir, enemy->entity.speed * dt);
+		} else {
+			LogDebug("Will collide, stopped movement!! %f,%f dir %d", newHitbox.x, newHitbox.y, enemy->entity.dir);
 		}
 	}
 	return;
@@ -333,7 +427,7 @@ static void AttackHitEntity(AttackCbArgs* cbArgs, GameEntity* entity, ActiveAtta
 		.startTime = cbArgs->level->playTime,
 		.endTime = cbArgs->level->playTime + 1.0f,
 		.fontSize = 15,
-		.color = attack->target == T_ENEMY ? ORANGE : RED
+		.color = attack->target == T_ENEMY ? (Color){ 128, 80, 0, 255 } : RED
 	};
 	void* result = AddToPool(cbArgs->textPool, &txt);
 	if (result == NULL) {
@@ -464,11 +558,7 @@ static void UpdatePlayer(GameContext* context, Level* level, Player* player, flo
 
 	// Execute movement. Last action so other actions that may require directionality take precedence.
 	if (newDir != NO_DIRECTION) {
-		Vector2 playerDir = DirectionToVector(player->entity.dir);
-		player->entity.position = Vector2Add(player->entity.position, (Vector2){
-			playerDir.x * PLAYER_SPEED * delta,
-			playerDir.y * PLAYER_SPEED * delta,
-		});
+		player->entity.position = AdvancePointByDir(player->entity.position, player->entity.dir, PLAYER_SPEED * delta);
 	}
 }
 
