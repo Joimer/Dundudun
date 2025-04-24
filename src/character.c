@@ -18,6 +18,7 @@ Player CreatePlayer(Texture2D* characterTexture) {
 	playerWeapons[1] = GetWeapon(1);
 	// TODO: What if NULL? Crash game gracefully? Reset it and count failures?
 	return (Player){
+		.speed = PLAYER_SPEED,
 		.entity = (GameEntity){
 			.health = 50,
 			.maxHealth = 50,
@@ -58,6 +59,7 @@ void PlayerDashUpdate(Player* player, float dt) {
 		float diff = player->dash.elapsed - DASH_DURATION;
 		trueDelta -= diff;
 		player->dash.dashing = false;
+		player->entity.speed = 0.0f;
 
 		// Set Dash cooldown only after all available consecutive dashes are used.
 		if (player->dash.consecutive >= player->dash.max) {
@@ -65,23 +67,22 @@ void PlayerDashUpdate(Player* player, float dt) {
 			player->dash.consecutive = 0;
 		}
 	}
-	Vector2 moveVector = (Vector2){ .x = player->dash.direction.x * trueDelta, .y = player->dash.direction.y * trueDelta };
-	player->entity.position = Vector2Add(player->entity.position, moveVector);
 }
 
 void PlayerStartDash(GameContext* context, Player* player) {
 	SetStance(&player->entity, DASHING);
 	player->dash.dashing = true;
 	player->dash.consecutive++;
-	float dashSpeed = PLAYER_SPEED * DASH_SPEED_MULT;
+	player->entity.speed = player->speed * DASH_SPEED_MULT;
+	float dashSpeed = player->speed * DASH_SPEED_MULT;
 	float angle = DEG_270;
 	Vector2 dir;
 	if (context->options->dashMode == MOUSE) {
 		Vector2 mpos = GetWorldMousePos(context);
 		angle = Vector2LineAngle(player->entity.position, mpos);
-		dir = (Vector2){ .x = cosf(angle), .y = -(sinf(angle)) };
+		player->entity.anglev = (Vector2){ .x = cosf(angle), .y = -(sinf(angle)) };
 	} else {
-		dir = DirectionToVector(player->entity.dir);
+		player->entity.anglev = DirectionToVector(player->entity.dir);
 	}
 
 	// TODO: Should just set the direction vector and manage speed on dash object or elsewhere, probably.
@@ -112,9 +113,12 @@ Direction PlayerUpdateDirection(Player* player) {
 		newDir = IsBitSet(newDir, 4) ? newDir ^ (1 << 3) : newDir ^ (1 << 2);
 	}
 	if (newDir != 0) {
+		player->entity.speed = player->speed;
 		player->entity.dir = (Direction) newDir;
+		player->entity.anglev = DirectionToVector(player->entity.dir);
 		SetStance(&player->entity, WALKING);
 	} else {
+		player->entity.speed = 0.0f;
 		SetStance(&player->entity, STANDING);
 	}
 

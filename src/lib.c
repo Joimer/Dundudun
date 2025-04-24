@@ -222,3 +222,10 @@ Vector2 AdvancePointByDir(Vector2 start, Direction dir, float force) {
 		anglev.y * force,
 	});
 }
+
+Vector2 AdvancePointByVector(Vector2 start, Vector2 anglev, float force) {
+	return Vector2Add(start, (Vector2){
+		anglev.x * force,
+		anglev.y * force,
+	});
+}

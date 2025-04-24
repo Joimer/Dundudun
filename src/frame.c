@@ -343,7 +343,7 @@ static void RenderWorld(
 	Level* level
 ) {
 	// Create the draw queue.
-	// Tiles (TODO: change when it's not harcoded) + entities + player entity + attacks + texts + some extra.
+	// Tiles + entities + player entity + attacks + texts + some extra.
 	int maxCalls = level->tileCount + (level->entityCount + 1) * 5 + level->attacks.activeItems + level->texts.activeItems + 32;
 	DrawQueue* queue = malloc(sizeof(DrawQueue) + sizeof(DrawCall[maxCalls]));
 	if (queue == NULL) {

@@ -63,7 +63,8 @@ Level GenerateLevel(GameContext* context, int floor) {
 	// Entities for enemies that will be in the level.
 	level.entities = malloc(sizeof(Enemy) * entityCount);
 	for (int i = 0; i < entityCount; i++) {
-		int pos = 128 * i + 256;
+		int xpos = 64 * i + 320;
+		int ypos = 64 * i + 128;
 		level.entities[i] = (Enemy){
 			.active = true,
 			.activeRadius = DEFAULT_ENEMY_RADIUS,
@@ -79,7 +80,7 @@ Level GenerateLevel(GameContext* context, int floor) {
 					.visible = true,
 					.layer = 4
 				},
-				.position = (Vector2){ pos, pos },
+				.position = (Vector2){ xpos, ypos },
 				.health = 40,
 				.maxHealth = 40,
 				.invuln = (Invulnerability){ .duration = 0.5f },
@@ -126,6 +127,18 @@ static GameEntity* FindEntityCollisionPoint(Level* level, Vector2* point, GameEn
 	}
 
 	return NULL;
+}
+
+static void MoveEntityByForce(Level* level, GameEntity* entity, float force) {
+	Tile* tile = GetTileByPos(level, &entity->position);
+	Vector2 newPos = AdvancePointByVector(entity->position, entity->anglev, entity->speed * tile->speed * force);
+	Tile* newTile = GetTileByPos(level, &newPos);
+	// Would hit an obstacle on next tile, stop movement.
+	if (newTile->obstacle) {
+		entity->speed = 0.0f;
+	} else {
+		entity->position = newPos;
+	}
 }
 
 float MaxAttackRange(Enemy* enemy) {
@@ -524,7 +537,8 @@ static void UpdatePlayer(GameContext* context, Level* level, Player* player, flo
 
 	// Player is mid dash, no control on actions until it is finished.
 	if (player->dash.dashing) {
-		return PlayerDashUpdate(player, delta);
+		PlayerDashUpdate(player, delta);
+		return MoveEntityByForce(level, &player->entity, delta);
 	}
 
 	// Update dash cooldown only after it has finished, as it is set at the end of the dash.
@@ -576,8 +590,7 @@ static void UpdatePlayer(GameContext* context, Level* level, Player* player, flo
 
 	// Execute movement. Last action so other actions that may require directionality take precedence.
 	if (newDir != NO_DIRECTION) {
-		Tile* tile = GetTileByPos(level, &player->entity.position);
-		player->entity.position = AdvancePointByDir(player->entity.position, player->entity.dir, PLAYER_SPEED * tile->speed * delta);
+		MoveEntityByForce(level, &player->entity, delta);
 	}
 }
 

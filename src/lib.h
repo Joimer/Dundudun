@@ -88,5 +88,6 @@ float DirectionToAngle(Direction dir);
 Direction AngleToDirection(float angle, bool strict);
 Vector2 AdvancePointByAngle(Vector2 start, float angle, float force);
 Vector2 AdvancePointByDir(Vector2 start, Direction dir, float force);
+Vector2 AdvancePointByVector(Vector2 start, Vector2 anglev, float force);
 
 #endif
