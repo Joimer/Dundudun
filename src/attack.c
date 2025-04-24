@@ -9,9 +9,9 @@ Attack attacks[TOTAL_ATTACKS] = {
 		.damage = 5,
 		.windup = 0.25f,
 		.duration = 0.33f,
-		.centerDist = 32.0f,
+		.centerDist = 16.0f,
 		.type = HB_RECT,
-		.hitbox = { .rect = { 24.0f, 24.0f } }
+		.hitbox = { .rect = { 32.0f, 32.0f } }
 	},
 	// Enemy circle explosion like attack?
 	{
@@ -26,7 +26,7 @@ Attack attacks[TOTAL_ATTACKS] = {
 	{
 		.damage = 7,
 		.duration = 0.15f,
-		.centerDist = 32.0f,
+		.centerDist = 0.0f,
 		.type = HB_RECT,
 		.hitbox = { .rect = { 40.0f, 40.0f } },
 	},

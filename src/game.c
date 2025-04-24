@@ -77,7 +77,7 @@ int RunGame(GameContext* context) {
 	}
 
 	// Load necessary textures.
-	RenderTexture2D worldRender = LoadRenderTexture(worldSize.width, worldSize.height);
+	RenderTexture2D worldRender = LoadRenderTexture(WORLD_SIZE_WIDTH, WORLD_SIZE_HEIGHT);
 	SetTextureFilter(worldRender.texture, TEXTURE_FILTER_POINT);
 
 	// Load player character (TODO: Only on necessary screens)
@@ -136,8 +136,8 @@ void SetStance(GameEntity* entity, Stance stance) {
 
 Vector2 GetWorldMousePos(GameContext* context) {
 	Vector2 mousePos = GetMousePosition();
-	float worldHeight = (float) worldSize.height;
-	float worldWidth = (float) worldSize.width;
+	float worldHeight = (float) WORLD_SIZE_HEIGHT;
+	float worldWidth = (float) WORLD_SIZE_WIDTH;
 	if (
 		context->options->screenSize.width != worldWidth
 		|| context->options->screenSize.height != worldHeight

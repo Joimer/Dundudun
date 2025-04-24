@@ -14,7 +14,10 @@ typedef struct {
 } ScreenSize;
 
 extern const ScreenSize resolutions[5];
-extern const ScreenSize worldSize;
+
+#define WORLD_SIZE_WIDTH 480
+#define WORLD_SIZE_HEIGHT 270
+#define TILE_SIZE 32.0f
 
 #define BG_LAYER 10000
 #define ENTITY_LAYER 20000

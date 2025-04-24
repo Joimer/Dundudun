@@ -11,12 +11,11 @@
 #include "lib.h"
 #include "level.h"
 
-const ScreenSize worldSize = { 480, 270 };
 const ScreenSize resolutions[5] = {
-	{ .width = 800, .height = 450 },
+	{ .width = 480, .height = 270 },
 	{ .width = 960, .height = 540 },
 	{ .width = 1280, .height = 720 },
-	{ .width = 1760, .height = 990 },
+	{ .width = 1440, .height = 810 },
 	{ .width = 1920, .height = 1080 },
 };
 
@@ -28,9 +27,26 @@ static void AddDrawCall(DrawQueue* queue, DrawCall call) {
 	queue->calls[queue->count++] = call;
 }
 
-// Unused XD
-void DrawSprite(Sprite* sprite) {
-	DrawTextureRec(*sprite->texture, sprite->rect, sprite->position, WHITE);
+static float GetScreenScale() {
+	float screenWidth = (float) GetScreenWidth();
+	float screenHeight = (float) GetScreenHeight();
+	float gameScreenWidth = (float) WORLD_SIZE_WIDTH;
+	float gameScreenHeight = (float) WORLD_SIZE_HEIGHT;
+	return fmaxf(fminf(screenWidth / gameScreenWidth, screenHeight / gameScreenHeight), 1.0f);
+}
+
+static void ClampCamera(Camera2D* camera, Level* level) {
+	const float minX = 0.0f + camera->offset.x;
+	const float minY = 0.0f + camera->offset.y;
+	const float maxX = (level->tilesPerRow * TILE_SIZE) - camera->offset.x;
+	const float maxY = ((level->tileCount / level->tilesPerRow) * TILE_SIZE) - camera->offset.y;
+	camera->target.x = Clamp(camera->target.x, minX, maxX);
+	camera->target.y = Clamp(camera->target.y, minY, maxY);
+}
+
+static void UpdateLevelCamera(Camera2D* camera, Level* level, Player* player) {
+	camera->target = player->entity.position;
+	ClampCamera(camera, level);
 }
 
 static void DrawEntity(GameEntity* entity, bool withGizmo, DrawQueue* queue) {
@@ -91,7 +107,7 @@ static void DrawEntity(GameEntity* entity, bool withGizmo, DrawQueue* queue) {
 			.fun = DRAW_RECT,
 			.layer = ENTITY_LAYER + entity->position.y * 100,
 			.args = { .rect = {
-				.rec = (Rectangle){ pos.x, pos.y, 32, 32 },
+				.rec = (Rectangle){ pos.x, pos.y, TILE_SIZE, TILE_SIZE },
 				.color = doDraw ? RED : (Color){ 230, 41, 55, 10 }
 			}}
 		});
@@ -203,54 +219,52 @@ void DrawTextCallback(ObjectPool* pool, int index, void* args) {
 }
 
 static void RenderWorldCalls(
-	GameContext *context,
-	RenderTexture2D *worldRender,
-	Player *player,
+	GameContext* context,
+	RenderTexture2D* worldRender,
+	Player* player,
 	Level* level,
 	DrawQueue* queue
 ) {
 	// Draw level background.
-	const int tileSize = 32;
 	const int offset = 10;
-	Color tileColor;
-	// TODO: Check if tile is in camera's sight.
-	for (int x = 0; x < 25; x++) {
-		for (int y = 0; y < 25; y++) {
-			if (x == 0 || y == 0 || x == 24 || y == 24) {
-				tileColor = BLACK;
-			} else {
-				if ((x % 2 == 0 && y % 2 != 0) || (x % 2 != 0 && y % 2 == 0)) {
-					tileColor = BEIGE;
-				} else {
-					tileColor = BROWN;
+	float camX1 = context->state->camera.target.x - context->state->camera.offset.x;
+	float camY1 = context->state->camera.target.y - context->state->camera.offset.y;
+	float scale = GetScreenScale();
+	Rectangle worldCamera = {
+		camX1 - 1,
+		camY1 - 1,
+		((float)GetScreenWidth() / context->state->camera.zoom / scale) + 2,
+		((float)GetScreenHeight() / context->state->camera.zoom / scale) + 2
+	};
+
+	// Run bounds check for camera:
+	// Check if the room is bigger than the biggest room that can be shown in camera.
+	// If the room is not big enough, there's no need to check for camera bound.
+	//const float widthLimit = (WORLD_SIZE_WIDTH / tileSize) + 1;
+	//const float heightLimit = (WORLD_SIZE_HEIGHT / tileSize) + 1;
+	if (level != NULL && level->tiles != NULL && level->tileCount > 0) {
+		Color tileColor;
+		Rectangle tileRect;
+		const int tilesPerRow = level->tilesPerRow > 0 ? level->tilesPerRow : 15;
+		const int columns = level->tileCount / level->tilesPerRow;
+		for (int x = 0; x < tilesPerRow; x++) {
+			for (int y = 0; y < columns; y++) {
+				int index = y + (columns * x);
+				tileColor = level->tiles[index].type == WALL ? (Color){ 43, 3, 0, 255 } : (level->tiles[index].type == GRASS ? (Color){ 0, 180, 66, 255 } : BROWN);
+				tileRect = (Rectangle){ x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE };
+				if (CheckCollisionRecs(worldCamera, tileRect)) {
+					AddDrawCall(queue, (DrawCall){
+						.fun = DRAW_RECT,
+						.layer = BG_LAYER + y,
+						.args = { .rect = {
+							.rec = tileRect,
+							.color = tileColor
+						}}
+					});
 				}
 			}
-			//DrawRectangle(x * tileSize, y * tileSize, tileSize, tileSize, tileColor);
-			AddDrawCall(queue, (DrawCall){
-				.fun = DRAW_RECT,
-				.layer = BG_LAYER + y,
-				.args = { .rect = {
-					.rec = (Rectangle) { x * tileSize, y * tileSize, tileSize, tileSize },
-					.color = tileColor
-				}}
-			});
-			//DrawText(TextFormat("%d,%d", x, y), (x * tileSize) + offset, (y * tileSize) + offset, 10, DARKBLUE);
-			/*AddDrawCall(queue, (DrawCall){
-				.fun = DRAW_TEXT,
-				.layer = BG_LAYER + 10 + y,
-				.args = { .text = {
-					.text = TextFormat("%d,%d", x, y),
-					.posX = (x * tileSize) + offset,
-					.posY = (y * tileSize) + offset,
-					.fontSize = 10,
-					.color = DARKBLUE
-				}}
-			});*/
 		}
 	}
-	/*if (level != NULL && level->tiles != NULL && level->tileCount > 0) {
-		// TODO: Tiles from generated level.
-	}*/
 
 	// Draw character.
 	DrawEntity(&player->entity, context->options->showGizmos, queue);
@@ -263,7 +277,6 @@ static void RenderWorldCalls(
 				if (!level->entities[i].active) {
 					continue;
 				}
-				// TODO: Check if entity is in camera's sight.
 				DrawEntity(&level->entities[i].entity, context->options->showGizmos, queue);
 				if (context->options->showGizmos) {
 					//DrawCircleV(level->entities[i].entity.position, level->entities[i].activeRadius, (Color){ 255, 109, 194, 60 });
@@ -325,14 +338,14 @@ static void SortDrawCalls(DrawQueue* queue) {
 }
 
 static void RenderWorld(
-	GameContext *context,
-	RenderTexture2D *worldRender,
-	Player *player,
+	GameContext* context,
+	RenderTexture2D* worldRender,
+	Player* player,
 	Level* level
 ) {
 	// Create the draw queue.
 	// Tiles (TODO: change when it's not harcoded) + entities + player entity + attacks + texts + some extra.
-	int maxCalls = (25 * 25 * 1) + (level->entityCount + 1) * 5 + level->attacks.activeItems + level->texts.activeItems + 32;
+	int maxCalls = level->tileCount + (level->entityCount + 1) * 5 + level->attacks.activeItems + level->texts.activeItems + 32;
 	DrawQueue* queue = malloc(sizeof(DrawQueue) + sizeof(DrawCall[maxCalls]));
 	if (queue == NULL) {
 		LogDebug("Failed to allocate DrawQueue!!");
@@ -400,19 +413,11 @@ void ResizeWindow(GameContext* context, ScreenSize newSize) {
 	CalculateScreenSize(context);
 }
 
-static float GetScreenScale() {
-	float screenWidth = (float) GetScreenWidth();
-	float screenHeight = (float) GetScreenHeight();
-	float gameScreenWidth = (float) worldSize.width;
-	float gameScreenHeight = (float) worldSize.height;
-	return fmaxf(fminf(screenWidth / gameScreenWidth, screenHeight / gameScreenHeight), 1.0f);
-}
-
 void CalculateScreenSize(GameContext* context) {
 	float screenWidth = (float) GetScreenWidth();
 	float screenHeight = (float) GetScreenHeight();
-	float gameScreenWidth = (float) worldSize.width;
-	float gameScreenHeight = (float) worldSize.height;
+	float gameScreenWidth = (float) WORLD_SIZE_WIDTH;
+	float gameScreenHeight = (float) WORLD_SIZE_HEIGHT;
 	float scale = fmaxf(fminf(screenWidth / gameScreenWidth, screenHeight / gameScreenHeight), 1.0f);
 	context->options->screenSize = (Rectangle){
 		(screenWidth - (gameScreenWidth * scale)) * 0.5f,
@@ -431,7 +436,7 @@ static void RenderScreen(
 	BeginDrawing();
 	ClearBackground(BLACK);
 
-	const Rectangle renderSource = { 0.0f, 0.0f, worldSize.width, -worldSize.height };
+	const Rectangle renderSource = { 0.0f, 0.0f, WORLD_SIZE_WIDTH, -WORLD_SIZE_HEIGHT };
 	const Vector2 renderOrigin = { 0, 0 };
 	DrawTexturePro(worldRender->texture, renderSource, context->options->screenSize, renderOrigin, 0.0f, WHITE);
 
@@ -476,6 +481,7 @@ void Render(
 	Player* player,
 	Level* level
 ) {
+	UpdateLevelCamera(&context->state->camera, level, player);
 	RenderWorld(context, worldRender, player, level);
 	RenderScreen(context, worldRender, player);
 }
@@ -494,10 +500,10 @@ void SetupGameWindow(GameContext* context) {
 	int monitorWidth = GetMonitorWidth(monitor);
 	int monitorHeight = GetMonitorHeight(monitor);
 	int scale = (int) Clamp(fmin(
-		monitorWidth / worldSize.width,
-		monitorHeight / worldSize.height
+		monitorWidth / WORLD_SIZE_WIDTH,
+		monitorHeight / WORLD_SIZE_HEIGHT
 	), 1, 10);
-	ScreenSize newSize = { worldSize.width * scale, worldSize.height * scale };
+	ScreenSize newSize = { WORLD_SIZE_WIDTH * scale, WORLD_SIZE_HEIGHT * scale };
 	ResizeWindow(context, newSize);
 	SetWindowPosition((monitorWidth - newSize.width) / 2, (monitorHeight - newSize.height) / 2);
 	CalculateScreenSize(context);

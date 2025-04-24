@@ -9,6 +9,7 @@
 #include "attack.h"
 
 #define DEFAULT_ENEMY_RADIUS 200.0f
+#define ENEMY_DEFAULT_SPEED 150.0f
 #define COLL_RAYCAST_ACTIVE 64.0f
 #define COLL_RAYCAST_DIST 16.0f
 
@@ -18,6 +19,7 @@ typedef struct {
 	TileType type;
 	bool obstacle;
 	int damage;
+	float speed;
 } Tile;
 
 typedef enum { APPROACH, STAND, DISTANCE } EnemyBehaviour;
@@ -47,6 +49,7 @@ typedef struct {
 
 typedef struct {
 	int floor;
+	int tilesPerRow;
 	int tileCount;
 	Tile* tiles;
 	int entityCount;

@@ -9,8 +9,6 @@
 #include "character.h"
 #include "attack.h"
 
-#define ENEMY_DEFAULT_SPEED 150.0f
-
 Rectangle HitboxWorldPosition(GameEntity* entity) {
 	if (entity == NULL) {
 		LogDebug("Invalid entity, returning empty rectangle.");
@@ -26,26 +24,33 @@ Rectangle HitboxWorldPosition(GameEntity* entity) {
 
 Level GenerateLevel(GameContext* context, int floor) {
 	floor = (int) Clamp(floor, 1, MAX_LEVEL);
-	int entityCount = 3;
-	int tileCount = 5;
+	const int entityCount = 3;
+	// Room that fits world screen: 15x8
+	const int tilesPerRow = 20;
+	const int columns = 10;
+	const int tileCount = tilesPerRow * columns;
 	Level level = {
 		.floor = floor,
+		.tilesPerRow = tilesPerRow,
 		.tileCount = tileCount,
 		.entityCount = entityCount
 	};
-	/*
-	for (int i = 0; i < tileCount; i++) {
-		level.tiles[i] = (Tile){};
-	}
-	*/
 	// TODO: When doing a new level, free past level and realloc here.
 	level.tiles = malloc(sizeof(Tile) * tileCount);
+	for (int x = 0; x < tilesPerRow; x++) {
+		for (int y = 0; y < columns; y++) {
+			bool isWall = (x == 0 || x == tilesPerRow - 1 || y == 0 || y == columns - 1);
+			int index = y + (columns * x);
+			level.tiles[index] = (Tile){
+				.type = isWall ? WALL : (index % 3 == 0 ? GRASS : GROUND),
+				.obstacle = isWall,
+				.damage = 0
+			};
+		}
+	}
+
+	// Entities for enemies that will be in the level.
 	level.entities = malloc(sizeof(Enemy) * entityCount);
-	level.tiles[0] = (Tile){ .type = WALL, .obstacle = true, .damage = 0 };
-	level.tiles[1] = (Tile){ .type = GROUND, .obstacle = false, .damage = 33 };
-	level.tiles[2] = (Tile){ .type = GRASS, .obstacle = false, .damage = 0 };
-	level.tiles[3] = (Tile){ .type = GROUND, .obstacle = false, .damage = 0 };
-	level.tiles[4] = (Tile){ .type = WALL, .obstacle = true, .damage = 10 };
 	for (int i = 0; i < entityCount; i++) {
 		int pos = 128 * i + 256;
 		level.entities[i] = (Enemy){
@@ -77,6 +82,19 @@ Level GenerateLevel(GameContext* context, int floor) {
 	level.texts = CreatePoolOf(ActiveText, 32);
 
 	return level;
+}
+
+Tile* GetTileByPos(float posX, float posY) {
+
+}
+
+static float SpeedForTile(TileType type) {
+	switch (type) {
+		case WALL: return 0.0f;
+		case GRASS: return 0.75f;
+		case GROUND:
+		default: return 1.0f;
+	}
 }
 
 static GameEntity* FindEntityCollisionPoint(Level* level, Vector2* point, GameEntity* self) {
@@ -376,16 +394,9 @@ static void UpdateEnemy(GameContext* context, Player* player, Level* level, Enem
 	}
 
 	// Update entity position according to its movement.
+	// Collision checks to be done before this.
 	if (enemy->entity.speed > 0.0f) {
-		// TODO: When colliding with pushback, full stop is not the most adequate...
-		Rectangle newHitbox = HitboxWorldPosition(&enemy->entity);
-		newHitbox.x += enemy->entity.anglev.x * enemy->entity.speed * dt;
-		newHitbox.y += enemy->entity.anglev.y * enemy->entity.speed * dt;
-		if (FindEntityCollision(level, &enemy->entity, &newHitbox) == NULL) {
-			enemy->entity.position = AdvancePointByDir(enemy->entity.position, enemy->entity.dir, enemy->entity.speed * dt);
-		} else {
-			LogDebug("Will collide, stopped movement!! %f,%f dir %d", newHitbox.x, newHitbox.y, enemy->entity.dir);
-		}
+		enemy->entity.position = AdvancePointByDir(enemy->entity.position, enemy->entity.dir, enemy->entity.speed * dt);
 	}
 	return;
 
@@ -566,7 +577,6 @@ void UpdateLevel(GameContext* context, Player* player, Level* level, float dt) {
 
 	if (player != NULL) {
 		UpdatePlayer(context, level, player, dt);
-		context->state->camera.target = player->entity.position;
 	}
 
 	// Run ongoing attacks.

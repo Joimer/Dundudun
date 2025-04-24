@@ -16,7 +16,7 @@ int main(void) {
 
 	// Initial game window configuration.
 	SetConfigFlags(FLAG_VSYNC_HINT | FLAG_WINDOW_HIGHDPI);
-	InitWindow(worldSize.width, worldSize.height, GAME_NAME);
+	InitWindow(WORLD_SIZE_WIDTH, WORLD_SIZE_HEIGHT, GAME_NAME);
 	SetTargetFPS(options.targetFps);
 	InitAudioDevice();
 
@@ -28,7 +28,7 @@ int main(void) {
 		// 2d World camera.
 		.camera = {
 			.target = (Vector2){ initialPos.x, initialPos.y },
-			.offset = (Vector2){ worldSize.width / 2.0f, worldSize.height / 2.0f },
+			.offset = (Vector2){ WORLD_SIZE_WIDTH / 2.0f, WORLD_SIZE_HEIGHT / 2.0f },
 			.zoom = 1.0f
 		}
 	};
