@@ -226,7 +226,6 @@ static void RenderWorldCalls(
 	DrawQueue* queue
 ) {
 	// Draw level background.
-	const int offset = 10;
 	float camX1 = context->state->camera.target.x - context->state->camera.offset.x;
 	float camY1 = context->state->camera.target.y - context->state->camera.offset.y;
 	float scale = GetScreenScale();
@@ -437,8 +436,7 @@ static void RenderScreen(
 	ClearBackground(BLACK);
 
 	const Rectangle renderSource = { 0.0f, 0.0f, WORLD_SIZE_WIDTH, -WORLD_SIZE_HEIGHT };
-	const Vector2 renderOrigin = { 0, 0 };
-	DrawTexturePro(worldRender->texture, renderSource, context->options->screenSize, renderOrigin, 0.0f, WHITE);
+	DrawTexturePro(worldRender->texture, renderSource, context->options->screenSize, (Vector2){ 0, 0 }, 0.0f, WHITE);
 
 	// Draw UI elements.
 	DrawFPS(GetScreenWidth() - 95, 10);
@@ -475,15 +473,89 @@ static void RenderScreen(
 	EndDrawing();
 }
 
-void Render(
+static void RenderLogo(
 	GameContext* context,
-	RenderTexture2D* worldRender,
-	Player* player,
-	Level* level
+	RenderTexture2D* worldRender
 ) {
+	// Render logo state in world render size.
+	BeginTextureMode(*worldRender);
+	ClearBackground(RAYWHITE);
+	const char* text = "Mantis Shrimp";
+	int fontSize = 42;
+	int textPxSize = MeasureText(text, fontSize);
+	DrawText(text, worldRender->texture.width / 2 - textPxSize / 2, worldRender->texture.height / 2 - fontSize / 2, fontSize, BLACK);
+
+	// Fade in logo 2s, fade out
+	if (context->state->elapsed <= LOGO_FADE_TIME) {
+		char t = (char)(255.0f * (LOGO_FADE_TIME - context->state->elapsed));
+		DrawRectangle(0, 0, worldRender->texture.width, worldRender->texture.height, (Color){ 0, 0, 0, t});
+	}
+	float fadeDiff = LOGO_DURATION - LOGO_FADE_TIME;
+	if (context->state->elapsed >= fadeDiff) {
+		char t = context->state->elapsed < LOGO_DURATION ? (char)(255.0f * -(fadeDiff - context->state->elapsed)) : 255;
+		DrawRectangle(0, 0, worldRender->texture.width, worldRender->texture.height, (Color){ 0, 0, 0, t});
+	}
+	EndTextureMode();
+
+	// Show frame in final size.
+	BeginDrawing();
+	ClearBackground(BLACK);
+	DrawTexturePro(
+		worldRender->texture,
+		(Rectangle){ 0, 0, WORLD_SIZE_WIDTH, -WORLD_SIZE_HEIGHT },
+		context->options->screenSize,
+		(Vector2){ 0, 0 }, 0.0f,
+		WHITE
+	);
+	EndDrawing();
+}
+
+static void RenderTitle(
+	GameContext* context,
+	RenderTexture2D* worldRender
+) {
+	BeginTextureMode(*worldRender);
+	ClearBackground(RAYWHITE);
+	const char* text = "This is a title";
+	int fontSize = 35;
+	int textPxSize = MeasureText(text, fontSize);
+	DrawText(text, worldRender->texture.width / 2 - textPxSize / 2, worldRender->texture.height / 2 - fontSize / 2, fontSize, BLACK);
+	EndTextureMode();
+
+	BeginDrawing();
+	ClearBackground(BLACK);
+	DrawTexturePro(
+		worldRender->texture,
+		(Rectangle){ 0, 0, WORLD_SIZE_WIDTH, -WORLD_SIZE_HEIGHT },
+		context->options->screenSize,
+		(Vector2){ 0, 0 }, 0.0f,
+		WHITE
+	);
+	EndDrawing();
+}
+
+static void RenderLevel(
+	GameContext* context,
+	RenderTexture2D* worldRender
+) {
+	Player* player = GetPlayer();
+	Level* level = GetLevel();
 	UpdateLevelCamera(&context->state->camera, level, player);
 	RenderWorld(context, worldRender, player, level);
 	RenderScreen(context, worldRender, player);
+}
+
+void Render(
+	GameContext* context,
+	RenderTexture2D* worldRender
+) {
+	// TODO? If all renders are the same args, can simply use a function pointer.
+	switch (context->state->screen) {
+		case GAMEPLAY: return RenderLevel(context, worldRender);
+		case LOGO: return RenderLogo(context, worldRender);
+		case TITLE: return RenderTitle(context, worldRender);
+		default: return;
+	}
 }
 
 void LoadCustomCursor(GameOptions* options) {

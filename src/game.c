@@ -1,11 +1,13 @@
 #include <stdlib.h>
 #include <raylib.h>
 #include "game.h"
+#include "control.h"
+#include "screens.h"
+#include "lib.h"
 #include "character.h"
 #include "frame.h"
 #include "resource.h"
 #include "level.h"
-#include "lib.h"
 
 const Vector2 initialPos = { 100.0f, 100.0f };
 
@@ -58,14 +60,39 @@ void SetupGamePRNG(GameContext* context) {
 	context->state->mtrand = SeedMTRand(context->state->seed);
 }
 
-void Update(GameContext* context, Player* player, Level* level) {
+static void UpdateLogo(GameContext* context) {
+	if (context->state->elapsed > LOGO_DURATION) {
+		LoadNextScreen(context, TITLE);
+	}
+}
+
+static void UpdateTitle(GameContext* context) {
+	if (
+		IsActionPressed(ACCEPT)
+		|| IsActionPressed(CANCEL)
+		|| IsActionPressed(ACTION_A)
+		|| IsActionPressed(ACTION_B)
+		|| IsActionPressed(ACTION_C)
+		|| IsActionPressed(ACTION_D)
+	) {
+		LoadNextScreen(context, GAMEPLAY);
+	}
+}
+
+static void Update(GameContext* context) {
+	float dt = GetFrameTime();
+	context->state->elapsed += dt;
+
 	if (IsKeyPressed(KEY_H)) {
 		context->options->showGizmos = !context->options->showGizmos;
 	}
 
-	float dt = GetFrameTime();
-	if (context->state->currentScreen == GAMEPLAY) {
-		UpdateLevel(context, player, level, dt);
+	// TODO? Pass dt to all and function pointer?
+	switch (context->state->screen) {
+		case LOGO: return UpdateLogo(context);
+		case GAMEPLAY: return UpdateLevel(context, dt);
+		case TITLE: return UpdateTitle(context);
+		default: return;
 	}
 }
 
@@ -76,39 +103,23 @@ int RunGame(GameContext* context) {
 		LoadCustomCursor(context->options);
 	}
 
-	// Load necessary textures.
+	// Load world texture where the game native resolution will be loaded.
 	RenderTexture2D worldRender = LoadRenderTexture(WORLD_SIZE_WIDTH, WORLD_SIZE_HEIGHT);
-	SetTextureFilter(worldRender.texture, TEXTURE_FILTER_POINT);
-
-	// Load player character (TODO: Only on necessary screens)
-	Texture2D* characterTexture = GetTexture(PLAYER_TEXTURE);
-	Player player = CreatePlayer(characterTexture);
 
 	// Generate initial seed (can be set by player later, too).
 	SetupGamePRNG(context);
 
-	// For development and testing, generate when appropriate and manage within context.
-	Level level = GenerateLevel(context, 1);
-
 	// Main game loop
 	while (!WindowShouldClose()) {
 		// First run the logic updates.
-		Update(context, &player, &level);
+		Update(context);
 
 		// Run draw frame logic.
-		// TODO: Only playing level render needs player and level.
-		Render(
-			context,
-			&worldRender,
-			&player,
-			&level
-		);
+		Render(context, &worldRender);
 	}
 
-	// Unload resources before exit.
+	// Unload resources and memory before exit.
 	UnloadTextures();
-
-	// Free used memory.
 	if (context->state->seedStr != NULL) {
 		free((char*)context->state->seedStr);
 	}

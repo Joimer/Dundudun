@@ -74,9 +74,7 @@ void PlayerStartDash(GameContext* context, Player* player) {
 	player->dash.dashing = true;
 	player->dash.consecutive++;
 	player->entity.speed = player->speed * DASH_SPEED_MULT;
-	float dashSpeed = player->speed * DASH_SPEED_MULT;
 	float angle = DEG_270;
-	Vector2 dir;
 	if (context->options->dashMode == MOUSE) {
 		Vector2 mpos = GetWorldMousePos(context);
 		angle = Vector2LineAngle(player->entity.position, mpos);
@@ -84,9 +82,6 @@ void PlayerStartDash(GameContext* context, Player* player) {
 	} else {
 		player->entity.anglev = DirectionToVector(player->entity.dir);
 	}
-
-	// TODO: Should just set the direction vector and manage speed on dash object or elsewhere, probably.
-	player->dash.direction = (Vector2){ .x = dir.x * dashSpeed, .y = dir.y * dashSpeed };
 	player->dash.elapsed = 0.0f;
 }
 

@@ -46,8 +46,8 @@ typedef struct {
 } GameEntity;
 
 typedef struct {
-	GameScreen currentScreen;
-	GameScreen nextScreen;
+	GameScreen screen;
+	float elapsed;
 	Camera2D camera;
 	bool paused;
 	unsigned long seed;
@@ -78,5 +78,8 @@ const char* SeedToString(unsigned long seed);
 void UpdateInvuln(GameEntity* entity, float dt);
 void SetStance(GameEntity* entity, Stance stance);
 Vector2 GetWorldMousePos(GameContext* context);
+
+// Should go in screens.h but right now redundancy with game.h
+void LoadNextScreen(GameContext* context, GameScreen next);
 
 #endif

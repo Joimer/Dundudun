@@ -66,10 +66,11 @@ typedef struct {
 	ObjectPool* textPool;
 } AttackCbArgs;
 
-Level GenerateLevel(GameContext* context, int floor);
-void Update(GameContext* context, Player* player, Level* level);
+void SetupLevel(GameContext* context);
 float MaxAttackRange(Enemy* enemy);
 Rectangle HitboxWorldPosition(GameEntity* entity);
-void UpdateLevel(GameContext* context, Player* player, Level* level, float dt);
+void UpdateLevel(GameContext* context, float dt);
+Player* GetPlayer();
+Level* GetLevel();
 
 #endif

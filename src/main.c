@@ -22,9 +22,9 @@ int main(void) {
 
 	// Set up the initial game state.
 	GameState gameState = {
-		//.currentScreen = LOGO,
-		.currentScreen = GAMEPLAY,
-		.nextScreen = TITLE,
+		// LOGO
+		.screen = GAMEPLAY,
+		.elapsed = 0.0f,
 		// 2d World camera.
 		.camera = {
 			.target = (Vector2){ initialPos.x, initialPos.y },

@@ -8,6 +8,19 @@
 #include "game.h"
 #include "character.h"
 #include "attack.h"
+#include "resource.h"
+
+static bool levelSetup = false;
+static Player player;
+static Level level;
+
+Player* GetPlayer() {
+	return &player;
+}
+
+Level* GetLevel() {
+	return &level;
+}
 
 Rectangle HitboxWorldPosition(GameEntity* entity) {
 	if (entity == NULL) {
@@ -31,7 +44,7 @@ static float SpeedForTile(TileType type) {
 	}
 }
 
-Level GenerateLevel(GameContext* context, int floor) {
+static Level GenerateLevel(GameContext* context, int floor) {
 	floor = (int) Clamp(floor, 1, MAX_LEVEL);
 	const int entityCount = 3;
 	// Room that fits world screen: 15x8
@@ -94,6 +107,13 @@ Level GenerateLevel(GameContext* context, int floor) {
 	level.texts = CreatePoolOf(ActiveText, 32);
 
 	return level;
+}
+
+void SetupLevel(GameContext* context) {
+	Texture2D* characterTexture = GetTexture(PLAYER_TEXTURE);
+	player = CreatePlayer(characterTexture);
+	level = GenerateLevel(context, 1);
+	levelSetup = true;
 }
 
 static Tile* GetTileByPos(Level* level, Vector2* pos) {
@@ -594,35 +614,34 @@ static void UpdatePlayer(GameContext* context, Level* level, Player* player, flo
 	}
 }
 
-void UpdateLevel(GameContext* context, Player* player, Level* level, float dt) {
-	if (level == NULL) {
-		return;
+void UpdateLevel(GameContext* context, float dt) {
+	// During first update we set up the level.
+	// TODO: Loading screen step for this
+	if (!levelSetup) {
+		SetupLevel(context);
 	}
-	level->playTime += dt;
-
-	if (player != NULL) {
-		UpdatePlayer(context, level, player, dt);
-	}
+	level.playTime += dt;
+	UpdatePlayer(context, &level, &player, dt);
 
 	// Run ongoing attacks.
 	// Attacks are instantiated by enemies from a template and ran on their on afterwards.
-	if (level->attacks.activeItems > 0) {
+	if (level.attacks.activeItems > 0) {
 		AttackCbArgs args = {
 			.dt = dt,
-			.player = player,
-			.level = level,
-			.textPool = &level->texts
+			.player = &player,
+			.level = &level,
+			.textPool = &level.texts
 		};
-		IteratePool(&level->attacks, &AttackCallback, &args);
+		IteratePool(&level.attacks, &AttackCallback, &args);
 	}
 
 	// Update all active entities.
-	if (level->entityCount > 0) {
-		for (int i = 0; i < level->entityCount; i++) {
-			if (!level->entities[i].active) {
+	if (level.entityCount > 0) {
+		for (int i = 0; i < level.entityCount; i++) {
+			if (!level.entities[i].active) {
 				continue;
 			}
-			UpdateEnemy(context, player, level, &level->entities[i], dt);
+			UpdateEnemy(context, &player, &level, &level.entities[i], dt);
 		}
 	}
 }

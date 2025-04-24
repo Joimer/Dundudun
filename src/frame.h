@@ -6,7 +6,6 @@
 #include <raylib.h>
 #include "game.h"
 #include "character.h"
-#include "level.h"
 
 typedef struct {
 	int width;
@@ -94,12 +93,6 @@ void ResizeWindow(GameContext* context, ScreenSize newSize);
 void CalculateScreenSize(GameContext* context);
 void LoadCustomCursor(GameOptions* options);
 void SetupGameWindow(GameContext* context);
-
-void Render(
-	GameContext* context,
-	RenderTexture2D* render,
-	Player* player,
-	Level* level
-);
+void Render(GameContext* context, RenderTexture2D* render);
 
 #endif
