@@ -22,6 +22,15 @@ Rectangle HitboxWorldPosition(GameEntity* entity) {
 	};
 }
 
+static float SpeedForTile(TileType type) {
+	switch (type) {
+		case WALL: return 0.0f;
+		case GRASS: return 0.75f;
+		case GROUND:
+		default: return 1.0f;
+	}
+}
+
 Level GenerateLevel(GameContext* context, int floor) {
 	floor = (int) Clamp(floor, 1, MAX_LEVEL);
 	const int entityCount = 3;
@@ -41,10 +50,12 @@ Level GenerateLevel(GameContext* context, int floor) {
 		for (int y = 0; y < columns; y++) {
 			bool isWall = (x == 0 || x == tilesPerRow - 1 || y == 0 || y == columns - 1);
 			int index = y + (columns * x);
+			TileType type = isWall ? WALL : (index % 3 == 0 ? GRASS : GROUND);
 			level.tiles[index] = (Tile){
 				.type = isWall ? WALL : (index % 3 == 0 ? GRASS : GROUND),
 				.obstacle = isWall,
-				.damage = 0
+				.damage = 0,
+				.speed = SpeedForTile(type)
 			};
 		}
 	}
@@ -84,17 +95,16 @@ Level GenerateLevel(GameContext* context, int floor) {
 	return level;
 }
 
-Tile* GetTileByPos(float posX, float posY) {
-
-}
-
-static float SpeedForTile(TileType type) {
-	switch (type) {
-		case WALL: return 0.0f;
-		case GRASS: return 0.75f;
-		case GROUND:
-		default: return 1.0f;
+static Tile* GetTileByPos(Level* level, Vector2* pos) {
+	const int x = (int) pos->x / TILE_SIZE;
+	const int y = (int) pos->y / TILE_SIZE;
+	const int columns = level->tileCount / level->tilesPerRow;
+	const int index = y + (columns * x);
+	if (index < level->tileCount) {
+		return &level->tiles[index];
 	}
+
+	return NULL;
 }
 
 static GameEntity* FindEntityCollisionPoint(Level* level, Vector2* point, GameEntity* self) {
@@ -396,7 +406,8 @@ static void UpdateEnemy(GameContext* context, Player* player, Level* level, Enem
 	// Update entity position according to its movement.
 	// Collision checks to be done before this.
 	if (enemy->entity.speed > 0.0f) {
-		enemy->entity.position = AdvancePointByDir(enemy->entity.position, enemy->entity.dir, enemy->entity.speed * dt);
+		Tile* tile = GetTileByPos(level, &enemy->entity.position);
+		enemy->entity.position = AdvancePointByDir(enemy->entity.position, enemy->entity.dir, enemy->entity.speed * tile->speed * dt);
 	}
 	return;
 
@@ -565,7 +576,8 @@ static void UpdatePlayer(GameContext* context, Level* level, Player* player, flo
 
 	// Execute movement. Last action so other actions that may require directionality take precedence.
 	if (newDir != NO_DIRECTION) {
-		player->entity.position = AdvancePointByDir(player->entity.position, player->entity.dir, PLAYER_SPEED * delta);
+		Tile* tile = GetTileByPos(level, &player->entity.position);
+		player->entity.position = AdvancePointByDir(player->entity.position, player->entity.dir, PLAYER_SPEED * tile->speed * delta);
 	}
 }
 

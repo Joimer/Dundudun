@@ -10,6 +10,8 @@
 #define LOG_PURP "\e[0;35m"
 #define LOG_ENDC "\e[0m"
 
+#define TILE_SIZE 32.0f
+
 #define LOG_DEBUG
 #ifdef LOG_DEBUG
 #define LogDebug(fmt, ...) printf((LOG_YELL "[DEBUG]" LOG_ENDC LOG_PURP "[%s:%d]" LOG_ENDC " %s: " fmt "\n"), __FILE__, __LINE__, __PRETTY_FUNCTION__, ##__VA_ARGS__);

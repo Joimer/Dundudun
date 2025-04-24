@@ -330,7 +330,6 @@ static int CompareDrawCall(const void* a, const void* b) {
 }
 
 static void SortDrawCalls(DrawQueue* queue) {
-	//LogDebug("Sorting draw calls...");
 	if (queue->count == 0) {
 		return;
 	}
@@ -366,38 +365,39 @@ static void RenderWorld(
 	ClearBackground(RAYWHITE);
 
 	// Run all draw calls in order.
+	DrawCall* call;
 	for (int i = 0; i < queue->count; i++) {
-		DrawCall call = queue->calls[i];
+		call = &queue->calls[i];
 		//LogDebug("Running draw call %d on layer %d", i, call.layer);
 		// TODO: dict of enum to function pointer?
-		switch (call.fun) {
+		switch (call->fun) {
 			case DRAW_RECT:
-				DrawRectangleRec(call.args.rect.rec, call.args.rect.color);
+				DrawRectangleRec(call->args.rect.rec, call->args.rect.color);
 				break;
 			case DRAW_TEXT:
-				if (call.args.text.text != NULL) {
+				if (call->args.text.text != NULL) {
 					DrawText(
-						call.args.text.text,
-						call.args.text.posX,
-						call.args.text.posY,
-						call.args.text.fontSize,
-						call.args.text.color
+						call->args.text.text,
+						call->args.text.posX,
+						call->args.text.posY,
+						call->args.text.fontSize,
+						call->args.text.color
 					);
 				}
 				break;
 			case DRAW_TEXTURE:
 				DrawTextureRec(
-					call.args.texture.texture,
-					call.args.texture.source,
-					call.args.texture.position,
-					call.args.texture.tint
+					call->args.texture.texture,
+					call->args.texture.source,
+					call->args.texture.position,
+					call->args.texture.tint
 				);
 				break;
 			case DRAW_LINE:
-				DrawLine(call.args.line.startPosX, call.args.line.startPosY, call.args.line.endPosX, call.args.line.endPosY, call.args.line.color);
+				DrawLine(call->args.line.startPosX, call->args.line.startPosY, call->args.line.endPosX, call->args.line.endPosY, call->args.line.color);
 				break;
 			case DRAW_CIRCLE:
-				DrawCircleV(call.args.circle.center, call.args.circle.radius, call.args.circle.color);
+				DrawCircleV(call->args.circle.center, call->args.circle.radius, call->args.circle.color);
 				break;
 		}
 	}
