@@ -35,27 +35,47 @@ static float GetScreenScale() {
 	return fmaxf(fminf(screenWidth / gameScreenWidth, screenHeight / gameScreenHeight), 1.0f);
 }
 
-static void ClampCamera(Camera2D* camera, Level* level) {
-	if (level == NULL) {
-		LogDebug("Invalid parameters");
-		return;
-	}
-	Room* room = &level->rooms[level->currentRoom];
-	if (room->tileCount == 0 || room->tilesPerRow == 0) {
+static Vector2 CameraClampedPos(Camera2D* camera, Room* room, Vector2 target) {
+	if (room->tileCount == 0 || room->rows == 0 || room->columns == 0) {
 		LogDebug("Invalid room tiles");
+		return target;
+	}
+	Vector2 roomOffset = RoomOffset(room);
+	const float minX = 0.0f + camera->offset.x + roomOffset.x;
+	const float minY = 0.0f + camera->offset.y + roomOffset.y;
+	const float maxX = (room->columns * TILE_SIZE) - camera->offset.x + roomOffset.x;
+	const float maxY = (room->rows * TILE_SIZE) - camera->offset.y + roomOffset.y;
+	return (Vector2){
+		Clamp(target.x, minX, maxX),
+		Clamp(target.y, minY, maxY)
+	};
+}
+
+static void ClampCamera(Camera2D* camera, Room* room) {
+	camera->target = CameraClampedPos(camera, room, camera->target);
+}
+
+// Pan a camera from the previous room to the next one when hitting a door.
+static void CameraPan(GameContext* context, Level* level, Player* player) {
+	if (!level->swappingRoom || level->nextRoom == NULL || level->currentRoom == NULL) {
+		LogDebug("Invalid state");
 		return;
 	}
-	const float minX = 0.0f + camera->offset.x;
-	const float minY = 0.0f + camera->offset.y;
-	const float maxX = (room->tilesPerRow * TILE_SIZE) - camera->offset.x;
-	const float maxY = ((room->tileCount / room->tilesPerRow) * TILE_SIZE) - camera->offset.y;
-	camera->target.x = Clamp(camera->target.x, minX, maxX);
-	camera->target.y = Clamp(camera->target.y, minY, maxY);
+	float pct = level->playTime > ROOM_CHANGE_TIME ? 100.0f : level->playTime * 100.0f / ROOM_CHANGE_TIME;
+	if (pct == 0.0f) {
+		// Somehow the room swap time did not start yet.
+		return;
+	}
+	Vector2 endPos = CameraClampedPos(&context->state->camera, level->nextRoom, player->entity.position);
+	const float xPosDiff = (endPos.x - context->state->lastCamPos.x) * pct / 100.0f;
+	const float yPosDiff = (endPos.y - context->state->lastCamPos.y) * pct / 100.0f;
+	context->state->camera.target.x = context->state->lastCamPos.x + xPosDiff;
+	context->state->camera.target.y = context->state->lastCamPos.y + yPosDiff;
 }
 
 static void UpdateLevelCamera(Camera2D* camera, Level* level, Player* player) {
 	camera->target = player->entity.position;
-	ClampCamera(camera, level);
+	ClampCamera(camera, level->currentRoom);
 }
 
 static void DrawEntity(GameEntity* entity, bool withGizmo, DrawQueue* queue) {
@@ -75,24 +95,9 @@ static void DrawEntity(GameEntity* entity, bool withGizmo, DrawQueue* queue) {
 		}
 	}
 	if (entity->sprite.texture != NULL) {
-		/*DrawTextureRec(
-			*entity->sprite.texture,
-			// Hacky flip for going left for now.
-			IsBitSet(entity->dir, 2) ?
-				(Rectangle){
-					entity->sprite.rect.x,
-					entity->sprite.rect.y,
-					entity->sprite.rect.width * -1,
-					entity->sprite.rect.height
-				}
-				: entity->sprite.rect,
-			// For a GameEntity, its Sprite position is relative to the entity position.
-			Vector2Subtract(entity->position, entity->sprite.position),
-			doDraw ? WHITE : (Color){ 255, 255, 255, 10 }
-		);*/
 		AddDrawCall(queue, (DrawCall){
 			.fun = DRAW_TEXTURE,
-			.layer = ENTITY_LAYER + entity->position.y * 100,
+			.layer = ENTITY_LAYER + entity->position.y * 10,
 			.args = { .texture = {
 				.texture = *entity->sprite.texture,
 				.source = IsBitSet(entity->dir, 2) ?
@@ -110,11 +115,10 @@ static void DrawEntity(GameEntity* entity, bool withGizmo, DrawQueue* queue) {
 		});
 	} else {
 		// Draw red square if no texture loaded for the entity.
-		//DrawRectangleV(Vector2SubtractValue(entity->position, 16), (Vector2){ 32, 32 }, doDraw ? RED : (Color){ 230, 41, 55, 10 });
 		Vector2 pos = Vector2SubtractValue(entity->position, 16);
 		AddDrawCall(queue, (DrawCall){
 			.fun = DRAW_RECT,
-			.layer = ENTITY_LAYER + entity->position.y * 100,
+			.layer = ENTITY_LAYER + entity->position.y * 10,
 			.args = { .rect = {
 				.rec = (Rectangle){ pos.x, pos.y, TILE_SIZE, TILE_SIZE },
 				.color = doDraw ? RED : (Color){ 230, 41, 55, 10 }
@@ -122,10 +126,9 @@ static void DrawEntity(GameEntity* entity, bool withGizmo, DrawQueue* queue) {
 		});
 	}
 	if (withGizmo) {
-		//DrawRectangleRec(HitboxWorldPosition(entity), (Color){ 135, 60, 190, 80 });
 		AddDrawCall(queue, (DrawCall){
 			.fun = DRAW_RECT,
-			.layer = GIZMO_LAYER + entity->position.y * 100,
+			.layer = GIZMO_LAYER + entity->position.y * 10,
 			.args = { .rect = {
 				.rec = HitboxWorldPosition(entity),
 				.color = (Color){ 135, 60, 190, 80 }
@@ -137,10 +140,9 @@ static void DrawEntity(GameEntity* entity, bool withGizmo, DrawQueue* queue) {
 			entity->position.x + 25 : (entity->dir == WEST || entity->dir == NORTHWEST || entity->dir == SOUTHWEST ? entity->position.x - 25 : entity->position.x);
 		int endPosY = entity->dir == NORTH || entity->dir == NORTHEAST || entity->dir == NORTHWEST ?
 			entity->position.y - 25 : (entity->dir == SOUTH || entity->dir == SOUTHEAST || entity->dir == SOUTHWEST ? entity->position.y + 25 : entity->position.y);
-		//DrawLine(entity->position.x, entity->position.y, endPosX, endPosY, ORANGE);
 		AddDrawCall(queue, (DrawCall){
 			.fun = DRAW_LINE,
-			.layer = GIZMO_LAYER + 25 + entity->position.y * 100,
+			.layer = GIZMO_LAYER + 25 + entity->position.y * 10,
 			.args = { .line = {
 				.startPosX = entity->position.x,
 				.startPosY = entity->position.y,
@@ -169,7 +171,6 @@ void DrawAttackCallback(ObjectPool* pool, int index, void* args) {
 		// TODO: Attack animation here.
 		//if (cbArgs->showGizmos) {
 			Color color = attack->target == T_ENEMY ? (Color){ 0, 208, 8, 210 } : (Color){ 125, 11, 22, 210 };
-			//DrawRectangleRec(attack->hitbox, color);
 			AddDrawCall(cbArgs->queue, (DrawCall){
 				.fun = DRAW_RECT,
 				.layer = ENTITY_LAYER + 1 + attack->center.y * 100,
@@ -210,7 +211,6 @@ void DrawTextCallback(ObjectPool* pool, int index, void* args) {
 	float yPosDiff = (text->end.y - text->start.y) * pct / 100.0f;
 	float xPosDiff = (text->end.x - text->start.x) * pct / 100.0f;
 	// TODO: If 2 texts are overlapping, move one a bit? how?
-	//DrawText(text->content, text->start.x + xPosDiff, text->start.y + yPosDiff, text->fontSize, text->color);
 	AddDrawCall(cbArgs->queue, (DrawCall){
 		.fun = DRAW_TEXT,
 		.layer = EFFECTS_LAYER + text->start.y + yPosDiff,
@@ -227,17 +227,16 @@ void DrawTextCallback(ObjectPool* pool, int index, void* args) {
 	cleanup: RemoveFromPool(pool, index);
 }
 
-static void RenderWorldCalls(
-	GameContext* context,
-	RenderTexture2D* worldRender,
-	Player* player,
-	Level* level,
-	DrawQueue* queue
-) {
-	// Draw level background.
-	float camX1 = context->state->camera.target.x - context->state->camera.offset.x;
-	float camY1 = context->state->camera.target.y - context->state->camera.offset.y;
-	float scale = GetScreenScale();
+static void RenderRoomCalls(GameContext* context, Room* room, Player* player, DrawQueue* queue) {
+	if (room == NULL || room->tileCount <= 0 || room->rows <= 0 || room->columns == 0) {
+		LogDebug("Invalid room state");
+		return;
+	}
+
+	// Draw room background.
+	const float camX1 = context->state->camera.target.x - context->state->camera.offset.x;
+	const float camY1 = context->state->camera.target.y - context->state->camera.offset.y;
+	const float scale = GetScreenScale();
 	Rectangle worldCamera = {
 		camX1 - 1,
 		camY1 - 1,
@@ -245,97 +244,114 @@ static void RenderWorldCalls(
 		((float)GetScreenHeight() / context->state->camera.zoom / scale) + 2
 	};
 
-	// Run bounds check for camera:
-	// Check if the room is bigger than the biggest room that can be shown in camera.
-	// If the room is not big enough, there's no need to check for camera bound.
-	//const float widthLimit = (WORLD_SIZE_WIDTH / tileSize) + 1;
-	//const float heightLimit = (WORLD_SIZE_HEIGHT / tileSize) + 1;
-	if (level != NULL) {
-		Room* room = &level->rooms[level->currentRoom];
-		if (room->tileCount > 0 && room->tilesPerRow > 0) {
-			Color tileColor;
-			Rectangle tileRect;
-			const int columns = room->tileCount / room->tilesPerRow;
-			for (int x = 0; x < room->tilesPerRow; x++) {
-				for (int y = 0; y < columns; y++) {
-					int index = y + (columns * x);
-					switch (room->tiles[index].type) {
-						case WALL: tileColor = (Color){ 43, 3, 0, 255 }; break;
-						case GRASS: tileColor = (Color){ 0, 180, 66, 255 }; break;
-						case DOOR: tileColor = BEIGE; break;
-						default: tileColor = BROWN;
-					}
-					tileRect = (Rectangle){ x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE };
-					if (CheckCollisionRecs(worldCamera, tileRect)) {
-						AddDrawCall(queue, (DrawCall){
-							.fun = DRAW_RECT,
-							.layer = BG_LAYER + y,
-							.args = { .rect = {
-								.rec = tileRect,
-								.color = tileColor
-							}}
-						});
-					}
-				}
+	Color tileColor;
+	Rectangle tileRect;
+	for (int row = 0; row < room->rows; row++) {
+		for (int column = 0; column < room->columns; column++) {
+			int index = column + (room->columns * row);
+			switch (room->tiles[index].type) {
+				case WALL: tileColor = (Color){ 43, 3, 0, 255 }; break;
+				case GRASS: tileColor = (Color){ 0, 180, 66, 255 }; break;
+				case DOOR: tileColor = BEIGE; break;
+				default: tileColor = BROWN;
 			}
+			Vector2 offsetPos = RoomOffsetPos(room, column, row);
+			tileRect = (Rectangle){ offsetPos.x, offsetPos.y, TILE_SIZE, TILE_SIZE };
+			//if (CheckCollisionRecs(worldCamera, tileRect)) {
+				AddDrawCall(queue, (DrawCall){
+					.fun = DRAW_RECT,
+					.layer = BG_LAYER + row,
+					.args = { .rect = {
+						.rec = tileRect,
+						.color = tileColor
+					}}
+				});
+			//}
+		}
+	}
+
+	// Draw room entities.
+	// Enemies.
+	if (room->entities != NULL && room->entityCount > 0) {
+		for (int i = 0; i < room->entityCount; i++) {
+			if (!room->entities[i].active) {
+				continue;
+			}
+			DrawEntity(&room->entities[i].entity, context->options->showGizmos, queue);
+			if (context->options->showGizmos) {
+				AddDrawCall(queue, (DrawCall){
+					.fun = DRAW_CIRCLE,
+					.layer = GIZMO_LAYER - 1000 + room->entities[i].entity.position.y * 100,
+					.args = { .circle = {
+						.center = room->entities[i].entity.position,
+						.radius = room->entities[i].activeRadius,
+						.color = (Color){ 255, 109, 194, 60 }
+					}}
+				});
+				AddDrawCall(queue, (DrawCall){
+					.fun = DRAW_LINE,
+					.layer = GIZMO_LAYER + 500 + room->entities[i].entity.position.y * 100,
+					.args = { .line = {
+						.startPosX = room->entities[i].entity.position.x,
+						.startPosY = room->entities[i].entity.position.y,
+						.endPosX = player->entity.position.x,
+						.endPosY = player->entity.position.y,
+						.color = DARKGRAY
+					}}
+				});
+			}
+		}
+	}
+}
+
+static void RenderWorldCalls(
+	GameContext* context,
+	RenderTexture2D* worldRender,
+	Player* player,
+	Level* level,
+	DrawQueue* queue
+) {
+	// Draw room background.
+	RenderRoomCalls(context, level->currentRoom, player, queue);
+	if (level->swappingRoom) {
+		RenderRoomCalls(context, level->nextRoom, player, queue);
+	}
+	// TODO: Pick surrounding rooms somehow?
+	// For now zoom out is only available for testing anyway.
+	if (!level->swappingRoom && context->state->camera.zoom < 1.0f) {
+		if (level->currentRoom != &level->rooms[1]) {
+			RenderRoomCalls(context, &level->rooms[1], player, queue);
+		}
+		if (level->currentRoom != &level->rooms[2]) {
+			RenderRoomCalls(context, &level->rooms[2], player, queue);
+		}
+		if (level->currentRoom != &level->rooms[3]) {
+			RenderRoomCalls(context, &level->rooms[3], player, queue);
+		}
+		if (level->currentRoom != &level->rooms[4]) {
+			RenderRoomCalls(context, &level->rooms[4], player, queue);
 		}
 	}
 
 	// Draw character.
 	DrawEntity(&player->entity, context->options->showGizmos, queue);
 
-	// Draw level entities.
-	if (level != NULL) {
-		Room* room = &level->rooms[level->currentRoom];
-		// Enemies.
-		if (room->entities != NULL && room->entityCount > 0) {
-			for (int i = 0; i < room->entityCount; i++) {
-				if (!room->entities[i].active) {
-					continue;
-				}
-				DrawEntity(&room->entities[i].entity, context->options->showGizmos, queue);
-				if (context->options->showGizmos) {
-					AddDrawCall(queue, (DrawCall){
-						.fun = DRAW_CIRCLE,
-						.layer = GIZMO_LAYER - 1000 + room->entities[i].entity.position.y * 100,
-						.args = { .circle = {
-							.center = room->entities[i].entity.position,
-							.radius = room->entities[i].activeRadius,
-							.color = (Color){ 255, 109, 194, 60 }
-						}}
-					});
-					AddDrawCall(queue, (DrawCall){
-						.fun = DRAW_LINE,
-						.layer = GIZMO_LAYER + 500 + room->entities[i].entity.position.y * 100,
-						.args = { .line = {
-							.startPosX = room->entities[i].entity.position.x,
-							.startPosY = room->entities[i].entity.position.y,
-							.endPosX = player->entity.position.x,
-							.endPosY = player->entity.position.y,
-							.color = DARKGRAY
-						}}
-					});
-				}
-			}
-		}
+	// Attacks.
+	if (level->attacks.activeItems > 0) {
+		DrawAttackCbArgs args = {
+			.showGizmos = context->options->showGizmos,
+			.queue = queue
+		};
+		IteratePool(&level->attacks, &DrawAttackCallback, &args);
+	}
 
-		// Attacks.
-		if (level->attacks.activeItems > 0) {
-			DrawAttackCbArgs args = {
-				.showGizmos = context->options->showGizmos,
-				.queue = queue
-			};
-			IteratePool(&level->attacks, &DrawAttackCallback, &args);
-		}
-
-		// Damage texts.
-		if (level->texts.activeItems > 0) {
-			DrawTextCbArgs args = {
-				.playTime = level->playTime,
-				.queue = queue
-			};
-			IteratePool(&level->texts, &DrawTextCallback, &args);
-		}
+	// Damage texts.
+	if (level->texts.activeItems > 0) {
+		DrawTextCbArgs args = {
+			.playTime = level->playTime,
+			.queue = queue
+		};
+		IteratePool(&level->texts, &DrawTextCallback, &args);
 	}
 }
 
@@ -358,8 +374,15 @@ static void RenderWorld(
 ) {
 	// Create the draw queue.
 	// Tiles + entities + player entity + attacks + texts + some extra.
-	Room* room = &level->rooms[level->currentRoom];
-	int maxCalls = room->tileCount + (room->entityCount + 1) * 5 + level->attacks.activeItems + level->texts.activeItems + 32;
+	int maxCalls = level->currentRoom->tileCount + (level->currentRoom->entityCount + 1) * 5 + level->attacks.activeItems + level->texts.activeItems + 32;
+	if (level->swappingRoom) {
+		maxCalls += level->nextRoom->tileCount + (level->nextRoom->entityCount + 1) * 5;
+	}
+	// NOTICE For now during debug, we'll see later.
+	if (context->state->camera.zoom < 1.0f) {
+		maxCalls *= 5;
+	}
+
 	DrawQueue* queue = malloc(sizeof(DrawQueue) + sizeof(DrawCall[maxCalls]));
 	if (queue == NULL) {
 		LogDebug("Failed to allocate DrawQueue!!");
@@ -369,6 +392,8 @@ static void RenderWorld(
 	queue->count = 0;
 
 	// Get all the drawing calls for current state.
+	// TODO: Do we need to store background tile calls? Can probably just print them out,
+	// since they'll always be at the lowest layer and they do not overlap.
 	RenderWorldCalls(context, worldRender, player, level, queue);
 
 	// Order the queue by layer.
@@ -554,9 +579,13 @@ static void RenderLevel(
 	GameContext* context,
 	RenderTexture2D* worldRender
 ) {
-	Player* player = GetPlayer();
 	Level* level = GetLevel();
-	UpdateLevelCamera(&context->state->camera, level, player);
+	Player* player = GetPlayer();
+	if (level->swappingRoom) {
+		CameraPan(context, level, player);
+	} else {
+		UpdateLevelCamera(&context->state->camera, level, player);
+	}
 	RenderWorld(context, worldRender, player, level);
 	RenderScreen(context, worldRender, player);
 }

@@ -20,6 +20,10 @@ typedef struct {
 	bool obstacle;
 	int damage;
 	float speed;
+	struct {
+		struct Room* dest;
+		Vector2 pos;
+	} warp;
 } Tile;
 
 typedef enum { APPROACH, STAND, DISTANCE } EnemyBehaviour;
@@ -51,25 +55,24 @@ typedef struct Room {
 	// Room position in regards to the central room.
 	Vector2 pos;
 	bool complete;
-	// Tiles for this room.
-	// Rooms can have different amount of tiles and tiles per row.
-	int tilesPerRow;
+	// Total tiles for this room.
 	int tileCount;
+	// Rooms can have different amount of columns and rows.
+	// We have all metadata here because it makes more sense to store an int rather than to calculate it over and over.
+	int rows;
+	int columns;
 	Tile* tiles;
 	// Each room has its own entities.
 	int entityCount;
 	Enemy* entities;
-	// Pointer to the room that each door leads to, if any.
-	// NULL if no door should be there.
-	struct Room* north;
-	struct Room* south;
-	struct Room* east;
-	struct Room* west;
+	// TODO: Store world corner positions? Would avoid some calcs
 } Room;
 
 typedef struct {
 	int floor;
-	int currentRoom;
+	Room* currentRoom;
+	Room* nextRoom;
+	bool swappingRoom;
 	int totalRooms;
 	float playTime;
 	ObjectPool attacks;
@@ -91,5 +94,7 @@ Rectangle HitboxWorldPosition(GameEntity* entity);
 void UpdateLevel(GameContext* context, float dt);
 Player* GetPlayer();
 Level* GetLevel();
+Vector2 RoomOffset(Room* room);
+Vector2 RoomOffsetPos(Room* room, int x, int y);
 
 #endif

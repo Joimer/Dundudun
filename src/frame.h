@@ -23,6 +23,8 @@ extern const ScreenSize resolutions[5];
 #define GIZMO_LAYER 40000
 #define UI_LAYER 50000
 
+#define ROOM_CHANGE_TIME 0.5f
+
 typedef enum { DRAW_RECT, DRAW_TEXT, DRAW_TEXTURE, DRAW_LINE, DRAW_CIRCLE } DrawFn;
 
 typedef struct {

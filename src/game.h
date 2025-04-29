@@ -49,6 +49,8 @@ typedef struct {
 	GameScreen screen;
 	float elapsed;
 	Camera2D camera;
+	// To store camera position for transitions etc.
+	Vector2 lastCamPos;
 	bool paused;
 	unsigned long seed;
 	// We keep this at hand so it is calculated only once.

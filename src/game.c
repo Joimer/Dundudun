@@ -97,7 +97,12 @@ static void Update(GameContext* context) {
 	if (IsKeyPressed(KEY_H)) {
 		context->options->showGizmos = !context->options->showGizmos;
 	}
-
+	if (IsKeyPressed(KEY_KP_SUBTRACT)) {
+		context->state->camera.zoom *= 0.95f;
+	}
+	if (IsKeyPressed(KEY_KP_ADD)) {
+		context->state->camera.zoom *= 1.07f;
+	}
 	// TODO? Pass dt to all and function pointer?
 	switch (context->state->screen) {
 		case LOGO: return UpdateLogo(context);

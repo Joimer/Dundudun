@@ -9,6 +9,7 @@
 #include "character.h"
 #include "attack.h"
 #include "resource.h"
+#include "frame.h"
 
 static bool levelSetup = false;
 static Player player;
@@ -44,28 +45,65 @@ static float SpeedForTile(TileType type) {
 	}
 }
 
-static Room GenerateRoom(GameContext* context, Level* level, int num) {
-	const int entityCount = 3;
-	// Room that fits world screen: 15x8
-	const int tilesPerRow = 20;
-	const int columns = 10;
-	const int tileCount = tilesPerRow * columns;
+Vector2 RoomOffset(Room* room) {
+	if (room->pos.x == 0.0f && room->pos.y == 0.0f) {
+		return room->pos;
+	}
+	return (Vector2){
+		room->pos.x * room->columns * TILE_SIZE,
+		room->pos.y * room->rows * TILE_SIZE
+	};
+}
 
+Vector2 RoomOffsetPos(Room* room, int x, int y) {
+	Vector2 corner = RoomOffset(room);
+	return (Vector2){ corner.x + x * TILE_SIZE, corner.y + y * TILE_SIZE };
+}
+
+static void AddRoomExit(
+	Room* room, Room* destination,
+	int fromX, int fromY,
+	int destX, int destY
+) {
+	const int index = fromX + (room->columns * fromY);
+	if (index > room->tileCount - 1) {
+		LogDebug("Invalid tile position: %d/%d on starting pos %d,%d", index, room->tileCount, fromX, fromY);
+		return;
+	}
+	Vector2 destPos = Vector2AddValue(RoomOffsetPos(destination, destX, destY), TILE_SIZE / 2.0f);
+	LogDebug("Adding exit from %d,%d (index %d, columns %d) to pos %f,%f", fromX, fromY, index, room->columns, destPos.x, destPos.y);
+	room->tiles[index].warp.dest = destination;
+	room->tiles[index].warp.pos = destPos;
+}
+
+static Room GenerateRoom(GameContext* context, Level* level, int num, Vector2 pos) {
+	const int entityCount = num == 0 ? 0 : 3;
+	// Room that fits world screen: 15x8
+	// Default room values.
+	// TODO: Other type of room sizes.
 	Room room = {
-		.pos = (Vector2){ 0, 0 },
-		.tileCount = tileCount,
-		.tilesPerRow = tilesPerRow,
+		.pos = pos,
+		.tileCount = 200,
+		.columns = 20,
+		.rows = 10,
 		.entityCount = entityCount,
 		.entities = NULL,
 		.complete = entityCount == 0
 	};
-	room.tiles = malloc(sizeof(Tile) * tileCount);
-	for (int x = 0; x < tilesPerRow; x++) {
-		for (int y = 0; y < columns; y++) {
-			bool isWall = (x == 0 || x == tilesPerRow - 1 || y == 0 || y == columns - 1);
-			bool isDoor = ((x == 0 || x == tilesPerRow - 1) && (y == columns / 2)) || ((y == 0 || y == columns - 1) && (x == tilesPerRow / 2));
-			int index = y + (columns * x);
-			TileType type = isDoor ? DOOR : (isWall ? WALL : (index % 3 == 0 ? GRASS : GROUND));
+	room.tiles = malloc(sizeof(Tile) * room.tileCount);
+	TileType forGrass = num == 0 ? GROUND : GRASS;
+	for (int row = 0; row < room.rows; row++) {
+		for (int column = 0; column < room.columns; column++) {
+			bool isWall = (row == 0 || column == 0 || column == room.columns - 1 || row == room.rows - 1);
+			bool isDoor = (
+				(row == 0 || row == room.rows - 1)
+				&& (column == room.columns / 2)
+			) || (
+				(column == 0 || column == room.columns - 1)
+				&& (row == room.rows / 2)
+			);
+			const int index = column + (room.columns * row);
+			TileType type = isDoor ? DOOR : (isWall ? WALL : (index % 3 == 0 ? forGrass : GROUND));
 			room.tiles[index] = (Tile){
 				.type = type,
 				.obstacle = isWall && !isDoor,
@@ -76,33 +114,33 @@ static Room GenerateRoom(GameContext* context, Level* level, int num) {
 	}
 
 	// Entities for enemies that will be in the room.
-	room.entities = malloc(sizeof(Enemy) * entityCount);
-	for (int i = 0; i < entityCount; i++) {
-		int xpos = 64 * i + 320;
-		int ypos = 64 * i + 128;
-		room.entities[i] = (Enemy){
-			.active = true,
-			.activeRadius = DEFAULT_ENEMY_RADIUS,
-			.behaviour = APPROACH,
-			.speed = ENEMY_DEFAULT_SPEED,
-			.attack = GetAttack(0),
-			.lastAttack = 0.0f,
-			.attackCd = 2.0f,
-			.entity = (GameEntity){
-				.sprite = (Sprite){
-					.rect = (Rectangle){ 0, 0, 32, 32 },
-					.position = (Vector2){ -16, -16 },
-					.visible = true,
-					.layer = 4
-				},
-				.position = (Vector2){ xpos, ypos },
-				.health = 40,
-				.maxHealth = 40,
-				.invuln = (Invulnerability){ .duration = 0.5f },
-				.hitbox = { -8, -8, 16, 16 },
-				.dir = SOUTH
-			}
-		};
+	if (entityCount > 0) {
+		room.entities = malloc(sizeof(Enemy) * entityCount);
+		for (int i = 0; i < entityCount; i++) {
+			room.entities[i] = (Enemy){
+				.active = true,
+				.activeRadius = DEFAULT_ENEMY_RADIUS,
+				.behaviour = APPROACH,
+				.speed = ENEMY_DEFAULT_SPEED,
+				.attack = GetAttack(0),
+				.lastAttack = 0.0f,
+				.attackCd = 2.0f,
+				.entity = (GameEntity){
+					.sprite = (Sprite){
+						.rect = (Rectangle){ 0, 0, 32, 32 },
+						.position = (Vector2){ -16, -16 },
+						.visible = true,
+						.layer = 4
+					},
+					.position = RoomOffsetPos(&room, 3, 5 + i),
+					.health = 40,
+					.maxHealth = 40,
+					.invuln = (Invulnerability){ .duration = 0.5f },
+					.hitbox = { -8, -8, 16, 16 },
+					.dir = SOUTH
+				}
+			};
+		}
 	}
 
 	return room;
@@ -110,28 +148,82 @@ static Room GenerateRoom(GameContext* context, Level* level, int num) {
 
 static Level GenerateLevel(GameContext* context, int floor) {
 	floor = (int) Clamp(floor, 1, MAX_LEVEL);
-	const int tilesPerRow = 20;
-	const int columns = 10;
-	const int tileCount = tilesPerRow * columns;
-	Level level = {
-		.floor = floor,
-	};
 	// Rooms per level: 6 base, 2 extra per floor, then either 0 or 1 more plus room 0.
 	int roomsPerPath = 6 + floor * 2 + (GetRandomMTValue(&context->state->mtrand) % 2);
-	level.totalRooms = roomsPerPath * 4 + 1;
+	Level level = {
+		.floor = floor,
+		.currentRoom = NULL,
+		.swappingRoom = false,
+		.totalRooms = roomsPerPath * 4 + 1,
+		.nextRoom = NULL
+	};
 	level.rooms = malloc(sizeof(Room) * level.totalRooms);
 
 	// There are 4 ways from the initial room.
 	// Every time you pick a door, the other alternative ones remain closed.
 	// You can go back to all previously open rooms.
-	/*level.rooms[0] = (Room){
-		.pos = (Vector2){ 0, 0 },
-		.tilesPerRow = tilesPerRow,
-		.tileCount = tileCount,
-		.entityCount = 0,
-		.entities = NULL,
-	};*/
-	level.rooms[0] = GenerateRoom(context, &level, 0);
+	level.rooms[0] = GenerateRoom(context, &level, 0, (Vector2){ 0, 0 });
+	level.currentRoom = &level.rooms[0];
+	level.rooms[1] = GenerateRoom(context, &level, 1, (Vector2){ 0, -1 });
+	level.rooms[2] = GenerateRoom(context, &level, 2, (Vector2){ 0, 1 });
+	level.rooms[3] = GenerateRoom(context, &level, 3, (Vector2){ -1, 0 });
+	level.rooms[4] = GenerateRoom(context, &level, 4, (Vector2){ 1, 0 });
+
+	// Add exit rooms.
+	// 0-North to 1-South and otherwise.
+	AddRoomExit(
+		&level.rooms[0], &level.rooms[1],
+		level.rooms[0].columns / 2, 0,
+		level.rooms[1].columns / 2, level.rooms[1].rows - 2
+	);
+	AddRoomExit(
+		&level.rooms[1], &level.rooms[0],
+		level.rooms[1].columns / 2,
+		level.rooms[1].rows - 1,
+		level.rooms[0].columns / 2, 1
+	);
+
+	// South.
+	AddRoomExit(
+		&level.rooms[0], &level.rooms[2],
+		level.rooms[0].columns / 2,
+		level.rooms[0].rows - 1,
+		level.rooms[2].columns / 2, 1
+	);
+	AddRoomExit(
+		&level.rooms[2], &level.rooms[0],
+		level.rooms[2].columns / 2, 0,
+		level.rooms[0].columns / 2, level.rooms[0].rows - 2
+	);
+
+	// West.
+	AddRoomExit(
+		&level.rooms[0], &level.rooms[3],
+		0, level.rooms[0].rows / 2,
+		level.rooms[3].columns - 2,
+		level.rooms[3].rows / 2
+	);
+	AddRoomExit(
+		&level.rooms[3], &level.rooms[0],
+		level.rooms[3].columns - 1,
+		level.rooms[3].rows / 2,
+		1, level.rooms[0].rows / 2
+	);
+
+	// East.
+	AddRoomExit(
+		&level.rooms[0], &level.rooms[4],
+		level.rooms[0].columns - 1,
+		level.rooms[0].rows / 2,
+		1, level.rooms[4].rows / 2
+	);
+	AddRoomExit(
+		&level.rooms[4], &level.rooms[0],
+		0, level.rooms[4].rows / 2,
+		level.rooms[0].columns - 2,
+		level.rooms[0].rows / 2
+	);
+
 	/*int currentRoom = 1;
 	for (int path = 1; path < 5; path++) {
 		Room nextRoom;
@@ -149,6 +241,9 @@ static Level GenerateLevel(GameContext* context, int floor) {
 }
 
 void SetupLevel(GameContext* context) {
+	if (levelSetup) {
+		return;
+	}
 	Texture2D* characterTexture = GetTexture(PLAYER_TEXTURE);
 	player = CreatePlayer(characterTexture);
 	level = GenerateLevel(context, 1);
@@ -156,14 +251,17 @@ void SetupLevel(GameContext* context) {
 }
 
 static Tile* GetTileByPos(Room* room, Vector2* pos) {
-	if (room == NULL || pos == NULL || room->tileCount == 0 || room->tilesPerRow == 0) {
+	if (room == NULL || pos == NULL || room->tileCount == 0 || room->rows == 0 || room->columns == 0) {
 		LogDebug("Invalid parameters");
 		return NULL;
 	}
-	const int x = (int) pos->x / TILE_SIZE;
-	const int y = (int) pos->y / TILE_SIZE;
-	const int columns = room->tileCount / room->tilesPerRow;
-	const int index = y + (columns * x);
+
+	// We will use room offset to calculate indexing as in room 0.
+	// Then, w use tile size to determine index from pixel position.
+	Vector2 roomOffset = RoomOffset(room);
+	const int x = (int)((pos->x - roomOffset.x) / TILE_SIZE);
+	const int y = (int)((pos->y - roomOffset.y) / TILE_SIZE);
+	const int index = x + (room->columns * y);
 	if (index < room->tileCount) {
 		return &room->tiles[index];
 	}
@@ -194,6 +292,10 @@ static GameEntity* FindEntityCollisionPoint(Room* room, Vector2* point, GameEnti
 
 static void MoveEntityByForce(Room* room, GameEntity* entity, float force) {
 	Tile* tile = GetTileByPos(room, &entity->position);
+	if (tile == NULL) {
+		LogDebug("Invalid tile!!");
+		return;
+	}
 	Vector2 newPos = AdvancePointByVector(entity->position, entity->anglev, entity->speed * tile->speed * force);
 	Tile* newTile = GetTileByPos(room, &newPos);
 	// Would hit an obstacle on next tile, stop movement.
@@ -321,8 +423,6 @@ static void UpdateEnemy(GameContext* context, Player* player, Level* level, Enem
 		return;
 	}
 
-	Room* room = &level->rooms[level->currentRoom];
-
 	// Check invulnerability status.
 	UpdateInvuln(&enemy->entity, dt);
 	enemy->entity.stanceTime += dt;
@@ -422,11 +522,11 @@ static void UpdateEnemy(GameContext* context, Player* player, Level* level, Enem
 			bool willCollide = false;
 			if (vecDist < COLL_RAYCAST_ACTIVE) {
 				Rectangle hitbox = HitboxWorldPosition(&enemy->entity);
-				willCollide = TestRectDirCollision(room, &enemy->entity, hitbox, dir);
+				willCollide = TestRectDirCollision(level->currentRoom, &enemy->entity, hitbox, dir);
 				// Decided direction collides.
 				// If previous direction is different to new one, attempt to follow through.
 				if (willCollide && dir != enemy->entity.dir && enemy->entity.dir != NO_DIRECTION) {
-					willCollide = TestRectDirCollision(room, &enemy->entity, hitbox, enemy->entity.dir);
+					willCollide = TestRectDirCollision(level->currentRoom, &enemy->entity, hitbox, enemy->entity.dir);
 					if (!willCollide) {
 						dir = enemy->entity.dir;
 					}
@@ -436,7 +536,7 @@ static void UpdateEnemy(GameContext* context, Player* player, Level* level, Enem
 				Rectangle newHitbox = HitboxWorldPosition(&enemy->entity);
 				newHitbox.x += anglev.x * enemy->speed * dt;
 				newHitbox.y += anglev.y * enemy->speed * dt;
-				willCollide = (FindEntityCollision(room, &enemy->entity, &newHitbox) != NULL);
+				willCollide = (FindEntityCollision(level->currentRoom, &enemy->entity, &newHitbox) != NULL);
 			}
 
 			// Entity will collide on new position, try to find another path.
@@ -463,7 +563,7 @@ static void UpdateEnemy(GameContext* context, Player* player, Level* level, Enem
 						continue;
 					}
 					// This direction won't collide, can use it.
-					if (!TestRectDirCollision(room, &enemy->entity, hitbox, newDir)) {
+					if (!TestRectDirCollision(level->currentRoom, &enemy->entity, hitbox, newDir)) {
 						dir = newDir;
 						break;
 					}
@@ -484,8 +584,12 @@ static void UpdateEnemy(GameContext* context, Player* player, Level* level, Enem
 	// Update entity position according to its movement.
 	// Collision checks to be done before this.
 	if (enemy->entity.speed > 0.0f) {
-		Tile* tile = GetTileByPos(room, &enemy->entity.position);
-		enemy->entity.position = AdvancePointByDir(enemy->entity.position, enemy->entity.dir, enemy->entity.speed * tile->speed * dt);
+		Tile* tile = GetTileByPos(level->currentRoom, &enemy->entity.position);
+		if (tile == NULL) {
+			LogDebug("Invalid tile!");
+		} else {
+			enemy->entity.position = AdvancePointByDir(enemy->entity.position, enemy->entity.dir, enemy->entity.speed * tile->speed * dt);
+		}
 	}
 	return;
 
@@ -541,7 +645,7 @@ static void AttackHitEntity(AttackCbArgs* cbArgs, GameEntity* entity, ActiveAtta
 	}
 }
 
-void AttackCallback(ObjectPool* pool, int index, void* args) {
+static void AttackCallback(ObjectPool* pool, int index, void* args) {
 	// Ignore CB with invalid args, but does not mean item itself is invalid.
 	if (args == NULL) {
 		return;
@@ -571,7 +675,7 @@ void AttackCallback(ObjectPool* pool, int index, void* args) {
 	// Attack that can hit enemies, go over them.
 	// Attacks can modify intended enemy status and it's likely there'll be more attacks than enemies,
 	// thus we'd rather loop enemies here than attacks on enemy update.
-	Room* room = &cbArgs->level->rooms[cbArgs->level->currentRoom];
+	Room* room = cbArgs->level->currentRoom;
 	if (room->entityCount > 0 && (attack->target == T_ENEMY || attack->target == T_ALL)) {
 		for (int i = 0; i < room->entityCount; i++) {
 			if (!room->entities[i].active) {
@@ -593,8 +697,33 @@ void AttackCallback(ObjectPool* pool, int index, void* args) {
 	cleanup: RemoveFromPool(pool, index);
 }
 
+static void TriggerRoomChange(Level* level, Room* room) {
+	if (level == NULL || level->swappingRoom || room == NULL) {
+		LogDebug("Invalid parameters");
+		return;
+	}
+	level->nextRoom = room;
+	level->swappingRoom = true;
+	level->playTime = 0.0f;
+}
+
 static void UpdatePlayer(GameContext* context, Level* level, Player* player, float delta) {
-	Room* room = &level->rooms[level->currentRoom];
+	if (level->swappingRoom) {
+		return;
+	}
+
+	// Check if we hit an exit.
+	// TODO: Implement opening doors by bombs when bombs are implemented.
+	if (level->currentRoom->complete && !level->swappingRoom) {
+		Tile* tile = GetTileByPos(level->currentRoom, &player->entity.position);
+		if (tile != NULL && tile->warp.dest != NULL) {
+			LogDebug("Warping player to %f,%f", tile->warp.pos.x, tile->warp.pos.y);
+			// Set player to the warp position.
+			context->state->lastCamPos = context->state->camera.target;
+			player->entity.position = tile->warp.pos;
+			return TriggerRoomChange(level, tile->warp.dest);
+		}
+	}
 
 	// Check invulnerability status.
 	UpdateInvuln(&player->entity, delta);
@@ -606,7 +735,7 @@ static void UpdatePlayer(GameContext* context, Level* level, Player* player, flo
 	// Player is mid dash, no control on actions until it is finished.
 	if (player->dash.dashing) {
 		PlayerDashUpdate(player, delta);
-		return MoveEntityByForce(room, &player->entity, delta);
+		return MoveEntityByForce(level->currentRoom, &player->entity, delta);
 	}
 
 	// Update dash cooldown only after it has finished, as it is set at the end of the dash.
@@ -658,7 +787,7 @@ static void UpdatePlayer(GameContext* context, Level* level, Player* player, flo
 
 	// Execute movement. Last action so other actions that may require directionality take precedence.
 	if (newDir != NO_DIRECTION) {
-		MoveEntityByForce(room, &player->entity, delta);
+		MoveEntityByForce(level->currentRoom, &player->entity, delta);
 	}
 }
 
@@ -669,6 +798,19 @@ void UpdateLevel(GameContext* context, float dt) {
 		SetupLevel(context);
 	}
 	level.playTime += dt;
+
+	// If we are in the middle of changing rooms, we can ignore the other updates.
+	if (level.swappingRoom) {
+		if (level.playTime > ROOM_CHANGE_TIME) {
+			level.swappingRoom = false;
+			level.playTime = 0.0f;
+			level.currentRoom = level.nextRoom;
+			level.nextRoom = NULL;
+		}
+		// Even if the movement was finished, we don't run updates yet until next frame.
+		return;
+	}
+
 	UpdatePlayer(context, &level, &player, dt);
 
 	// Run ongoing attacks.
@@ -683,21 +825,20 @@ void UpdateLevel(GameContext* context, float dt) {
 		IteratePool(&level.attacks, &AttackCallback, &args);
 	}
 
-	// Update all active entities.
-	Room* room = &level.rooms[level.currentRoom];
+	// Update all active entities on current room.
 	int activeEntities = 0;
-	if (room->entityCount > 0) {
-		for (int i = 0; i < room->entityCount; i++) {
-			if (!room->entities[i].active) {
+	if (level.currentRoom != NULL && level.currentRoom->entityCount > 0) {
+		for (int i = 0; i < level.currentRoom->entityCount; i++) {
+			if (!level.currentRoom->entities[i].active) {
 				continue;
 			}
-			UpdateEnemy(context, &player, &level, &room->entities[i], dt);
+			UpdateEnemy(context, &player, &level, &level.currentRoom->entities[i], dt);
 			activeEntities++;
 		}
 	}
 
 	// Check if room has been completed to open doors.
-	if (!room->complete && activeEntities == 0) {
-		room->complete = true;
+	if (level.currentRoom != NULL && !level.currentRoom->complete && activeEntities == 0) {
+		level.currentRoom->complete = true;
 	}
 }
