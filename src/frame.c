@@ -36,10 +36,19 @@ static float GetScreenScale() {
 }
 
 static void ClampCamera(Camera2D* camera, Level* level) {
+	if (level == NULL) {
+		LogDebug("Invalid parameters");
+		return;
+	}
+	Room* room = &level->rooms[level->currentRoom];
+	if (room->tileCount == 0 || room->tilesPerRow == 0) {
+		LogDebug("Invalid room tiles");
+		return;
+	}
 	const float minX = 0.0f + camera->offset.x;
 	const float minY = 0.0f + camera->offset.y;
-	const float maxX = (level->tilesPerRow * TILE_SIZE) - camera->offset.x;
-	const float maxY = ((level->tileCount / level->tilesPerRow) * TILE_SIZE) - camera->offset.y;
+	const float maxX = (room->tilesPerRow * TILE_SIZE) - camera->offset.x;
+	const float maxY = ((room->tileCount / room->tilesPerRow) * TILE_SIZE) - camera->offset.y;
 	camera->target.x = Clamp(camera->target.x, minX, maxX);
 	camera->target.y = Clamp(camera->target.y, minY, maxY);
 }
@@ -241,25 +250,27 @@ static void RenderWorldCalls(
 	// If the room is not big enough, there's no need to check for camera bound.
 	//const float widthLimit = (WORLD_SIZE_WIDTH / tileSize) + 1;
 	//const float heightLimit = (WORLD_SIZE_HEIGHT / tileSize) + 1;
-	if (level != NULL && level->tiles != NULL && level->tileCount > 0) {
-		Color tileColor;
-		Rectangle tileRect;
-		const int tilesPerRow = level->tilesPerRow > 0 ? level->tilesPerRow : 15;
-		const int columns = level->tileCount / level->tilesPerRow;
-		for (int x = 0; x < tilesPerRow; x++) {
-			for (int y = 0; y < columns; y++) {
-				int index = y + (columns * x);
-				tileColor = level->tiles[index].type == WALL ? (Color){ 43, 3, 0, 255 } : (level->tiles[index].type == GRASS ? (Color){ 0, 180, 66, 255 } : BROWN);
-				tileRect = (Rectangle){ x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE };
-				if (CheckCollisionRecs(worldCamera, tileRect)) {
-					AddDrawCall(queue, (DrawCall){
-						.fun = DRAW_RECT,
-						.layer = BG_LAYER + y,
-						.args = { .rect = {
-							.rec = tileRect,
-							.color = tileColor
-						}}
-					});
+	if (level != NULL) {
+		Room* room = &level->rooms[level->currentRoom];
+		if (room->tileCount > 0 && room->tilesPerRow > 0) {
+			Color tileColor;
+			Rectangle tileRect;
+			const int columns = room->tileCount / room->tilesPerRow;
+			for (int x = 0; x < room->tilesPerRow; x++) {
+				for (int y = 0; y < columns; y++) {
+					int index = y + (columns * x);
+					tileColor = room->tiles[index].type == WALL ? (Color){ 43, 3, 0, 255 } : (room->tiles[index].type == GRASS ? (Color){ 0, 180, 66, 255 } : BROWN);
+					tileRect = (Rectangle){ x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE };
+					if (CheckCollisionRecs(worldCamera, tileRect)) {
+						AddDrawCall(queue, (DrawCall){
+							.fun = DRAW_RECT,
+							.layer = BG_LAYER + y,
+							.args = { .rect = {
+								.rec = tileRect,
+								.color = tileColor
+							}}
+						});
+					}
 				}
 			}
 		}
@@ -270,31 +281,30 @@ static void RenderWorldCalls(
 
 	// Draw level entities.
 	if (level != NULL) {
+		Room* room = &level->rooms[level->currentRoom];
 		// Enemies.
-		if (level->entities != NULL && level->entityCount > 0) {
-			for (int i = 0; i < level->entityCount; i++) {
-				if (!level->entities[i].active) {
+		if (room->entities != NULL && room->entityCount > 0) {
+			for (int i = 0; i < room->entityCount; i++) {
+				if (!room->entities[i].active) {
 					continue;
 				}
-				DrawEntity(&level->entities[i].entity, context->options->showGizmos, queue);
+				DrawEntity(&room->entities[i].entity, context->options->showGizmos, queue);
 				if (context->options->showGizmos) {
-					//DrawCircleV(level->entities[i].entity.position, level->entities[i].activeRadius, (Color){ 255, 109, 194, 60 });
 					AddDrawCall(queue, (DrawCall){
 						.fun = DRAW_CIRCLE,
-						.layer = GIZMO_LAYER - 1000 + level->entities[i].entity.position.y * 100,
+						.layer = GIZMO_LAYER - 1000 + room->entities[i].entity.position.y * 100,
 						.args = { .circle = {
-							.center = level->entities[i].entity.position,
-							.radius = level->entities[i].activeRadius,
+							.center = room->entities[i].entity.position,
+							.radius = room->entities[i].activeRadius,
 							.color = (Color){ 255, 109, 194, 60 }
 						}}
 					});
-					//DrawLineV(level->entities[i].entity.position, player->entity.position, DARKGRAY);
 					AddDrawCall(queue, (DrawCall){
 						.fun = DRAW_LINE,
-						.layer = GIZMO_LAYER + 500 + level->entities[i].entity.position.y * 100,
+						.layer = GIZMO_LAYER + 500 + room->entities[i].entity.position.y * 100,
 						.args = { .line = {
-							.startPosX = level->entities[i].entity.position.x,
-							.startPosY = level->entities[i].entity.position.y,
+							.startPosX = room->entities[i].entity.position.x,
+							.startPosY = room->entities[i].entity.position.y,
 							.endPosX = player->entity.position.x,
 							.endPosY = player->entity.position.y,
 							.color = DARKGRAY
@@ -325,7 +335,7 @@ static void RenderWorldCalls(
 }
 
 static int CompareDrawCall(const void* a, const void* b) {
-    return (((DrawCall*)a)->layer - ((DrawCall*)b)->layer);
+	return (((DrawCall*)a)->layer - ((DrawCall*)b)->layer);
 }
 
 static void SortDrawCalls(DrawQueue* queue) {
@@ -343,7 +353,8 @@ static void RenderWorld(
 ) {
 	// Create the draw queue.
 	// Tiles + entities + player entity + attacks + texts + some extra.
-	int maxCalls = level->tileCount + (level->entityCount + 1) * 5 + level->attacks.activeItems + level->texts.activeItems + 32;
+	Room* room = &level->rooms[level->currentRoom];
+	int maxCalls = room->tileCount + (room->entityCount + 1) * 5 + level->attacks.activeItems + level->texts.activeItems + 32;
 	DrawQueue* queue = malloc(sizeof(DrawQueue) + sizeof(DrawCall[maxCalls]));
 	if (queue == NULL) {
 		LogDebug("Failed to allocate DrawQueue!!");

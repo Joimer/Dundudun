@@ -47,16 +47,34 @@ typedef struct {
 	Color color;
 } ActiveText;
 
-typedef struct {
-	int floor;
+typedef struct Room {
+	// Room position in regards to the central room.
+	Vector2 pos;
+	// Tiles for this room.
+	// Rooms can have different amount of tiles and tiles per row.
 	int tilesPerRow;
 	int tileCount;
 	Tile* tiles;
+	// Each room has its own entities.
 	int entityCount;
 	Enemy* entities;
+	// Pointer to the room that each door leads to, if any.
+	// NULL if no door should be there.
+	struct Room* north;
+	struct Room* south;
+	struct Room* east;
+	struct Room* west;
+} Room;
+
+typedef struct {
+	int floor;
+	int currentRoom;
+	int totalRooms;
 	float playTime;
 	ObjectPool attacks;
 	ObjectPool texts;
+	// Room 0 is the center of the floor.
+	Room* rooms;
 } Level;
 
 typedef struct {

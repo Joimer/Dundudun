@@ -1,5 +1,5 @@
 CC=cc
-CFLAGS=-lraylib -lGL -lm -lpthread -ldl -lrt -lX11 -std=c99 -Wall -Wno-missing-braces -Wno-unused-value -Wno-pointer-sign -D_DEFAULT_SOURCE
+CFLAGS=-xo2 -lraylib -lGL -lm -lpthread -ldl -lrt -lX11 -std=c99 -Wall -Wno-missing-braces -Wno-unused-value -Wno-pointer-sign -D_DEFAULT_SOURCE
 SRC=src
 BIN=bin
 SRCS=$(wildcard $(SRC)/*.c)

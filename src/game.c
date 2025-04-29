@@ -61,7 +61,18 @@ void SetupGamePRNG(GameContext* context) {
 }
 
 static void UpdateLogo(GameContext* context) {
-	if (context->state->elapsed > LOGO_DURATION) {
+	if (
+		context->state->elapsed > LOGO_DURATION
+		|| (
+			context->state->elapsed > 0.1f && (
+			IsActionPressed(ACCEPT)
+			|| IsActionPressed(CANCEL)
+			|| IsActionPressed(ACTION_A)
+			|| IsActionPressed(ACTION_B)
+			|| IsActionPressed(ACTION_C)
+			|| IsActionPressed(ACTION_D)
+		))
+	) {
 		LoadNextScreen(context, TITLE);
 	}
 }

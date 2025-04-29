@@ -44,27 +44,24 @@ static float SpeedForTile(TileType type) {
 	}
 }
 
-static Level GenerateLevel(GameContext* context, int floor) {
-	floor = (int) Clamp(floor, 1, MAX_LEVEL);
+static Room GenerateRoom(GameContext* context, Level* level, int num) {
 	const int entityCount = 3;
 	// Room that fits world screen: 15x8
 	const int tilesPerRow = 20;
 	const int columns = 10;
 	const int tileCount = tilesPerRow * columns;
-	Level level = {
-		.floor = floor,
-		.tilesPerRow = tilesPerRow,
+
+	Room room = {
 		.tileCount = tileCount,
-		.entityCount = entityCount
+		.tilesPerRow = tilesPerRow
 	};
-	// TODO: When doing a new level, free past level and realloc here.
-	level.tiles = malloc(sizeof(Tile) * tileCount);
+	room.tiles = malloc(sizeof(Tile) * tileCount);
 	for (int x = 0; x < tilesPerRow; x++) {
 		for (int y = 0; y < columns; y++) {
 			bool isWall = (x == 0 || x == tilesPerRow - 1 || y == 0 || y == columns - 1);
 			int index = y + (columns * x);
 			TileType type = isWall ? WALL : (index % 3 == 0 ? GRASS : GROUND);
-			level.tiles[index] = (Tile){
+			room.tiles[index] = (Tile){
 				.type = isWall ? WALL : (index % 3 == 0 ? GRASS : GROUND),
 				.obstacle = isWall,
 				.damage = 0,
@@ -73,12 +70,13 @@ static Level GenerateLevel(GameContext* context, int floor) {
 		}
 	}
 
-	// Entities for enemies that will be in the level.
-	level.entities = malloc(sizeof(Enemy) * entityCount);
+	// Entities for enemies that will be in the room.
+	room.entities = malloc(sizeof(Enemy) * entityCount);
+	room.entityCount = entityCount;
 	for (int i = 0; i < entityCount; i++) {
 		int xpos = 64 * i + 320;
 		int ypos = 64 * i + 128;
-		level.entities[i] = (Enemy){
+		room.entities[i] = (Enemy){
 			.active = true,
 			.activeRadius = DEFAULT_ENEMY_RADIUS,
 			.behaviour = APPROACH,
@@ -102,9 +100,60 @@ static Level GenerateLevel(GameContext* context, int floor) {
 			}
 		};
 	}
-	// Number of attacks to allocate should be calculated by total enemies and their attack cadence.
-	level.attacks = CreatePoolOf(ActiveAttack, 32);
-	level.texts = CreatePoolOf(ActiveText, 32);
+
+	return room;
+}
+
+static Level GenerateLevel(GameContext* context, int floor) {
+	floor = (int) Clamp(floor, 1, MAX_LEVEL);
+	const int tilesPerRow = 20;
+	const int columns = 10;
+	const int tileCount = tilesPerRow * columns;
+	Level level = {
+		.floor = floor,
+	};
+	// Rooms per level: 6 base, 2 extra per floor, then either 0 or 1 more plus room 0.
+	int roomsPerPath = 6 + floor * 2 + (GetRandomMTValue(&context->state->mtrand) % 2);
+	level.totalRooms = roomsPerPath * 4 + 1;
+	level.rooms = malloc(sizeof(Room) * level.totalRooms);
+	/*level.tiles = malloc(sizeof(Tile) * tileCount);
+	for (int x = 0; x < tilesPerRow; x++) {
+		for (int y = 0; y < columns; y++) {
+			bool isWall = (x == 0 || x == tilesPerRow - 1 || y == 0 || y == columns - 1);
+			int index = y + (columns * x);
+			TileType type = isWall ? WALL : (index % 3 == 0 ? GRASS : GROUND);
+			level.tiles[index] = (Tile){
+				.type = isWall ? WALL : (index % 3 == 0 ? GRASS : GROUND),
+				.obstacle = isWall,
+				.damage = 0,
+				.speed = SpeedForTile(type)
+			};
+		}
+	}*/
+
+	// There are 4 ways from the initial room.
+	// Every time you pick a door, the other alternative ones remain closed.
+	// You can go back to all previously open rooms.
+	/*level.rooms[0] = (Room){
+		.pos = (Vector2){ 0, 0 },
+		.tilesPerRow = tilesPerRow,
+		.tileCount = tileCount,
+		.entityCount = 0,
+		.entities = NULL,
+	};*/
+	level.rooms[0] = GenerateRoom(context, &level, 0);
+	/*int currentRoom = 1;
+	for (int path = 1; path < 5; path++) {
+		Room nextRoom;
+		// First room on a path will always only contain a single exit continuing onwards.
+		if (currentRoom == 1) {
+
+		}
+		rooms->rooms[currentRoom++] = nextRoom;
+	}*/
+	// Number of attacks to allocate should be calculated by max enemies and their attack cadence.
+	level.attacks = CreatePoolOf(ActiveAttack, 64);
+	level.texts = CreatePoolOf(ActiveText, 64);
 
 	return level;
 }
@@ -116,43 +165,47 @@ void SetupLevel(GameContext* context) {
 	levelSetup = true;
 }
 
-static Tile* GetTileByPos(Level* level, Vector2* pos) {
+static Tile* GetTileByPos(Room* room, Vector2* pos) {
+	if (room == NULL || pos == NULL || room->tileCount == 0 || room->tilesPerRow == 0) {
+		LogDebug("Invalid parameters");
+		return NULL;
+	}
 	const int x = (int) pos->x / TILE_SIZE;
 	const int y = (int) pos->y / TILE_SIZE;
-	const int columns = level->tileCount / level->tilesPerRow;
+	const int columns = room->tileCount / room->tilesPerRow;
 	const int index = y + (columns * x);
-	if (index < level->tileCount) {
-		return &level->tiles[index];
+	if (index < room->tileCount) {
+		return &room->tiles[index];
 	}
 
 	return NULL;
 }
 
-static GameEntity* FindEntityCollisionPoint(Level* level, Vector2* point, GameEntity* self) {
+static GameEntity* FindEntityCollisionPoint(Room* room, Vector2* point, GameEntity* self) {
 	Rectangle entityWorldHitbox;
-	for (int j = 0; j < level->entityCount; j++) {
-		if (!level->entities[j].active) {
+	for (int j = 0; j < room->entityCount; j++) {
+		if (!room->entities[j].active) {
 			continue;
 		}
-		if (self != NULL && self == &level->entities[j].entity) {
+		if (self != NULL && self == &room->entities[j].entity) {
 			// Ignore self.
 			continue;
 		}
 
 		// Check collision with entity.
-		entityWorldHitbox = HitboxWorldPosition(&level->entities[j].entity);
+		entityWorldHitbox = HitboxWorldPosition(&room->entities[j].entity);
 		if (CheckCollisionPointRec(*point, entityWorldHitbox)) {
-			return &level->entities[j].entity;
+			return &room->entities[j].entity;
 		}
 	}
 
 	return NULL;
 }
 
-static void MoveEntityByForce(Level* level, GameEntity* entity, float force) {
-	Tile* tile = GetTileByPos(level, &entity->position);
+static void MoveEntityByForce(Room* room, GameEntity* entity, float force) {
+	Tile* tile = GetTileByPos(room, &entity->position);
 	Vector2 newPos = AdvancePointByVector(entity->position, entity->anglev, entity->speed * tile->speed * force);
-	Tile* newTile = GetTileByPos(level, &newPos);
+	Tile* newTile = GetTileByPos(room, &newPos);
 	// Would hit an obstacle on next tile, stop movement.
 	if (newTile->obstacle) {
 		entity->speed = 0.0f;
@@ -176,7 +229,7 @@ float MaxAttackRange(Enemy* enemy) {
 	return baseDist + 1.0f;
 }
 
-Vector2 Raycast(Level* level, Vector2 start, Vector2 end, GameEntity* self) {
+Vector2 Raycast(Room* room, Vector2 start, Vector2 end, GameEntity* self) {
 	int x0 = (int)floorf(start.x), y0 = (int)floorf(start.y), x1 = (int)ceilf(end.x), y1 = (int)ceilf(end.y);
 	int dx = abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
 	int dy = -abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
@@ -191,7 +244,7 @@ Vector2 Raycast(Level* level, Vector2 start, Vector2 end, GameEntity* self) {
 		if (x0 == x1 && y0 == y1) {
 			break;
 		}
-		coll = FindEntityCollisionPoint(level, &point, self);
+		coll = FindEntityCollisionPoint(room, &point, self);
 		if (coll != NULL && (self == NULL || self != coll)) {
 			// Next point collides.
 			break;
@@ -210,40 +263,40 @@ Vector2 Raycast(Level* level, Vector2 start, Vector2 end, GameEntity* self) {
 	return point;
 }
 
-static GameEntity* FindEntityCollision(Level* level, GameEntity* self, Rectangle* newPos) {
-	if (level == NULL || newPos == NULL) {
+static GameEntity* FindEntityCollision(Room* room, GameEntity* self, Rectangle* newPos) {
+	if (room == NULL || newPos == NULL) {
 		LogDebug("Invalid parameter, null pointer");
 		return NULL;
 	}
-	for (int j = 0; j < level->entityCount; j++) {
-		if (!level->entities[j].active || &level->entities[j].entity == NULL) {
+	for (int j = 0; j < room->entityCount; j++) {
+		if (!room->entities[j].active || &room->entities[j].entity == NULL) {
 			// Ignore inactive entities.
 			continue;
 		}
-		if (self != NULL && self == &level->entities[j].entity) {
+		if (self != NULL && self == &room->entities[j].entity) {
 			// Ignore self.
 			continue;
 		}
 
 		// Check collision with entity.
-		Rectangle entityWorldHitbox = HitboxWorldPosition(&level->entities[j].entity);
+		Rectangle entityWorldHitbox = HitboxWorldPosition(&room->entities[j].entity);
 		if (CheckCollisionRecs(entityWorldHitbox, *newPos)) {
-			return &level->entities[j].entity;
+			return &room->entities[j].entity;
 		}
 	}
 
 	return NULL;
 }
 
-static bool TestPointDirCollision(Level* level, GameEntity* self, float cornerX, float cornerY, Direction dir) {
+static bool TestPointDirCollision(Room* room, GameEntity* self, float cornerX, float cornerY, Direction dir) {
 	Vector2 point = { cornerX, cornerY };
 	Vector2 nextPos = AdvancePointByDir(point, dir, COLL_RAYCAST_DIST);
-	Vector2 hit = Raycast(level, point, nextPos, self);
+	Vector2 hit = Raycast(room, point, nextPos, self);
 	return (hit.x != ceilf(nextPos.x) || hit.y != ceilf(nextPos.y));
 }
 
 // Find if a new position hitbox for the game entity will find an obstacle in the attempted direction.
-static bool TestRectDirCollision(Level* level, GameEntity* self, Rectangle hitbox, Direction dir) {
+static bool TestRectDirCollision(Room* room, GameEntity* self, Rectangle hitbox, Direction dir) {
 	float cornerX, cornerY;
 
 	// If the movement is diagonal, must first test the corner for that diagonal.
@@ -251,7 +304,7 @@ static bool TestRectDirCollision(Level* level, GameEntity* self, Rectangle hitbo
 	if ((IsBitSet(dir, 1) || IsBitSet(dir, 2)) && (IsBitSet(dir, 3) || IsBitSet(dir, 4))) {
 		cornerX = IsBitSet(dir, 2) ? hitbox.x : hitbox.x + hitbox.width;
 		cornerY = IsBitSet(dir, 3) ? hitbox.y + hitbox.height : hitbox.y;
-		if (TestPointDirCollision(level, self, cornerX, cornerY, dir)) {
+		if (TestPointDirCollision(room, self, cornerX, cornerY, dir)) {
 			return true;
 		}
 	}
@@ -259,14 +312,14 @@ static bool TestRectDirCollision(Level* level, GameEntity* self, Rectangle hitbo
 	// Test corner A.
 	cornerX = dir == EAST ? hitbox.x + hitbox.width : hitbox.x;
 	cornerY = (dir == NORTHWEST || dir == SOUTHEAST || dir == SOUTH) ? hitbox.y + hitbox.height : hitbox.y;
-	if (TestPointDirCollision(level, self, cornerX, cornerY, dir)) {
+	if (TestPointDirCollision(room, self, cornerX, cornerY, dir)) {
 		return true;
 	}
 
 	// Test corner B.
 	cornerX = dir == WEST ? hitbox.x : hitbox.x + hitbox.width;
 	cornerY = (dir == NORTHEAST || dir == EAST || dir == WEST || dir == SOUTH) ? hitbox.y + hitbox.height : hitbox.y;
-	return TestPointDirCollision(level, self, cornerX, cornerY, dir);
+	return TestPointDirCollision(room, self, cornerX, cornerY, dir);
 }
 
 // TODO: This seems like it could use being broken down to a handful of functions
@@ -277,6 +330,8 @@ static void UpdateEnemy(GameContext* context, Player* player, Level* level, Enem
 		// TODO: Death animation :)
 		return;
 	}
+
+	Room* room = &level->rooms[level->currentRoom];
 
 	// Check invulnerability status.
 	UpdateInvuln(&enemy->entity, dt);
@@ -377,11 +432,11 @@ static void UpdateEnemy(GameContext* context, Player* player, Level* level, Enem
 			bool willCollide = false;
 			if (vecDist < COLL_RAYCAST_ACTIVE) {
 				Rectangle hitbox = HitboxWorldPosition(&enemy->entity);
-				willCollide = TestRectDirCollision(level, &enemy->entity, hitbox, dir);
+				willCollide = TestRectDirCollision(room, &enemy->entity, hitbox, dir);
 				// Decided direction collides.
 				// If previous direction is different to new one, attempt to follow through.
 				if (willCollide && dir != enemy->entity.dir && enemy->entity.dir != NO_DIRECTION) {
-					willCollide = TestRectDirCollision(level, &enemy->entity, hitbox, enemy->entity.dir);
+					willCollide = TestRectDirCollision(room, &enemy->entity, hitbox, enemy->entity.dir);
 					if (!willCollide) {
 						dir = enemy->entity.dir;
 					}
@@ -391,7 +446,7 @@ static void UpdateEnemy(GameContext* context, Player* player, Level* level, Enem
 				Rectangle newHitbox = HitboxWorldPosition(&enemy->entity);
 				newHitbox.x += anglev.x * enemy->speed * dt;
 				newHitbox.y += anglev.y * enemy->speed * dt;
-				willCollide = (FindEntityCollision(level, &enemy->entity, &newHitbox) != NULL);
+				willCollide = (FindEntityCollision(room, &enemy->entity, &newHitbox) != NULL);
 			}
 
 			// Entity will collide on new position, try to find another path.
@@ -418,7 +473,7 @@ static void UpdateEnemy(GameContext* context, Player* player, Level* level, Enem
 						continue;
 					}
 					// This direction won't collide, can use it.
-					if (!TestRectDirCollision(level, &enemy->entity, hitbox, newDir)) {
+					if (!TestRectDirCollision(room, &enemy->entity, hitbox, newDir)) {
 						dir = newDir;
 						break;
 					}
@@ -439,7 +494,7 @@ static void UpdateEnemy(GameContext* context, Player* player, Level* level, Enem
 	// Update entity position according to its movement.
 	// Collision checks to be done before this.
 	if (enemy->entity.speed > 0.0f) {
-		Tile* tile = GetTileByPos(level, &enemy->entity.position);
+		Tile* tile = GetTileByPos(room, &enemy->entity.position);
 		enemy->entity.position = AdvancePointByDir(enemy->entity.position, enemy->entity.dir, enemy->entity.speed * tile->speed * dt);
 	}
 	return;
@@ -526,20 +581,21 @@ void AttackCallback(ObjectPool* pool, int index, void* args) {
 	// Attack that can hit enemies, go over them.
 	// Attacks can modify intended enemy status and it's likely there'll be more attacks than enemies,
 	// thus we'd rather loop enemies here than attacks on enemy update.
-	if (cbArgs->level->entityCount > 0 && (attack->target == T_ENEMY || attack->target == T_ALL)) {
-		for (int i = 0; i < cbArgs->level->entityCount; i++) {
-			if (!cbArgs->level->entities[i].active) {
+	Room* room = &cbArgs->level->rooms[cbArgs->level->currentRoom];
+	if (room->entityCount > 0 && (attack->target == T_ENEMY || attack->target == T_ALL)) {
+		for (int i = 0; i < room->entityCount; i++) {
+			if (!room->entities[i].active) {
 				continue;
 			}
-			if (cbArgs->level->entities[i].entity.invuln.active
+			if (room->entities[i].entity.invuln.active
 				|| !CheckCollisionRecs(
 				attack->hitbox,
-				HitboxWorldPosition(&cbArgs->level->entities[i].entity)
+				HitboxWorldPosition(&room->entities[i].entity)
 			)) {
 				continue;
 			}
 			// Attack hit this this entity.
-			AttackHitEntity(cbArgs, &cbArgs->level->entities[i].entity, attack);
+			AttackHitEntity(cbArgs, &room->entities[i].entity, attack);
 		}
 	}
 	return;
@@ -548,6 +604,8 @@ void AttackCallback(ObjectPool* pool, int index, void* args) {
 }
 
 static void UpdatePlayer(GameContext* context, Level* level, Player* player, float delta) {
+	Room* room = &level->rooms[level->currentRoom];
+
 	// Check invulnerability status.
 	UpdateInvuln(&player->entity, delta);
 
@@ -558,7 +616,7 @@ static void UpdatePlayer(GameContext* context, Level* level, Player* player, flo
 	// Player is mid dash, no control on actions until it is finished.
 	if (player->dash.dashing) {
 		PlayerDashUpdate(player, delta);
-		return MoveEntityByForce(level, &player->entity, delta);
+		return MoveEntityByForce(room, &player->entity, delta);
 	}
 
 	// Update dash cooldown only after it has finished, as it is set at the end of the dash.
@@ -610,7 +668,7 @@ static void UpdatePlayer(GameContext* context, Level* level, Player* player, flo
 
 	// Execute movement. Last action so other actions that may require directionality take precedence.
 	if (newDir != NO_DIRECTION) {
-		MoveEntityByForce(level, &player->entity, delta);
+		MoveEntityByForce(room, &player->entity, delta);
 	}
 }
 
@@ -624,7 +682,7 @@ void UpdateLevel(GameContext* context, float dt) {
 	UpdatePlayer(context, &level, &player, dt);
 
 	// Run ongoing attacks.
-	// Attacks are instantiated by enemies from a template and ran on their on afterwards.
+	// Attacks are instantiated by enemies from a template and ran on their own afterwards.
 	if (level.attacks.activeItems > 0) {
 		AttackCbArgs args = {
 			.dt = dt,
@@ -636,12 +694,13 @@ void UpdateLevel(GameContext* context, float dt) {
 	}
 
 	// Update all active entities.
-	if (level.entityCount > 0) {
-		for (int i = 0; i < level.entityCount; i++) {
-			if (!level.entities[i].active) {
+	Room* room = &level.rooms[level.currentRoom];
+	if (room->entityCount > 0) {
+		for (int i = 0; i < room->entityCount; i++) {
+			if (!room->entities[i].active) {
 				continue;
 			}
-			UpdateEnemy(context, &player, &level, &level.entities[i], dt);
+			UpdateEnemy(context, &player, &level, &room->entities[i], dt);
 		}
 	}
 }
