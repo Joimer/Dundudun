@@ -234,14 +234,24 @@ static void RenderRoomCalls(GameContext* context, Room* room, Player* player, Dr
 	}
 
 	// Draw room background.
-	const float camX1 = context->state->camera.target.x - context->state->camera.offset.x;
-	const float camY1 = context->state->camera.target.y - context->state->camera.offset.y;
+	float camX1 = (context->state->camera.target.x - context->state->camera.offset.x) * context->state->camera.zoom;
+	float camY1 = (context->state->camera.target.y - context->state->camera.offset.y) * context->state->camera.zoom;
 	const float scale = GetScreenScale();
+	const float scaledWidth = (float) GetScreenWidth() / scale;
+	const float scaledHeight = (float) GetScreenHeight() / scale;
+	float zoomedWidth = scaledWidth;
+	float zoomedHeight = scaledHeight;
+	if (context->state->camera.zoom != 1.0f) {
+		zoomedWidth /= context->state->camera.zoom;
+		zoomedHeight /= context->state->camera.zoom;
+		camX1 += (scaledWidth - zoomedWidth) / 2;
+		camY1 += (scaledHeight - zoomedHeight) / 2;
+	}
 	Rectangle worldCamera = {
 		camX1 - 1,
 		camY1 - 1,
-		((float)GetScreenWidth() / context->state->camera.zoom / scale) + 2,
-		((float)GetScreenHeight() / context->state->camera.zoom / scale) + 2
+		zoomedWidth + 2,
+		zoomedHeight + 2
 	};
 
 	Color tileColor;
@@ -257,7 +267,7 @@ static void RenderRoomCalls(GameContext* context, Room* room, Player* player, Dr
 			}
 			Vector2 offsetPos = RoomOffsetPos(room, column, row);
 			tileRect = (Rectangle){ offsetPos.x, offsetPos.y, TILE_SIZE, TILE_SIZE };
-			//if (CheckCollisionRecs(worldCamera, tileRect)) {
+			if (CheckCollisionRecs(worldCamera, tileRect)) {
 				AddDrawCall(queue, (DrawCall){
 					.fun = DRAW_RECT,
 					.layer = BG_LAYER + row,
@@ -266,7 +276,7 @@ static void RenderRoomCalls(GameContext* context, Room* room, Player* player, Dr
 						.color = tileColor
 					}}
 				});
-			//}
+			}
 		}
 	}
 

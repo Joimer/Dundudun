@@ -98,10 +98,10 @@ static void Update(GameContext* context) {
 		context->options->showGizmos = !context->options->showGizmos;
 	}
 	if (IsKeyPressed(KEY_KP_SUBTRACT)) {
-		context->state->camera.zoom *= 0.95f;
+		context->state->camera.zoom -= 0.05f;
 	}
 	if (IsKeyPressed(KEY_KP_ADD)) {
-		context->state->camera.zoom *= 1.07f;
+		context->state->camera.zoom += 0.05f;
 	}
 	// TODO? Pass dt to all and function pointer?
 	switch (context->state->screen) {
