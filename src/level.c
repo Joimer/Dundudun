@@ -414,6 +414,17 @@ static bool TestRectDirCollision(Room* room, GameEntity* self, Rectangle hitbox,
 	return TestPointDirCollision(room, self, cornerX, cornerY, dir);
 }
 
+static void UpdateStun(GameEntity* entity, float delta) {
+	if (entity->stunned) {
+		entity->stunElapsed += delta;
+		if (entity->stunElapsed >= entity->stunDuration) {
+			entity->stunned = false;
+			// TODO: Probably better to manage these forces in a different way...
+			entity->speed = 0.0f;
+		}
+	}
+}
+
 // TODO: This seems like it could use being broken down to a handful of functions
 static void UpdateEnemy(GameContext* context, Player* player, Level* level, Enemy* enemy, float dt) {
 	// Check for death.
@@ -428,14 +439,7 @@ static void UpdateEnemy(GameContext* context, Player* player, Level* level, Enem
 	enemy->entity.stanceTime += dt;
 
 	// Check stunned status.
-	if (enemy->entity.stunned) {
-		enemy->entity.stunElapsed += dt;
-		if (enemy->entity.stunElapsed >= enemy->entity.stunDuration) {
-			enemy->entity.stunned = false;
-			// TODO: Probably better to manage these forces in a different way...
-			enemy->entity.speed = 0.0f;
-		}
-	}
+	UpdateStun(&enemy->entity, dt);
 
 	// Enemy is winding up an attack.
 	if (!enemy->entity.stunned && enemy->entity.stance == ATTACKING) {
@@ -725,12 +729,26 @@ static void UpdatePlayer(GameContext* context, Level* level, Player* player, flo
 		}
 	}
 
-	// Check invulnerability status.
-	UpdateInvuln(&player->entity, delta);
-
 	// Update physics and status counters.
 	// Each entity has their own because they could be individually frozen.
 	player->entity.stanceTime += delta;
+
+	// Check invulnerability status.
+	UpdateInvuln(&player->entity, delta);
+
+	// Stun status.
+	UpdateStun(&player->entity, delta);
+
+	// Update weapon statuses.
+	for (int i = 0; i < player->gear.maxWeaps; i++) {
+		Weapon* weapon = player->gear.weapons[i];
+		if (weapon != NULL && weapon->attacking) {
+			weapon->elapsed += delta;
+			if (weapon->elapsed >= weapon->cooldown) {
+				weapon->attacking = false;
+			}
+		}
+	}
 
 	// Player is mid dash, no control on actions until it is finished.
 	if (player->dash.dashing) {
@@ -761,26 +779,30 @@ static void UpdatePlayer(GameContext* context, Level* level, Player* player, flo
 	Direction newDir = PlayerUpdateDirection(player);
 
 	// Execute dash.
-	if (player->entity.stance != ATTACKING && IsActionPressed(ACTION_D) && player->dash.cdLeft == 0.0f) {
+	if (!player->entity.stunned && player->entity.stance != ATTACKING && IsActionPressed(ACTION_D) && player->dash.cdLeft == 0.0f) {
 		return PlayerStartDash(context, player);
 	}
 
 	// Attack action.
-	if (player->entity.stance != ATTACKING && IsActionPressed(ACTION_A)) {
+	if (!player->entity.stunned && player->entity.stance != ATTACKING && IsActionPressed(ACTION_A)) {
 		Weapon* usedWeapon = player->gear.weapons[player->gear.weaponSlot];
-		if (usedWeapon != NULL && usedWeapon->elapsed == 0.0f) {
+		if (usedWeapon != NULL && !usedWeapon->attacking) {
 			if (usedWeapon->attack == NULL) {
 				LogDebug("NULL attack on player weapon! %d %f", usedWeapon->type, usedWeapon->cooldown);
 				return;
 			}
-			//usedWeapon->centerDist;
 			SetStance(&player->entity, ATTACKING);
 			// Create attack.
+			//usedWeapon->attacking = true;
+			//usedWeapon->elapsed = 0.0f;
 			Vector2 mpos = GetWorldMousePos(context);
 			ActiveAttack att = InitiateAttack(&player->entity, &mpos, usedWeapon->attack, T_ENEMY);
 			void* result = AddToPool(&level->attacks, &att);
 			if (result == NULL) {
 				LogDebug("Failed to allocate character attack on object pool");
+			} else {
+				usedWeapon->attacking = true;
+				usedWeapon->elapsed = 0.0f;
 			}
 		}
 	}

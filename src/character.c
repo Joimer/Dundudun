@@ -86,6 +86,10 @@ void PlayerStartDash(GameContext* context, Player* player) {
 }
 
 Direction PlayerUpdateDirection(Player* player) {
+	if (player->entity.stunned) {
+		return NO_DIRECTION;
+	}
+
 	// Movement actions being pressed to pick current direction.
 	bool isLeft = IsActionPressed(GO_LEFT);
 	bool isRight = IsActionPressed(GO_RIGHT);

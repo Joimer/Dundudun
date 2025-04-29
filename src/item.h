@@ -24,6 +24,7 @@ typedef struct {
 	WeaponType type;
 	float cooldown;
 	float elapsed;
+	bool attacking;
 } Weapon;
 
 typedef struct {
