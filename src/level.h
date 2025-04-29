@@ -13,7 +13,7 @@
 #define COLL_RAYCAST_ACTIVE 64.0f
 #define COLL_RAYCAST_DIST 16.0f
 
-typedef enum { WALL = 0, GROUND = 1, GRASS = 2 } TileType;
+typedef enum { WALL = 0, GROUND = 1, GRASS, DOOR } TileType;
 
 typedef struct {
 	TileType type;
@@ -50,6 +50,7 @@ typedef struct {
 typedef struct Room {
 	// Room position in regards to the central room.
 	Vector2 pos;
+	bool complete;
 	// Tiles for this room.
 	// Rooms can have different amount of tiles and tiles per row.
 	int tilesPerRow;

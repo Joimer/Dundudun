@@ -52,18 +52,23 @@ static Room GenerateRoom(GameContext* context, Level* level, int num) {
 	const int tileCount = tilesPerRow * columns;
 
 	Room room = {
+		.pos = (Vector2){ 0, 0 },
 		.tileCount = tileCount,
-		.tilesPerRow = tilesPerRow
+		.tilesPerRow = tilesPerRow,
+		.entityCount = entityCount,
+		.entities = NULL,
+		.complete = entityCount == 0
 	};
 	room.tiles = malloc(sizeof(Tile) * tileCount);
 	for (int x = 0; x < tilesPerRow; x++) {
 		for (int y = 0; y < columns; y++) {
 			bool isWall = (x == 0 || x == tilesPerRow - 1 || y == 0 || y == columns - 1);
+			bool isDoor = ((x == 0 || x == tilesPerRow - 1) && (y == columns / 2)) || ((y == 0 || y == columns - 1) && (x == tilesPerRow / 2));
 			int index = y + (columns * x);
-			TileType type = isWall ? WALL : (index % 3 == 0 ? GRASS : GROUND);
+			TileType type = isDoor ? DOOR : (isWall ? WALL : (index % 3 == 0 ? GRASS : GROUND));
 			room.tiles[index] = (Tile){
-				.type = isWall ? WALL : (index % 3 == 0 ? GRASS : GROUND),
-				.obstacle = isWall,
+				.type = type,
+				.obstacle = isWall && !isDoor,
 				.damage = 0,
 				.speed = SpeedForTile(type)
 			};
@@ -72,7 +77,6 @@ static Room GenerateRoom(GameContext* context, Level* level, int num) {
 
 	// Entities for enemies that will be in the room.
 	room.entities = malloc(sizeof(Enemy) * entityCount);
-	room.entityCount = entityCount;
 	for (int i = 0; i < entityCount; i++) {
 		int xpos = 64 * i + 320;
 		int ypos = 64 * i + 128;
@@ -116,20 +120,6 @@ static Level GenerateLevel(GameContext* context, int floor) {
 	int roomsPerPath = 6 + floor * 2 + (GetRandomMTValue(&context->state->mtrand) % 2);
 	level.totalRooms = roomsPerPath * 4 + 1;
 	level.rooms = malloc(sizeof(Room) * level.totalRooms);
-	/*level.tiles = malloc(sizeof(Tile) * tileCount);
-	for (int x = 0; x < tilesPerRow; x++) {
-		for (int y = 0; y < columns; y++) {
-			bool isWall = (x == 0 || x == tilesPerRow - 1 || y == 0 || y == columns - 1);
-			int index = y + (columns * x);
-			TileType type = isWall ? WALL : (index % 3 == 0 ? GRASS : GROUND);
-			level.tiles[index] = (Tile){
-				.type = isWall ? WALL : (index % 3 == 0 ? GRASS : GROUND),
-				.obstacle = isWall,
-				.damage = 0,
-				.speed = SpeedForTile(type)
-			};
-		}
-	}*/
 
 	// There are 4 ways from the initial room.
 	// Every time you pick a door, the other alternative ones remain closed.
@@ -207,7 +197,7 @@ static void MoveEntityByForce(Room* room, GameEntity* entity, float force) {
 	Vector2 newPos = AdvancePointByVector(entity->position, entity->anglev, entity->speed * tile->speed * force);
 	Tile* newTile = GetTileByPos(room, &newPos);
 	// Would hit an obstacle on next tile, stop movement.
-	if (newTile->obstacle) {
+	if (newTile->obstacle || (newTile->type == DOOR && !room->complete)) {
 		entity->speed = 0.0f;
 	} else {
 		entity->position = newPos;
@@ -695,12 +685,19 @@ void UpdateLevel(GameContext* context, float dt) {
 
 	// Update all active entities.
 	Room* room = &level.rooms[level.currentRoom];
+	int activeEntities = 0;
 	if (room->entityCount > 0) {
 		for (int i = 0; i < room->entityCount; i++) {
 			if (!room->entities[i].active) {
 				continue;
 			}
 			UpdateEnemy(context, &player, &level, &room->entities[i], dt);
+			activeEntities++;
 		}
+	}
+
+	// Check if room has been completed to open doors.
+	if (!room->complete && activeEntities == 0) {
+		room->complete = true;
 	}
 }

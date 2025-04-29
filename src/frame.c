@@ -259,7 +259,12 @@ static void RenderWorldCalls(
 			for (int x = 0; x < room->tilesPerRow; x++) {
 				for (int y = 0; y < columns; y++) {
 					int index = y + (columns * x);
-					tileColor = room->tiles[index].type == WALL ? (Color){ 43, 3, 0, 255 } : (room->tiles[index].type == GRASS ? (Color){ 0, 180, 66, 255 } : BROWN);
+					switch (room->tiles[index].type) {
+						case WALL: tileColor = (Color){ 43, 3, 0, 255 }; break;
+						case GRASS: tileColor = (Color){ 0, 180, 66, 255 }; break;
+						case DOOR: tileColor = BEIGE; break;
+						default: tileColor = BROWN;
+					}
 					tileRect = (Rectangle){ x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE };
 					if (CheckCollisionRecs(worldCamera, tileRect)) {
 						AddDrawCall(queue, (DrawCall){
