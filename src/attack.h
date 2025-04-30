@@ -4,7 +4,7 @@
 #include <raylib.h>
 #include "game.h"
 
-#define TOTAL_ATTACKS 4
+#define TOTAL_ATTACKS 5
 
 // Hitboxes are either rectangles or circles, for now.
 typedef enum { HB_RECT = 1, HB_CIRCLE = 2 } HitboxType;
@@ -22,6 +22,7 @@ typedef struct {
 	float centerDist;
 	HitboxType type;
 	Hitbox hitbox;
+	float speed;
 } Attack;
 
 // TODO To declare the attack pointer straight in the weapon list, we need attack list to be a global.
@@ -39,6 +40,7 @@ typedef struct {
 	AttackTarget target;
 	float stunDuration;
 	float pushForce;
+	Vector2 angle;
 } ActiveAttack;
 
 ActiveAttack InitiateAttack(GameEntity* attacker, Vector2* target, Attack* attack, AttackTarget at);

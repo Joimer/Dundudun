@@ -11,7 +11,8 @@ Attack attacks[TOTAL_ATTACKS] = {
 		.duration = 0.33f,
 		.centerDist = 16.0f,
 		.type = HB_RECT,
-		.hitbox = { .rect = { 0, 0, 32.0f, 32.0f } }
+		.hitbox = { .rect = { 0, 0, 32.0f, 32.0f } },
+		.speed = 0
 	},
 	// Enemy circle explosion like attack?
 	{
@@ -20,7 +21,8 @@ Attack attacks[TOTAL_ATTACKS] = {
 		.duration = 0.5f,
 		.centerDist = 32.0f,
 		.type = HB_CIRCLE,
-		.hitbox = { .radius = 24.0f }
+		.hitbox = { .radius = 24.0f },
+		.speed = 0
 	},
 	// Player melee hit.
 	{
@@ -29,14 +31,25 @@ Attack attacks[TOTAL_ATTACKS] = {
 		.centerDist = 0.0f,
 		.type = HB_RECT,
 		.hitbox = { .rect = { 0, 0, 40.0f, 40.0f } },
+		.speed = 0
 	},
 	// Player shooting.
 	{
 		.damage = 5,
-		.duration = 0.05f,
+		.duration = 20.0f,
 		.centerDist = 0.0f,
 		.type = HB_CIRCLE,
-		.hitbox = { .radius = 2.5f }
+		.hitbox = { .radius = 3.0f },
+		.speed = 300.0f
+	},
+	// Enemy shooting.
+	{
+		.damage = 4,
+		.duration = 20.0f,
+		.centerDist = 0.0f,
+		.type = HB_CIRCLE,
+		.hitbox = { .radius = 3.0f },
+		.speed = 300.0f
 	},
 };
 
@@ -54,6 +67,7 @@ ActiveAttack InitiateAttack(GameEntity* attacker, Vector2* target, Attack* attac
 		.target = at,
 		.pushForce = pushForce,
 		.stunDuration = stunDuration,
+		.angle = (Vector2){ cosf(angle), -(sinf(angle)) },
 	};
 
 	// Rectangle hitbox attack.
@@ -63,8 +77,8 @@ ActiveAttack InitiateAttack(GameEntity* attacker, Vector2* target, Attack* attac
 		Vector2 attackPos = Vector2Add(
 			attacker->position,
 			(Vector2){
-				.x = cosf(angle) * attack->centerDist - halfWidth,
-				.y = -(sinf(angle) * attack->centerDist + halfHeight)
+				.x = att.angle.x * attack->centerDist - halfWidth,
+				.y = att.angle.y * attack->centerDist + halfHeight
 			}
 		);
 		att.hitbox.rect = (Rectangle){

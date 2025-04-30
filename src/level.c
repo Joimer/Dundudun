@@ -122,7 +122,7 @@ static Room GenerateRoom(GameContext* context, Level* level, int num, Vector2 po
 				.activeRadius = DEFAULT_ENEMY_RADIUS,
 				.behaviour = APPROACH,
 				.speed = ENEMY_DEFAULT_SPEED,
-				.attack = i == 1 ? GetAttack(1) : GetAttack(0),
+				.attack = i == 1 ? GetAttack(1) : (i == 2 ? GetAttack(4) : GetAttack(0)),
 				.lastAttack = 0.0f,
 				.attackCd = 2.0f,
 				.entity = (GameEntity){
@@ -477,12 +477,21 @@ static void UpdateEnemy(GameContext* context, Player* player, Level* level, Enem
 			enemy->entity.stance != ATTACKING
 			&& (enemy->lastAttack == 0.0f || enemy->lastAttack + enemy->attackCd < level->playTime)
 		) {
+			// Shooting attack.
+			bool doAttack = enemy->attack->speed > 0.0f;
+			if (doAttack) {
+				LogDebug("doAttack %d %f", doAttack, enemy->attack->speed);
+			}
+
 			// Check if player is within range of entity attack.
-			float maxRange = MaxAttackRange(enemy);
-			float dist = Vector2Distance(enemy->entity.position, player->entity.position);
+			if (!doAttack) {
+				float maxRange = MaxAttackRange(enemy);
+				float dist = Vector2Distance(enemy->entity.position, player->entity.position);
+				doAttack = dist <= maxRange;
+			}
 
 			// In range for attack and no cooldown.
-			if (dist <= maxRange) {
+			if (doAttack) {
 				// Initiate attack and finish.
 				SetStance(&enemy->entity, ATTACKING);
 				enemy->lastAttack = level->playTime;
@@ -664,12 +673,28 @@ static void AttackCallback(ObjectPool* pool, int index, void* args) {
 	AttackCbArgs* cbArgs = (AttackCbArgs*) args;
 	// Add elapsed time.
 	attack->elapsed += cbArgs->dt;
+
+	// Change attack position if it moves.
+	if (attack->attack->speed > 0.0f) {
+		const float xAdvance = attack->angle.x * attack->attack->speed * cbArgs->dt;
+		const float yAdvance = attack->angle.y * attack->attack->speed * cbArgs->dt;
+		attack->center = Vector2Add(attack->center, (Vector2){
+			xAdvance,
+			yAdvance
+		});
+		if (attack->attack->type == HB_RECT) {
+			attack->hitbox.rect.x += xAdvance;
+			attack->hitbox.rect.y += yAdvance;
+		}
+	}
+
+	// Check if it hits the player.
 	if (
 		(attack->target == T_PLAYER || attack->target == T_ALL)
 		&& cbArgs->player != NULL
 		&& CanPlayerBeHit(cbArgs->player)
 	) {
-		return AttackHitEntity(cbArgs, &cbArgs->player->entity, attack);
+		AttackHitEntity(cbArgs, &cbArgs->player->entity, attack);
 	}
 
 	// Attack that can hit enemies, go over them.
