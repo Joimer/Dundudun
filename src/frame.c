@@ -167,24 +167,34 @@ void DrawAttackCallback(ObjectPool* pool, int index, void* args) {
 	}
 
 	DrawAttackCbArgs* cbArgs = (DrawAttackCbArgs*) args;
+	Color color = attack->target == T_ENEMY ? (Color){ 0, 208, 8, 210 } : (Color){ 125, 11, 22, 210 };
+	//int layer = ENTITY_LAYER + 1 + attack->center.y * 100;
+	int layer = GIZMO_LAYER + 2 + attack->center.y * 100;
 	if (attack->attack->type == 1) {
-		// TODO: Attack animation here.
+		// TODO: Attack animation and sprite check here.
 		//if (cbArgs->showGizmos) {
-			Color color = attack->target == T_ENEMY ? (Color){ 0, 208, 8, 210 } : (Color){ 125, 11, 22, 210 };
 			AddDrawCall(cbArgs->queue, (DrawCall){
 				.fun = DRAW_RECT,
-				.layer = ENTITY_LAYER + 1 + attack->center.y * 100,
+				.layer = layer,
 				.args = { .rect = {
-					.rec = attack->hitbox,
+					.rec = attack->hitbox.rect,
 					.color = color
 				}}
 			});
 		//}
 	}
 	if (attack->attack->type == 2) {
-		// TODO
 		//if (cbArgs->showGizmos) {
 			//DrawCircleV(attack->center, attack->attack->hitbox.radius, (Color){ 125, 11, 22, 210 });
+			AddDrawCall(cbArgs->queue, (DrawCall){
+				.fun = DRAW_CIRCLE,
+				.layer = layer,
+				.args = { .circle = {
+					.center = attack->center,
+					.radius = attack->hitbox.radius,
+					.color = color
+				}}
+			});
 		//}
 	}
 }

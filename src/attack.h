@@ -10,7 +10,7 @@
 typedef enum { HB_RECT = 1, HB_CIRCLE = 2 } HitboxType;
 
 typedef union {
-	struct { float width; float height; } rect;
+	Rectangle rect;
 	float radius;
 } Hitbox;
 
@@ -35,7 +35,7 @@ typedef struct {
 	Attack* attack;
 	float elapsed;
 	Vector2 center;
-	Rectangle hitbox;
+	Hitbox hitbox;
 	AttackTarget target;
 	float stunDuration;
 	float pushForce;

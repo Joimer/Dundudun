@@ -84,8 +84,8 @@ static Room GenerateRoom(GameContext* context, Level* level, int num, Vector2 po
 	Room room = {
 		.pos = pos,
 		.tileCount = 200,
-		.columns = 20,
-		.rows = 10,
+		.columns = 15,
+		.rows = 8,
 		.entityCount = entityCount,
 		.entities = NULL,
 		.complete = entityCount == 0
@@ -122,7 +122,7 @@ static Room GenerateRoom(GameContext* context, Level* level, int num, Vector2 po
 				.activeRadius = DEFAULT_ENEMY_RADIUS,
 				.behaviour = APPROACH,
 				.speed = ENEMY_DEFAULT_SPEED,
-				.attack = GetAttack(0),
+				.attack = i == 1 ? GetAttack(1) : GetAttack(0),
 				.lastAttack = 0.0f,
 				.attackCd = 2.0f,
 				.entity = (GameEntity){
@@ -132,7 +132,7 @@ static Room GenerateRoom(GameContext* context, Level* level, int num, Vector2 po
 						.visible = true,
 						.layer = 4
 					},
-					.position = RoomOffsetPos(&room, 3, 5 + i),
+					.position = RoomOffsetPos(&room, 3, 3 + i),
 					.health = 40,
 					.maxHealth = 40,
 					.invuln = (Invulnerability){ .duration = 0.5f },
@@ -605,14 +605,10 @@ static void AttackHitEntity(AttackCbArgs* cbArgs, GameEntity* entity, ActiveAtta
 	Rectangle hitbox = HitboxWorldPosition(entity);
 	bool doesHit = false;
 	if (attack->attack->type == 1) {
-		doesHit = CheckCollisionRecs(attack->hitbox, hitbox);
+		doesHit = CheckCollisionRecs(attack->hitbox.rect, hitbox);
 	}
 	if (attack->attack->type == 2) {
-		/*Circle attackHitbox = {
-			.center = attack->center,
-			.radius = attack->attack->data.radius
-		};*/
-		// TODO
+		doesHit = CheckCollisionCircleRec(attack->center, attack->hitbox.radius, hitbox);
 	}
 	if (!doesHit) {
 		return;
@@ -685,14 +681,10 @@ static void AttackCallback(ObjectPool* pool, int index, void* args) {
 			if (!room->entities[i].active) {
 				continue;
 			}
-			if (room->entities[i].entity.invuln.active
-				|| !CheckCollisionRecs(
-				attack->hitbox,
-				HitboxWorldPosition(&room->entities[i].entity)
-			)) {
+			if (room->entities[i].entity.invuln.active) {
 				continue;
 			}
-			// Attack hit this this entity.
+			// Check if attack hits the entity and process it.
 			AttackHitEntity(cbArgs, &room->entities[i].entity, attack);
 		}
 	}
