@@ -11,6 +11,8 @@
 #define GAME_CLOSE_SUCCESS 0
 #define SEED_LENGTH 8
 #define BITS_PER_SEED_CHAR 6
+#define MIN_TICKS 54.0f
+#define MAX_DELTA 1.0f / MIN_TICKS
 
 extern const Vector2 initialPos;
 

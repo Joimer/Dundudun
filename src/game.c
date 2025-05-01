@@ -92,6 +92,9 @@ static void UpdateTitle(GameContext* context) {
 
 static void Update(GameContext* context) {
 	float dt = GetFrameTime();
+	if (dt > MAX_DELTA) {
+		dt = MAX_DELTA;
+	}
 	context->state->elapsed += dt;
 
 	if (IsKeyPressed(KEY_H)) {

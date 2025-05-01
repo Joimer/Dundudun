@@ -487,7 +487,12 @@ static void UpdateEnemy(GameContext* context, Player* player, Level* level, Enem
 				// TODO: If close to an obstacle in the direction, try to go around the player.
 				dir = AngleToDirection(angle, false);
 				// Check if there is an obstacle in the path of running away.
-				if (TestPointDirCollision(level->currentRoom, &enemy->entity, enemy->entity.position.x, enemy->entity.position.y, dir)) {
+				if (
+					vecDist < enemy->activeRadius * 0.5f
+					&& TestPointDirCollision(
+						level->currentRoom, &enemy->entity, enemy->entity.position.x, enemy->entity.position.y, dir
+					)
+				) {
 					dir = OppositeDir(dir);
 				}
 			}
