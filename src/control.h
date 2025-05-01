@@ -15,6 +15,7 @@ typedef enum {
 	ACTION_D
 } GameAction;
 
-bool IsActionPressed(GameAction action);
+bool IsActionActive(GameAction action);
+bool IsActionOnce(GameAction action);
 
 #endif

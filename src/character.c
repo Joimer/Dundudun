@@ -22,7 +22,7 @@ Player CreatePlayer(Texture2D* characterTexture) {
 		.entity = (GameEntity){
 			.health = 50,
 			.maxHealth = 50,
-			.position = (Vector2){ initialPos.x, initialPos.y },
+			.position = initialPos,
 			.dir = SOUTH,
 			.sprite = (Sprite){
 				.texture = characterTexture,
@@ -91,10 +91,10 @@ Direction PlayerUpdateDirection(Player* player) {
 	}
 
 	// Movement actions being pressed to pick current direction.
-	bool isLeft = IsActionPressed(GO_LEFT);
-	bool isRight = IsActionPressed(GO_RIGHT);
-	bool isUp = IsActionPressed(GO_UP);
-	bool isDown = IsActionPressed(GO_DOWN);
+	bool isLeft = IsActionActive(GO_LEFT);
+	bool isRight = IsActionActive(GO_RIGHT);
+	bool isUp = IsActionActive(GO_UP);
+	bool isDown = IsActionActive(GO_DOWN);
 
 	// The player direction is set only when there are no conflicting inputs.
 	// When there's a conflicting input, the direction will not be updated.
@@ -150,4 +150,25 @@ int SwapWeapon(Player* player) {
 
 bool CanPlayerBeHit(Player* player) {
 	return !player->dash.dashing && !player->entity.invuln.active;
+}
+
+void UpdateWeaponStatus(Player* player, float delta) {
+	// Update weapon timers.
+	for (int i = 0; i < player->gear.maxWeaps; i++) {
+		Weapon* weapon = player->gear.weapons[i];
+		if (weapon != NULL && weapon->attacking) {
+			weapon->elapsed += delta;
+			if (weapon->elapsed >= weapon->cooldown) {
+				weapon->attacking = false;
+			}
+		}
+	}
+
+	// Check weapon swap.
+	if (IsActionOnce(ACTION_B)) {
+		Weapon* weapon = player->gear.weapons[player->gear.weaponSlot];
+		if (weapon == NULL || !weapon->attacking) {
+			
+		}
+	}
 }

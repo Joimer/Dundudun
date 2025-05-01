@@ -23,5 +23,6 @@ void* AddToPool(ObjectPool* pool, void* item);
 void RemoveFromPool(ObjectPool* pool, int index);
 void* PoolIndexAddress(ObjectPool* pool, int index);
 void IteratePool(ObjectPool* pool, PoolItemCallback callback, void* args);
+void DestroyPool(ObjectPool* pool);
 
 #endif

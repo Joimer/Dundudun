@@ -1,18 +1,26 @@
 #include <raylib.h>
 #include "control.h"
 
-bool IsActionPressed(GameAction action) {
+static bool DoActionCheck(GameAction action, bool fn(int), bool altFn(int)) {
 	switch (action) {
-		case GO_LEFT: return IsKeyDown(KEY_LEFT) || IsKeyDown(KEY_A);
-		case GO_RIGHT: return IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D);
-		case GO_UP: return IsKeyDown(KEY_UP) || IsKeyDown(KEY_W);
-		case GO_DOWN: return IsKeyDown(KEY_DOWN) || IsKeyDown(KEY_S);
-		case ACCEPT: return IsKeyDown(KEY_ENTER);
-		case CANCEL: return IsKeyDown(KEY_X);
-		case ACTION_A: return IsKeyDown(KEY_Z) || IsMouseButtonPressed(MOUSE_BUTTON_LEFT);
-		case ACTION_B: return IsKeyDown(KEY_X) || IsMouseButtonPressed(MOUSE_BUTTON_RIGHT);
-		case ACTION_C: return IsKeyDown(KEY_C);
-		case ACTION_D: return IsKeyDown(KEY_SPACE);
+		case GO_LEFT: return fn(KEY_LEFT) || fn(KEY_A);
+		case GO_RIGHT: return fn(KEY_RIGHT) || fn(KEY_D);
+		case GO_UP: return fn(KEY_UP) || fn(KEY_W);
+		case GO_DOWN: return fn(KEY_DOWN) || fn(KEY_S);
+		case ACCEPT: return fn(KEY_ENTER);
+		case CANCEL: return fn(KEY_X);
+		case ACTION_A: return fn(KEY_Z) || altFn(MOUSE_BUTTON_LEFT);
+		case ACTION_B: return fn(KEY_X) || altFn(MOUSE_BUTTON_RIGHT);
+		case ACTION_C: return fn(KEY_C);
+		case ACTION_D: return fn(KEY_SPACE);
 		default: return false;
 	}
+}
+
+bool IsActionActive(GameAction action) {
+	return DoActionCheck(action, IsKeyDown, IsMouseButtonDown);
+}
+
+bool IsActionOnce(GameAction action) {
+	return DoActionCheck(action, IsKeyPressed, IsMouseButtonPressed);
 }

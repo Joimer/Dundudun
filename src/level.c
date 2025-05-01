@@ -23,6 +23,25 @@ Level* GetLevel() {
 	return &level;
 }
 
+void DestroyLevel() {
+	if (level.rooms != NULL) {
+		for (int i = 0; i < level.totalRooms; i++) {
+			if (level.rooms[i].tiles != NULL) {
+				free(level.rooms[i].tiles);
+			}
+			if (level.rooms[i].entities != NULL) {
+				free(level.rooms[i].entities);
+			}
+		}
+		free(level.rooms);
+	}
+	level.totalRooms = 0;
+	level.currentRoom = NULL;
+	level.nextRoom = NULL;
+	DestroyPool(&level.attacks);
+	DestroyPool(&level.texts);
+}
+
 Rectangle HitboxWorldPosition(GameEntity* entity) {
 	if (entity == NULL) {
 		LogDebug("Invalid entity, returning empty rectangle.");
@@ -88,29 +107,34 @@ static Room GenerateRoom(GameContext* context, Level* level, int num, Vector2 po
 		.rows = 8,
 		.entityCount = entityCount,
 		.entities = NULL,
+		.tiles = NULL,
 		.complete = entityCount == 0
 	};
-	room.tiles = malloc(sizeof(Tile) * room.tileCount);
-	TileType forGrass = num == 0 ? GROUND : GRASS;
-	for (int row = 0; row < room.rows; row++) {
-		for (int column = 0; column < room.columns; column++) {
-			bool isWall = (row == 0 || column == 0 || column == room.columns - 1 || row == room.rows - 1);
-			bool isDoor = (
-				(row == 0 || row == room.rows - 1)
-				&& (column == room.columns / 2)
-			) || (
-				(column == 0 || column == room.columns - 1)
-				&& (row == room.rows / 2)
-			);
-			const int index = column + (room.columns * row);
-			TileType type = isDoor ? DOOR : (isWall ? WALL : (index % 3 == 0 ? forGrass : GROUND));
-			room.tiles[index] = (Tile){
-				.type = type,
-				.obstacle = isWall && !isDoor,
-				.damage = 0,
-				.speed = SpeedForTile(type)
-			};
+	if (room.tileCount > 0) {
+		room.tiles = malloc(sizeof(Tile) * room.tileCount);
+		TileType forGrass = num == 0 ? GROUND : GRASS;
+		for (int row = 0; row < room.rows; row++) {
+			for (int column = 0; column < room.columns; column++) {
+				bool isWall = (row == 0 || column == 0 || column == room.columns - 1 || row == room.rows - 1);
+				bool isDoor = (
+					(row == 0 || row == room.rows - 1)
+					&& (column == room.columns / 2)
+				) || (
+					(column == 0 || column == room.columns - 1)
+					&& (row == room.rows / 2)
+				);
+				const int index = column + (room.columns * row);
+				TileType type = isDoor ? DOOR : (isWall ? WALL : (index % 3 == 0 ? forGrass : GROUND));
+				room.tiles[index] = (Tile){
+					.type = type,
+					.obstacle = isWall && !isDoor,
+					.damage = 0,
+					.speed = SpeedForTile(type)
+				};
+			}
 		}
+	} else {
+		LogDebug("Creating room with 0 tiles!!");
 	}
 
 	// Entities for enemies that will be in the room.
@@ -120,7 +144,7 @@ static Room GenerateRoom(GameContext* context, Level* level, int num, Vector2 po
 			room.entities[i] = (Enemy){
 				.active = true,
 				.activeRadius = DEFAULT_ENEMY_RADIUS,
-				.behaviour = APPROACH,
+				.behaviour = i == 2 ? DISTANCE : APPROACH,
 				.speed = ENEMY_DEFAULT_SPEED,
 				.attack = i == 1 ? GetAttack(1) : (i == 2 ? GetAttack(4) : GetAttack(0)),
 				.lastAttack = 0.0f,
@@ -157,7 +181,9 @@ static Level GenerateLevel(GameContext* context, int floor) {
 		.totalRooms = roomsPerPath * 4 + 1,
 		.nextRoom = NULL
 	};
-	level.rooms = malloc(sizeof(Room) * level.totalRooms);
+	// Right now we need calloc while testing and initialised rooms are less than total.
+	// However, it is likely convenient to initialise room data and set everything to 0 for potential validity checks.
+	level.rooms = calloc(level.totalRooms, sizeof(Room));
 
 	// There are 4 ways from the initial room.
 	// Every time you pick a door, the other alternative ones remain closed.
@@ -479,9 +505,6 @@ static void UpdateEnemy(GameContext* context, Player* player, Level* level, Enem
 		) {
 			// Shooting attack.
 			bool doAttack = enemy->attack->speed > 0.0f;
-			if (doAttack) {
-				LogDebug("doAttack %d %f", doAttack, enemy->attack->speed);
-			}
 
 			// Check if player is within range of entity attack.
 			if (!doAttack) {
@@ -499,18 +522,21 @@ static void UpdateEnemy(GameContext* context, Player* player, Level* level, Enem
 			}
 		}
 
+		// Distance from entity to player.
+		float vecDist = Vector2Distance(player->entity.position, enemy->entity.position);
+		if (enemy->behaviour == DISTANCE) {
+			// Check if vecDist is less than radius x 1.9 (within attack range but not border)
+		}
+		// TODO
+		//if (enemy->behaviour == DISTANCE) {
+		// Pick target position, speed
+		// Check collision
+		// Run action
+		// Check collision after checking movement for either type of movement.
+
 		if (enemy->behaviour == APPROACH) {
 			// Set direction towards player.
 			// Min distance is entity hitbox in front of player hitbox.
-			float xThreshold = player->entity.hitbox.width / 2.0f + enemy->entity.hitbox.width / 2.0f;
-			float yThreshold = player->entity.hitbox.height / 2.0f + enemy->entity.hitbox.height / 2.0f;
-			float vecDist = Vector2Distance(player->entity.position, enemy->entity.position);
-
-			// Entity is close enough to player, ignore movement.
-			if (vecDist < xThreshold + yThreshold) {
-				goto stand;
-			}
-
 			// Get the closest player hitbox corner to the enemy position.
 			Vector2 closestCorner = ClosestRectCorner(HitboxWorldPosition(&player->entity), enemy->entity.position);
 			Direction dir = GetPointDirThreshold(
@@ -757,15 +783,7 @@ static void UpdatePlayer(GameContext* context, Level* level, Player* player, flo
 	UpdateStun(&player->entity, delta);
 
 	// Update weapon statuses.
-	for (int i = 0; i < player->gear.maxWeaps; i++) {
-		Weapon* weapon = player->gear.weapons[i];
-		if (weapon != NULL && weapon->attacking) {
-			weapon->elapsed += delta;
-			if (weapon->elapsed >= weapon->cooldown) {
-				weapon->attacking = false;
-			}
-		}
-	}
+	UpdateWeaponStatus(player, delta);
 
 	// Player is mid dash, no control on actions until it is finished.
 	if (player->dash.dashing) {
@@ -796,12 +814,12 @@ static void UpdatePlayer(GameContext* context, Level* level, Player* player, flo
 	Direction newDir = PlayerUpdateDirection(player);
 
 	// Execute dash.
-	if (!player->entity.stunned && player->entity.stance != ATTACKING && IsActionPressed(ACTION_D) && player->dash.cdLeft == 0.0f) {
+	if (!player->entity.stunned && player->entity.stance != ATTACKING && IsActionActive(ACTION_D) && player->dash.cdLeft == 0.0f) {
 		return PlayerStartDash(context, player);
 	}
 
 	// Attack action.
-	if (!player->entity.stunned && player->entity.stance != ATTACKING && IsActionPressed(ACTION_A)) {
+	if (!player->entity.stunned && player->entity.stance != ATTACKING && IsActionActive(ACTION_A)) {
 		Weapon* usedWeapon = player->gear.weapons[player->gear.weaponSlot];
 		if (usedWeapon != NULL && !usedWeapon->attacking) {
 			if (usedWeapon->attack == NULL) {

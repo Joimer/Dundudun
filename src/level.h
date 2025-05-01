@@ -89,6 +89,7 @@ typedef struct {
 } AttackCbArgs;
 
 void SetupLevel(GameContext* context);
+void DestroyLevel();
 float MaxAttackRange(Enemy* enemy);
 Rectangle HitboxWorldPosition(GameEntity* entity);
 void UpdateLevel(GameContext* context, float dt);

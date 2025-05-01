@@ -38,5 +38,6 @@ bool CanPlayerBeHit(Player* player);
 void PlayerDashUpdate(Player* player, float dt);
 void PlayerStartDash(GameContext* context, Player* player);
 Direction PlayerUpdateDirection(Player* player);
+void UpdateWeaponStatus(Player* player, float delta);
 
 #endif

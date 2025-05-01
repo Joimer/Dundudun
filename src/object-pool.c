@@ -56,3 +56,14 @@ void IteratePool(ObjectPool* pool, PoolItemCallback callback, void* args) {
 		i++;
 	}
 }
+
+void DestroyPool(ObjectPool* pool) {
+	if (pool->active != NULL) {
+		free(pool->active);
+	}
+	pool->activeItems = 0;
+	if (pool->data != NULL) {
+		free(pool->data);
+	}
+	pool->length = 0;
+}

@@ -65,12 +65,12 @@ static void UpdateLogo(GameContext* context) {
 		context->state->elapsed > LOGO_DURATION
 		|| (
 			context->state->elapsed > 0.1f && (
-			IsActionPressed(ACCEPT)
-			|| IsActionPressed(CANCEL)
-			|| IsActionPressed(ACTION_A)
-			|| IsActionPressed(ACTION_B)
-			|| IsActionPressed(ACTION_C)
-			|| IsActionPressed(ACTION_D)
+			IsActionActive(ACCEPT)
+			|| IsActionActive(CANCEL)
+			|| IsActionActive(ACTION_A)
+			|| IsActionActive(ACTION_B)
+			|| IsActionActive(ACTION_C)
+			|| IsActionActive(ACTION_D)
 		))
 	) {
 		LoadNextScreen(context, TITLE);
@@ -79,12 +79,12 @@ static void UpdateLogo(GameContext* context) {
 
 static void UpdateTitle(GameContext* context) {
 	if (
-		IsActionPressed(ACCEPT)
-		|| IsActionPressed(CANCEL)
-		|| IsActionPressed(ACTION_A)
-		|| IsActionPressed(ACTION_B)
-		|| IsActionPressed(ACTION_C)
-		|| IsActionPressed(ACTION_D)
+		IsActionActive(ACCEPT)
+		|| IsActionActive(CANCEL)
+		|| IsActionActive(ACTION_A)
+		|| IsActionActive(ACTION_B)
+		|| IsActionActive(ACTION_C)
+		|| IsActionActive(ACTION_D)
 	) {
 		LoadNextScreen(context, GAMEPLAY);
 	}
@@ -135,6 +135,7 @@ int RunGame(GameContext* context) {
 	}
 
 	// Unload resources and memory before exit.
+	DestroyLevel();
 	UnloadTextures();
 	if (context->state->seedStr != NULL) {
 		free((char*)context->state->seedStr);
