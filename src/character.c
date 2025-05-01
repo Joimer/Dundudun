@@ -200,7 +200,7 @@ void PlayerAttackAction(GameContext* context, Player* player, ObjectPool* attPoo
 		ActiveAttack att = InitiateAttack(&player->entity, &mpos, usedWeapon->attack, T_ENEMY);
 		void* result = AddToPool(attPool, &att);
 		if (result == NULL) {
-			LogDebug("Failed to allocate character attack on object pool");
+			LogDebug("Failed to allocate character attack on object pool: %d/%d", attPool->activeItems, attPool->length);
 		} else {
 			usedWeapon->attacking = true;
 			usedWeapon->elapsed = 0.0f;

@@ -5,7 +5,7 @@
 static Weapon weapons[TOTAL_WEAPONS] = {
 	// Base melee weapon: Letter Opener
 	{
-		.attack = &attacks[0],
+		.attack = &attacks[2],
 		.type = MELEE,
 		.cooldown = 0.35f,
 		.attacking = false,

@@ -259,8 +259,8 @@ static Level GenerateLevel(GameContext* context, int floor) {
 		rooms->rooms[currentRoom++] = nextRoom;
 	}*/
 	// Number of attacks to allocate should be calculated by max enemies and their attack cadence.
-	level.attacks = CreatePoolOf(ActiveAttack, 64);
-	level.texts = CreatePoolOf(ActiveText, 64);
+	level.attacks = CreatePoolOf(ActiveAttack, 128);
+	level.texts = CreatePoolOf(ActiveText, 128);
 
 	return level;
 }

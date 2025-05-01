@@ -19,6 +19,8 @@ ObjectPool CreatePool(const int length, const size_t itemSize) {
 }
 
 void* AddToPool(ObjectPool* pool, void* item) {
+	// TODO: If pool full, reuse oldest item.
+	// Perhaps change to linkedlisty objectpool then,,,
 	for (int i = 0; i < pool->length; i++) {
 		if (!pool->active[i]) {
 			pool->active[i] = true;

@@ -9,7 +9,7 @@ Attack attacks[TOTAL_ATTACKS] = {
 		.damage = 5,
 		.windup = 0.25f,
 		.duration = 0.33f,
-		.centerDist = 16.0f,
+		.centerDist = 20.0f,
 		.type = HB_RECT,
 		.hitbox = { .rect = { 0, 0, 32.0f, 32.0f } },
 		.speed = 0,
@@ -30,7 +30,7 @@ Attack attacks[TOTAL_ATTACKS] = {
 	{
 		.damage = 7,
 		.duration = 0.15f,
-		.centerDist = 0.0f,
+		.centerDist = 26.0f,
 		.type = HB_RECT,
 		.hitbox = { .rect = { 0, 0, 40.0f, 40.0f } },
 		.speed = 0,
@@ -66,25 +66,31 @@ ActiveAttack InitiateAttack(GameEntity* attacker, Vector2* target, Attack* attac
 	float angle = Vector2LineAngle(attacker->position, *target);
 	float stunDuration = at == T_ENEMY ? 0.2f : 0.1f;
 	float pushForce = at == T_ENEMY ? 150.0f : 50.0f;
+	Vector2 anglev = { cosf(angle), -(sinf(angle)) };
 	ActiveAttack att = {
 		.attack = attack,
 		.elapsed = 0.0f,
 		.target = at,
 		.pushForce = pushForce,
 		.stunDuration = stunDuration,
-		.angle = (Vector2){ cosf(angle), -(sinf(angle)) },
-		.completed = false
+		.angle = anglev,
+		.completed = false,
+		.center = attack->centerDist == 0.0f ? attacker->position : Vector2Add(
+			attacker->position,
+			(Vector2){
+				.x = anglev.x * attack->centerDist,
+				.y = anglev.y * attack->centerDist
+			}
+		)
 	};
 
 	// Rectangle hitbox attack.
 	if (attack->type == HB_RECT) {
-		float halfWidth = attack->hitbox.rect.width / 2.0f;
-		float halfHeight = attack->hitbox.rect.height / 2.0f;
-		Vector2 attackPos = Vector2Add(
-			attacker->position,
+		Vector2 attackPos = Vector2Subtract(
+			att.center,
 			(Vector2){
-				.x = att.angle.x * attack->centerDist - halfWidth,
-				.y = att.angle.y * attack->centerDist + halfHeight
+				.x = attack->hitbox.rect.width / 2.0f,
+				.y = attack->hitbox.rect.height / 2.0f
 			}
 		);
 		att.hitbox.rect = (Rectangle){
@@ -93,18 +99,10 @@ ActiveAttack InitiateAttack(GameEntity* attacker, Vector2* target, Attack* attac
 			.width = attack->hitbox.rect.width,
 			.height = attack->hitbox.rect.height
 		};
-		att.center = (Vector2){ attackPos.x + halfWidth, attackPos.y - halfHeight };
 	}
 
 	// Circle hitbox attack.
 	if (attack->type == HB_CIRCLE) {
-		att.center = Vector2Add(
-			attacker->position,
-			(Vector2){
-				.x = cosf(angle) * attack->centerDist,
-				.y = -(sinf(angle) * attack->centerDist)
-			}
-		);
 		att.hitbox.radius = attack->hitbox.radius;
 	}
 
