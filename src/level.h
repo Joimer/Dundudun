@@ -6,7 +6,7 @@
 #include "game.h"
 #include "object-pool.h"
 #include "character.h"
-#include "attack.h"
+#include "entity.h"
 
 #define DEFAULT_ENEMY_RADIUS 200.0f
 #define ENEMY_DEFAULT_SPEED 150.0f
@@ -25,21 +25,6 @@ typedef struct {
 		Vector2 pos;
 	} warp;
 } Tile;
-
-typedef enum { APPROACH, STAND, DISTANCE } EnemyBehaviour;
-
-typedef struct {
-	GameEntity entity;
-	float activeRadius;
-	EnemyBehaviour behaviour;
-	bool active;
-	// This is the base speed of the enemy.
-	// Can be modified. Entity holds final speed.
-	float speed;
-	float lastAttack;
-	float attackCd;
-	Attack* attack;
-} Enemy;
 
 typedef struct {
 	char* content;
@@ -90,8 +75,6 @@ typedef struct {
 
 void SetupLevel(GameContext* context);
 void DestroyLevel();
-float MaxAttackRange(Enemy* enemy);
-Rectangle HitboxWorldPosition(GameEntity* entity);
 void UpdateLevel(GameContext* context, float dt);
 Player* GetPlayer();
 Level* GetLevel();

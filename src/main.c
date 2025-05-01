@@ -9,15 +9,16 @@ int main(void) {
 	// TODO: Load game config from options file.
 	GameOptions options = {
 		.dashMode = DIRECTIONAL,
-		.targetFps = 150,
-		.showGizmos = true,
+		.targetFps = 170,
+		.showGizmos = false,
 		.screenSize = (Rectangle){ 0, 0, 1920, 1080 }
 	};
 
 	// Initial game window configuration.
 	SetConfigFlags(FLAG_VSYNC_HINT | FLAG_WINDOW_HIGHDPI);
 	InitWindow(WORLD_SIZE_WIDTH, WORLD_SIZE_HEIGHT, GAME_NAME);
-	SetTargetFPS(options.targetFps);
+	//Always like 10-15 fps below target and we are using vsync so... perhaps never use it? Let the player pick and set it 20% above?
+	//SetTargetFPS(options.targetFps);
 	InitAudioDevice();
 
 	// Set up the initial game state.

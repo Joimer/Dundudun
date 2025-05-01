@@ -8,6 +8,7 @@
 #include "game.h"
 #include "item.h"
 #include "object-pool.h"
+#include "entity.h"
 
 Player CreatePlayer(Texture2D* characterTexture) {
 	float halfWidth = (float) characterTexture->width / 2.0f;

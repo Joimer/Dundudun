@@ -59,6 +59,14 @@ bool IsBitSet(int val, int bit);
 Direction GetPointDir(Vector2 origin, Vector2 target);
 Direction GetPointDirThreshold(Vector2 origin, Vector2 target, float xThreshold, float yThreshold);
 char* IntToString(int val);
+Vector2 AngleToVector(float angle);
+Vector2 DirectionToVector(Direction dir);
+float DirectionToAngle(Direction dir);
+Direction AngleToDirection(float angle, bool strict);
+Vector2 AdvancePointByAngle(Vector2 start, float angle, float force);
+Vector2 AdvancePointByDir(Vector2 start, Direction dir, float force);
+Vector2 AdvancePointByVector(Vector2 start, Vector2 anglev, float force);
+Direction OppositeDir(Direction dir);
 
 /**
  * Improved initialisation Mersenne Twister for the secondary PRNG.
@@ -82,12 +90,5 @@ typedef struct {
 
 MTRand SeedMTRand(unsigned long seed);
 unsigned long GetRandomMTValue(MTRand* rand);
-Vector2 AngleToVector(float angle);
-Vector2 DirectionToVector(Direction dir);
-float DirectionToAngle(Direction dir);
-Direction AngleToDirection(float angle, bool strict);
-Vector2 AdvancePointByAngle(Vector2 start, float angle, float force);
-Vector2 AdvancePointByDir(Vector2 start, Direction dir, float force);
-Vector2 AdvancePointByVector(Vector2 start, Vector2 anglev, float force);
 
 #endif

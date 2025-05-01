@@ -145,23 +145,6 @@ int RunGame(GameContext* context) {
 	return GAME_CLOSE_SUCCESS;
 }
 
-void UpdateInvuln(GameEntity* entity, float dt) {
-	if (entity->invuln.active) {
-		entity->invuln.elapsed += dt;
-		if (entity->invuln.elapsed >= entity->invuln.duration) {
-			entity->invuln.active = false;
-			entity->invuln.elapsed = 0;
-		}
-	}
-}
-
-void SetStance(GameEntity* entity, Stance stance) {
-	if (entity->stance != stance) {
-		entity->stance = stance;
-		entity->stanceTime = 0.0f;
-	}
-}
-
 Vector2 GetWorldMousePos(GameContext* context) {
 	Vector2 mousePos = GetMousePosition();
 	float worldHeight = (float) WORLD_SIZE_HEIGHT;

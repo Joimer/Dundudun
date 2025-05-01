@@ -10,6 +10,7 @@
 #include "attack.h"
 #include "resource.h"
 #include "frame.h"
+#include "entity.h"
 
 static bool levelSetup = false;
 static Player player;
@@ -40,19 +41,6 @@ void DestroyLevel() {
 	level.nextRoom = NULL;
 	DestroyPool(&level.attacks);
 	DestroyPool(&level.texts);
-}
-
-Rectangle HitboxWorldPosition(GameEntity* entity) {
-	if (entity == NULL) {
-		LogDebug("Invalid entity, returning empty rectangle.");
-		return (Rectangle) {};
-	}
-	return (Rectangle) {
-		entity->position.x + entity->hitbox.x,
-		entity->position.y + entity->hitbox.y,
-		entity->hitbox.width,
-		entity->hitbox.height
-	};
 }
 
 static float SpeedForTile(TileType type) {
@@ -325,25 +313,10 @@ static void MoveEntityByForce(Room* room, GameEntity* entity, float force) {
 	Tile* newTile = GetTileByPos(room, &newPos);
 	// Would hit an obstacle on next tile, stop movement.
 	if (newTile->obstacle || (newTile->type == DOOR && !room->complete)) {
-		entity->speed = 0.0f;
+		StandStill(entity);
 	} else {
 		entity->position = newPos;
 	}
-}
-
-float MaxAttackRange(Enemy* enemy) {
-	if (enemy == NULL || enemy->attack == NULL) {
-		return 0.0f;
-	}
-	float baseDist = enemy->attack->centerDist;
-	if (enemy->attack->type == HB_RECT) {
-		baseDist += enemy->attack->hitbox.rect.height / 2.0f;
-	}
-	if (enemy->attack->type == HB_CIRCLE) {
-		baseDist += enemy->attack->hitbox.radius;
-	}
-
-	return baseDist + 1.0f;
 }
 
 Vector2 Raycast(Room* room, Vector2 start, Vector2 end, GameEntity* self) {
@@ -354,10 +327,27 @@ Vector2 Raycast(Room* room, Vector2 start, Vector2 end, GameEntity* self) {
 	int max = (abs(err) * 2) + 1;
 	Vector2 point = {};
 	GameEntity* coll = NULL;
+	int tilesThrough = Vector2Distance(start, end) / TILE_SIZE;
+	Vector2 tilePos = { floorf(x0 / TILE_SIZE), floorf(y0 / TILE_SIZE) };
 
 	for (int i = 0; i < max; i++) {
 		point.x = x0;
 		point.y = y0;
+
+		// Check if tile has changed.
+		if (tilesThrough > 1) {
+			float newTilePosX = floorf(x0 / TILE_SIZE);
+			float newTilePosY = floorf(y0 / TILE_SIZE);
+			if (newTilePosX != tilePos.x || newTilePosY != tilePos.y) {
+				// New tile, check if it's a obstacle.
+				tilePos.x = newTilePosX;
+				tilePos.y = newTilePosY;
+				Tile* newTile = GetTileByPos(room, &tilePos);
+				if (newTile->obstacle) {
+					break;
+				}
+			}
+		}
 		if (x0 == x1 && y0 == y1) {
 			break;
 		}
@@ -439,18 +429,6 @@ static bool TestRectDirCollision(Room* room, GameEntity* self, Rectangle hitbox,
 	return TestPointDirCollision(room, self, cornerX, cornerY, dir);
 }
 
-static void UpdateStun(GameEntity* entity, float delta) {
-	if (entity->stunned) {
-		entity->stunElapsed += delta;
-		if (entity->stunElapsed >= entity->stunDuration) {
-			entity->stunned = false;
-			// TODO: Probably better to manage these forces in a different way...
-			entity->speed = 0.0f;
-		}
-	}
-}
-
-// TODO: This seems like it could use being broken down to a handful of functions
 static void UpdateEnemy(GameContext* context, Player* player, Level* level, Enemy* enemy, float dt) {
 	// Check for death.
 	if (enemy->entity.health <= 0) {
@@ -459,66 +437,36 @@ static void UpdateEnemy(GameContext* context, Player* player, Level* level, Enem
 		return;
 	}
 
-	// Check invulnerability status.
-	UpdateInvuln(&enemy->entity, dt);
-	enemy->entity.stanceTime += dt;
+	// Update the enemy entity to current game logic status.
+	UpdateEntity(&enemy->entity, dt);
 
-	// Check stunned status.
-	UpdateStun(&enemy->entity, dt);
-
-	// Enemy is winding up an attack.
-	if (!enemy->entity.stunned && enemy->entity.stance == ATTACKING) {
-		if (enemy->entity.stanceTime < enemy->attack->windup) {
-			// Winding up attack, nothing to do here.
-			return;
-		}
-
-		// Attack windup has finished, instantiate actual attack hitbox.
-		ActiveAttack att = InitiateAttack(&enemy->entity, &player->entity.position, enemy->attack, T_PLAYER);
-		void* result = AddToPool(&level->attacks, &att);
-		if (result == NULL) {
-			LogDebug("Failed to allocate enemy attack on object pool");
-		}
-		LogDebug("Amount of active items: %d", level->attacks.activeItems);
-		goto stand;
-	}
-
-	// TODO: Own functions for entities for movement/action and state machine for those.
-	// Check if player is within the entity's active area.
-	if (!enemy->entity.stunned && (player == NULL || !CheckCollisionPointCircle(
-		player->entity.position, enemy->entity.position, enemy->activeRadius
-	))) {
-		// Inactive status.
-		// If can be seen in screen or close by, idle behaviour.
-		// Otherwise, completely ignore.
-		// TODO: Idle.
-		goto stand;
-	}
-
-	// Check for attacking behaviour.
+	// It is preferable to check for stun here once rather than on every single entity action.
 	if (!enemy->entity.stunned) {
+		if (EntityUnwindAttack(
+			&enemy->entity, enemy->attack,
+			&player->entity.position,
+			&level->attacks,
+			T_PLAYER
+		)) {
+			// Enemy is winding up an attack or just finished doing so.
+			return StandStill(&enemy->entity);
+		}
+
+		// Check if player is within the entity's active area.
+		if (!CheckCollisionPointCircle(
+			player->entity.position, enemy->entity.position, enemy->activeRadius
+		)) {
+			// Inactive status.
+			// If can be seen in screen or close by, idle behaviour.
+			// Otherwise, completely ignore.
+			// TODO: Idle.
+			return StandStill(&enemy->entity);
+		}
+
 		// Check if entity status allows for attack.
-		if (
-			enemy->entity.stance != ATTACKING
-			&& (enemy->lastAttack == 0.0f || enemy->lastAttack + enemy->attackCd < level->playTime)
-		) {
-			// Shooting attack.
-			bool doAttack = enemy->attack->speed > 0.0f;
-
-			// Check if player is within range of entity attack.
-			if (!doAttack) {
-				float maxRange = MaxAttackRange(enemy);
-				float dist = Vector2Distance(enemy->entity.position, player->entity.position);
-				doAttack = dist <= maxRange;
-			}
-
-			// In range for attack and no cooldown.
-			if (doAttack) {
-				// Initiate attack and finish.
-				SetStance(&enemy->entity, ATTACKING);
-				enemy->lastAttack = level->playTime;
-				return;
-			}
+		if (EnemyCheckAttack(enemy, level->playTime, &player->entity.position)) {
+			// Attack execution started.
+			return;
 		}
 
 		float vecDist = Vector2Distance(player->entity.position, enemy->entity.position);
@@ -532,11 +480,16 @@ static void UpdateEnemy(GameContext* context, Player* player, Level* level, Enem
 				dir = AngleToDirection(angle, false);
 			} else if (vecDist > enemy->activeRadius * 0.7f) {
 				// Enemy will stand still if within adequate distance from the player.
-				goto stand;
+				return StandStill(&enemy->entity);
 			} else {
 				// Too close to player, get away from it.
 				float angle = Vector2LineAngle(player->entity.position, enemy->entity.position);
+				// TODO: If close to an obstacle in the direction, try to go around the player.
 				dir = AngleToDirection(angle, false);
+				// Check if there is an obstacle in the path of running away.
+				if (TestPointDirCollision(level->currentRoom, &enemy->entity, enemy->entity.position.x, enemy->entity.position.y, dir)) {
+					dir = OppositeDir(dir);
+				}
 			}
 		}
 
@@ -556,7 +509,7 @@ static void UpdateEnemy(GameContext* context, Player* player, Level* level, Enem
 
 		// Enemy is close enough to target position, stand still.
 		if (dir == NO_DIRECTION) {
-			goto stand;
+			return StandStill(&enemy->entity);
 		}
 
 		// Here the enemy has picked a direction to walk towards.
@@ -617,7 +570,7 @@ static void UpdateEnemy(GameContext* context, Player* player, Level* level, Enem
 
 		// If the entity was completely stopped, we can check on next one already.
 		if (dir == NO_DIRECTION) {
-			goto stand;
+			return StandStill(&enemy->entity);
 		}
 		SetStance(&enemy->entity, WALKING);
 		enemy->entity.dir = dir;
@@ -628,17 +581,18 @@ static void UpdateEnemy(GameContext* context, Player* player, Level* level, Enem
 	// Update entity position according to its movement.
 	// Collision checks to be done before this.
 	if (enemy->entity.speed > 0.0f) {
-		Tile* tile = GetTileByPos(level->currentRoom, &enemy->entity.position);
-		if (tile == NULL) {
+		Tile* currentTile = GetTileByPos(level->currentRoom, &enemy->entity.position);
+		if (currentTile == NULL) {
 			LogDebug("Invalid tile!");
 		} else {
-			enemy->entity.position = AdvancePointByDir(enemy->entity.position, enemy->entity.dir, enemy->entity.speed * tile->speed * dt);
+			// Check that the incoming tile after movement ends is not an obstacle.
+			Vector2 nextPos = AdvancePointByDir(enemy->entity.position, enemy->entity.dir, enemy->entity.speed * currentTile->speed * dt);
+			Tile* nextTile = GetTileByPos(level->currentRoom, &nextPos);
+			if (!nextTile->obstacle && nextTile->speed > 0.0f) {
+				enemy->entity.position = nextPos;
+			}
 		}
 	}
-	return;
-
-	stand: SetStance(&enemy->entity, STANDING);
-	enemy->entity.speed = 0.0f;
 }
 
 static void AttackHitEntity(AttackCbArgs* cbArgs, GameEntity* entity, ActiveAttack* attack) {
@@ -785,13 +739,8 @@ static void UpdatePlayer(GameContext* context, Level* level, Player* player, flo
 
 	// Update physics and status counters.
 	// Each entity has their own because they could be individually frozen.
+	UpdateEntity(&player->entity, delta);
 	player->entity.stanceTime += delta;
-
-	// Check invulnerability status.
-	UpdateInvuln(&player->entity, delta);
-
-	// Stun status.
-	UpdateStun(&player->entity, delta);
 
 	// Update weapon statuses.
 	UpdateWeaponStatus(player, delta);
@@ -861,10 +810,11 @@ void UpdateLevel(GameContext* context, float dt) {
 		return;
 	}
 
+	// TODO: Add death/game over check here. Player ref may be to an uninitialised player if we get to a bad state due to bad code, but should never be null.
 	UpdatePlayer(context, &level, &player, dt);
 
 	// Run ongoing attacks.
-	// Attacks are instantiated by enemies from a template and ran on their own afterwards.
+	// Attacks are instantiated from a template and ran on their own afterwards.
 	if (level.attacks.activeItems > 0) {
 		AttackCbArgs args = {
 			.dt = dt,
@@ -879,11 +829,10 @@ void UpdateLevel(GameContext* context, float dt) {
 	int activeEntities = 0;
 	if (level.currentRoom != NULL && level.currentRoom->entityCount > 0) {
 		for (int i = 0; i < level.currentRoom->entityCount; i++) {
-			if (!level.currentRoom->entities[i].active) {
-				continue;
+			if (level.currentRoom->entities[i].active) {
+				UpdateEnemy(context, &player, &level, &level.currentRoom->entities[i], dt);
+				activeEntities++;
 			}
-			UpdateEnemy(context, &player, &level, &level.currentRoom->entities[i], dt);
-			activeEntities++;
 		}
 	}
 

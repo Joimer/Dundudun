@@ -167,7 +167,7 @@ void DrawAttackCallback(ObjectPool* pool, int index, void* args) {
 	}
 
 	DrawAttackCbArgs* cbArgs = (DrawAttackCbArgs*) args;
-	Color color = attack->target == T_ENEMY ? (Color){ 0, 208, 8, 210 } : (Color){ 125, 11, 22, 210 };
+	Color color = attack->target == T_ENEMY ? (Color){ 25, 150, 25, 210 } : (Color){ 125, 11, 22, 210 };
 	//int layer = ENTITY_LAYER + 1 + attack->center.y * 100;
 	int layer = GIZMO_LAYER + 2 + attack->center.y * 100;
 	if (attack->attack->type == 1) {
@@ -606,6 +606,13 @@ static void RenderLevel(
 	} else {
 		UpdateLevelCamera(&context->state->camera, level, player);
 	}
+	// TODO kinda important
+	// Current delta means in the case the game slows down a lot, it will play as expected but laggy and weird.
+	// If the updates are too low, some executions may fail due to intersections not being calculated (ie. delta time is 1s)
+	// Need to force a minimum and max amount of ticks per frame and pick a fixed tickrate.
+	// Best option is: get delta time, run necessary ticks, accumulate "unused" delta time and either do a "half-step" simulation
+	// or run them on next frame.
+	// Needs a handful of changes, but not hard and still in a good moment to do it.
 	RenderWorld(context, worldRender, player, level);
 	RenderScreen(context, worldRender, player);
 }

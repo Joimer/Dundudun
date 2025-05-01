@@ -77,8 +77,6 @@ typedef struct {
 int RunGame(GameContext* context);
 unsigned long GenerateGameSeed();
 const char* SeedToString(unsigned long seed);
-void UpdateInvuln(GameEntity* entity, float dt);
-void SetStance(GameEntity* entity, Stance stance);
 Vector2 GetWorldMousePos(GameContext* context);
 
 // Should go in screens.h but right now redundancy with game.h

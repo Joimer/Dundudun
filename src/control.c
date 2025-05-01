@@ -1,6 +1,7 @@
 #include <raylib.h>
 #include "control.h"
 
+/* TODO with more fine grained controls
 static int defaultKeys[11];
 
 static void SetDefaultKeys() {
@@ -15,6 +16,7 @@ static void SetDefaultKeys() {
 	defaultKeys[ACTION_C] = KEY_C;
 	defaultKeys[ACTION_D] = KEY_SPACE;
 }
+*/
 
 static bool DoActionCheck(GameAction action, bool fn(int), bool altFn(int)) {
 	switch (action) {

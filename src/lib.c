@@ -11,7 +11,7 @@ inline Vector2 ClosestRectCorner(Rectangle rect, Vector2 point) {
 	return (Vector2){ closestX, closestY };
 }
 
-inline bool IsBitSet(int val, int bit) {
+bool IsBitSet(int val, int bit) {
 	return val & (1 << (bit - 1));
 }
 
@@ -45,7 +45,7 @@ inline Direction GetPointDir(Vector2 origin, Vector2 target) {
 	return (Direction) dirs;
 }
 
-inline Direction GetPointDirThreshold(Vector2 origin, Vector2 target, float xThreshold, float yThreshold) {
+Direction GetPointDirThreshold(Vector2 origin, Vector2 target, float xThreshold, float yThreshold) {
 	float xDiff = fabs(origin.x - target.x);
 	float yDiff = fabs(origin.y - target.y);
 	if (xDiff < xThreshold && yDiff < yThreshold) {
@@ -159,7 +159,7 @@ Direction AngleToDirection(float angle, bool strict) {
 		angle = DEG_360;
 	} else {
 		if (angle < 0.0f) {
-			angle = fabsf(angle);
+			angle = DEG_360 + angle;
 		}
 		if (angle > DEG_360) {
 			angle = fmodf(angle, DEG_360);
@@ -228,4 +228,16 @@ Vector2 AdvancePointByVector(Vector2 start, Vector2 anglev, float force) {
 		anglev.x * force,
 		anglev.y * force,
 	});
+}
+
+Direction OppositeDir(Direction dir) {
+	char newDir = IsBitSet(dir, 1) ? 2 : (IsBitSet(dir, 2) ? 1 : 0);
+	if (IsBitSet(dir, 3)) {
+		newDir ^= 1 << 3;
+	}
+	if (IsBitSet(dir, 4)) {
+		newDir ^= 1 << 2;
+	}
+
+	return newDir;
 }
