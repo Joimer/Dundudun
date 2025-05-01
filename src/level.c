@@ -678,6 +678,11 @@ static void AttackHitEntity(AttackCbArgs* cbArgs, GameEntity* entity, ActiveAtta
 		entity->stunDuration = attack->stunDuration;
 		entity->stunElapsed = 0.0f;
 	}
+
+	// Destroy projectiles.
+	if (attack->attack->projectile) {
+		attack->completed = true;
+	}
 }
 
 static void AttackCallback(ObjectPool* pool, int index, void* args) {
@@ -692,7 +697,7 @@ static void AttackCallback(ObjectPool* pool, int index, void* args) {
 		goto cleanup;
 	}
 	// This attack has finished.
-	if (attack->elapsed >= attack->attack->duration) {
+	if (attack->elapsed >= attack->attack->duration || attack->completed) {
 		goto cleanup;
 	}
 

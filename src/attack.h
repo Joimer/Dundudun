@@ -43,6 +43,7 @@ typedef struct {
 	float stunDuration;
 	float pushForce;
 	Vector2 angle;
+	bool completed;
 } ActiveAttack;
 
 ActiveAttack InitiateAttack(GameEntity* attacker, Vector2* target, Attack* attack, AttackTarget at);

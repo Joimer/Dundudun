@@ -73,6 +73,7 @@ ActiveAttack InitiateAttack(GameEntity* attacker, Vector2* target, Attack* attac
 		.pushForce = pushForce,
 		.stunDuration = stunDuration,
 		.angle = (Vector2){ cosf(angle), -(sinf(angle)) },
+		.completed = false
 	};
 
 	// Rectangle hitbox attack.
