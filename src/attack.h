@@ -23,6 +23,8 @@ typedef struct {
 	HitboxType type;
 	Hitbox hitbox;
 	float speed;
+	// Projectile attacks destroy upon hitting a target.
+	bool projectile;
 } Attack;
 
 // TODO To declare the attack pointer straight in the weapon list, we need attack list to be a global.

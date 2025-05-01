@@ -6,7 +6,7 @@
 #include "item.h"
 
 #define PLAYER_SPEED 200.0f
-#define PLAYER_MAX_WEAPONS 2
+#define PLAYER_INIT_WEAPONS 2
 
 #define DASH_SPEED_MULT 2.5f
 #define DASH_DURATION 0.25f

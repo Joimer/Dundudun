@@ -13,7 +13,7 @@ static Weapon weapons[TOTAL_WEAPONS] = {
 	},
 	// Base shooting weapon: Clip box
 	{
-		.attack = &attacks[1],
+		.attack = &attacks[3],
 		.type = SHOOTING,
 		.cooldown = 0.25f,
 		.attacking = false,

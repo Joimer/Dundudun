@@ -35,6 +35,7 @@ typedef struct {
 typedef struct {
 	int weaponSlot;
 	int maxWeaps;
+	int equippedWeaps;
 	Weapon** weapons;
 	Boots* boots;
 } Gear;

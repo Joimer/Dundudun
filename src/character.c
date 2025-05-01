@@ -11,7 +11,8 @@
 Player CreatePlayer(Texture2D* characterTexture) {
 	float halfWidth = (float) characterTexture->width / 2.0f;
 	float halfHeight = (float) characterTexture->height / 2.0f;
-	Weapon** playerWeapons = malloc(sizeof(Weapon*) * PLAYER_MAX_WEAPONS);
+	// TODO: realloc if limits are increased in-game? Always alloc to max possible weapons?
+	Weapon** playerWeapons = malloc(sizeof(Weapon*) * PLAYER_INIT_WEAPONS);
 	// Pre-assign initial weapons.
 	// This will not be done here and initial room will have them so player can learn how to interact with items.
 	playerWeapons[0] = GetWeapon(0);
@@ -45,8 +46,9 @@ Player CreatePlayer(Texture2D* characterTexture) {
 		},
 		.gear = (Gear){
 			.weaponSlot = 0,
-			.maxWeaps = PLAYER_MAX_WEAPONS,
-			.weapons = playerWeapons
+			.maxWeaps = PLAYER_INIT_WEAPONS,
+			.weapons = playerWeapons,
+			.equippedWeaps = PLAYER_INIT_WEAPONS
 		}
 	};
 }
@@ -165,10 +167,21 @@ void UpdateWeaponStatus(Player* player, float delta) {
 	}
 
 	// Check weapon swap.
-	if (IsActionOnce(ACTION_B)) {
+	if (IsActionOnce(ACTION_B) && player->gear.equippedWeaps > 1) {
 		Weapon* weapon = player->gear.weapons[player->gear.weaponSlot];
 		if (weapon == NULL || !weapon->attacking) {
-			
+			int nextSlot = player->gear.weaponSlot + 1;
+			for (int i = 0; i < player->gear.equippedWeaps; i++) {
+				if (nextSlot == player->gear.equippedWeaps) {
+					nextSlot = 0;
+				}
+				if (player->gear.weapons[nextSlot] != NULL) {
+					LogDebug("Swapped to weapon slot %d", nextSlot);
+					player->gear.weaponSlot = nextSlot;
+					break;
+				}
+				nextSlot++;
+			}
 		}
 	}
 }
