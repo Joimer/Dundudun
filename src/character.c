@@ -7,6 +7,7 @@
 #include "frame.h"
 #include "game.h"
 #include "item.h"
+#include "object-pool.h"
 
 Player CreatePlayer(Texture2D* characterTexture) {
 	float halfWidth = (float) characterTexture->width / 2.0f;
@@ -182,6 +183,27 @@ void UpdateWeaponStatus(Player* player, float delta) {
 				}
 				nextSlot++;
 			}
+		}
+	}
+}
+
+void PlayerAttackAction(GameContext* context, Player* player, ObjectPool* attPool) {
+	Weapon* usedWeapon = player->gear.weapons[player->gear.weaponSlot];
+	if (usedWeapon != NULL && !usedWeapon->attacking) {
+		if (usedWeapon->attack == NULL) {
+			LogDebug("NULL attack on player weapon! %d %f", usedWeapon->type, usedWeapon->cooldown);
+			return;
+		}
+		SetStance(&player->entity, ATTACKING);
+		// Create attack.
+		Vector2 mpos = GetWorldMousePos(context);
+		ActiveAttack att = InitiateAttack(&player->entity, &mpos, usedWeapon->attack, T_ENEMY);
+		void* result = AddToPool(attPool, &att);
+		if (result == NULL) {
+			LogDebug("Failed to allocate character attack on object pool");
+		} else {
+			usedWeapon->attacking = true;
+			usedWeapon->elapsed = 0.0f;
 		}
 	}
 }

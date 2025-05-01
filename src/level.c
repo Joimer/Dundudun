@@ -181,8 +181,7 @@ static Level GenerateLevel(GameContext* context, int floor) {
 		.totalRooms = roomsPerPath * 4 + 1,
 		.nextRoom = NULL
 	};
-	// Right now we need calloc while testing and initialised rooms are less than total.
-	// However, it is likely convenient to initialise room data and set everything to 0 for potential validity checks.
+	// Allocations that are run once per level or game execution should be set to 0.
 	level.rooms = calloc(level.totalRooms, sizeof(Room));
 
 	// There are 4 ways from the initial room.
@@ -522,102 +521,108 @@ static void UpdateEnemy(GameContext* context, Player* player, Level* level, Enem
 			}
 		}
 
-		// Distance from entity to player.
 		float vecDist = Vector2Distance(player->entity.position, enemy->entity.position);
-		if (enemy->behaviour == DISTANCE) {
-			// Check if vecDist is less than radius x 1.9 (within attack range but not border)
-		}
-		// TODO
-		//if (enemy->behaviour == DISTANCE) {
-		// Pick target position, speed
-		// Check collision
-		// Run action
-		// Check collision after checking movement for either type of movement.
+		Direction dir = NO_DIRECTION;
 
+		// Enemy that wants to distance itself from the player.
+		if (enemy->behaviour == DISTANCE) {
+			// When the enemy is a tad too far away within its active area, it actually approaches the player.
+			if (vecDist > enemy->activeRadius * 0.8f) {
+				float angle = Vector2LineAngle(enemy->entity.position, player->entity.position);
+				dir = AngleToDirection(angle, false);
+			} else if (vecDist > enemy->activeRadius * 0.7f) {
+				// Enemy will stand still if within adequate distance from the player.
+				goto stand;
+			} else {
+				// Too close to player, get away from it.
+				float angle = Vector2LineAngle(player->entity.position, enemy->entity.position);
+				dir = AngleToDirection(angle, false);
+			}
+		}
+
+		// Enemy is always approaching player.
 		if (enemy->behaviour == APPROACH) {
 			// Set direction towards player.
 			// Min distance is entity hitbox in front of player hitbox.
 			// Get the closest player hitbox corner to the enemy position.
 			Vector2 closestCorner = ClosestRectCorner(HitboxWorldPosition(&player->entity), enemy->entity.position);
-			Direction dir = GetPointDirThreshold(
+			dir = GetPointDirThreshold(
 				enemy->entity.position,
 				closestCorner,
 				enemy->entity.hitbox.width,
 				enemy->entity.hitbox.height
 			);
-
-			// Hitbox is close enough to player, ignore movement.
-			if (dir == NO_DIRECTION) {
-				goto stand;
-			}
-
-			// Check if future movement will collide with something.
-			// If far away, we check with next hitbox.
-			// If getting close 2 tiles, we raycast a tile.
-			// We draw a line from both advancing front corners to see if any edge would hit a box.
-			// TODO: If a rect is in the way and there is a smaller collision box,
-			// it will not be found by raycast from corner, but found by ray from center.
-			// Do 3 casts per attempt? Too much? Test 3 rays vs displace rect and test that rect per point.
-			bool willCollide = false;
-			if (vecDist < COLL_RAYCAST_ACTIVE) {
-				Rectangle hitbox = HitboxWorldPosition(&enemy->entity);
-				willCollide = TestRectDirCollision(level->currentRoom, &enemy->entity, hitbox, dir);
-				// Decided direction collides.
-				// If previous direction is different to new one, attempt to follow through.
-				if (willCollide && dir != enemy->entity.dir && enemy->entity.dir != NO_DIRECTION) {
-					willCollide = TestRectDirCollision(level->currentRoom, &enemy->entity, hitbox, enemy->entity.dir);
-					if (!willCollide) {
-						dir = enemy->entity.dir;
-					}
-				}
-			} else {
-				Vector2 anglev = DirectionToVector(enemy->entity.dir);
-				Rectangle newHitbox = HitboxWorldPosition(&enemy->entity);
-				newHitbox.x += anglev.x * enemy->speed * dt;
-				newHitbox.y += anglev.y * enemy->speed * dt;
-				willCollide = (FindEntityCollision(level->currentRoom, &enemy->entity, &newHitbox) != NULL);
-			}
-
-			// Entity will collide on new position, try to find another path.
-			// We only check with raycasts here, otherwise a far away enemy could do weird pathing before getting close.
-			if (willCollide) {
-				float angle = DirectionToAngle(dir);
-				dir = NO_DIRECTION;
-				Rectangle hitbox = HitboxWorldPosition(&enemy->entity);
-				// Raycast every 45º to find a decent path around obstacle.
-				// Should try closest angles up to opposite angle: +45, -45, +90, -90, +135, -135, +180
-				Direction newDir;
-				for (int i = 1; i < 8; i++) {
-					switch (i) {
-						case 1: newDir = AngleToDirection(angle + DEG_45, false); break;
-						case 2: newDir = AngleToDirection(angle - DEG_45, false); break;
-						case 3: newDir = AngleToDirection(angle + DEG_90, false); break;
-						case 4: newDir = AngleToDirection(angle - DEG_90, false); break;
-						case 5: newDir = AngleToDirection(angle + DEG_135, false); break;
-						case 6: newDir = AngleToDirection(angle - DEG_135, false); break;
-						case 7: newDir = AngleToDirection(angle + PI, false); break;
-					}
-					if (newDir == dir || newDir == enemy->entity.dir) {
-						// Ignore directions that have already been tested.
-						continue;
-					}
-					// This direction won't collide, can use it.
-					if (!TestRectDirCollision(level->currentRoom, &enemy->entity, hitbox, newDir)) {
-						dir = newDir;
-						break;
-					}
-				}
-			}
-
-			// If the entity was completely stopped, we can check on next one already.
-			if (dir == NO_DIRECTION) {
-				goto stand;
-			}
-			SetStance(&enemy->entity, WALKING);
-			enemy->entity.dir = dir;
-			enemy->entity.speed = enemy->speed;
-			enemy->entity.anglev = DirectionToVector(enemy->entity.dir);
 		}
+
+		// Enemy is close enough to target position, stand still.
+		if (dir == NO_DIRECTION) {
+			goto stand;
+		}
+
+		// Here the enemy has picked a direction to walk towards.
+		// Check if future movement will collide with something.
+		// If far away, we check with next hitbox.
+		// If getting close 2 tiles, we raycast a tile.
+		// We draw a line from both advancing front corners to see if any edge would hit a box.
+		bool willCollide = false;
+		if (vecDist < COLL_RAYCAST_ACTIVE) {
+			Rectangle hitbox = HitboxWorldPosition(&enemy->entity);
+			willCollide = TestRectDirCollision(level->currentRoom, &enemy->entity, hitbox, dir);
+			// Decided direction collides.
+			// If previous direction is different to new one, attempt to follow through.
+			if (willCollide && dir != enemy->entity.dir && enemy->entity.dir != NO_DIRECTION) {
+				willCollide = TestRectDirCollision(level->currentRoom, &enemy->entity, hitbox, enemy->entity.dir);
+				if (!willCollide) {
+					dir = enemy->entity.dir;
+				}
+			}
+		} else {
+			Vector2 anglev = DirectionToVector(enemy->entity.dir);
+			Rectangle newHitbox = HitboxWorldPosition(&enemy->entity);
+			newHitbox.x += anglev.x * enemy->speed * dt;
+			newHitbox.y += anglev.y * enemy->speed * dt;
+			willCollide = (FindEntityCollision(level->currentRoom, &enemy->entity, &newHitbox) != NULL);
+		}
+
+		// Entity will collide on new position, try to find another path.
+		// We only check with raycasts here, otherwise a far away enemy could do weird pathing before getting close.
+		if (willCollide) {
+			float angle = DirectionToAngle(dir);
+			dir = NO_DIRECTION;
+			Rectangle hitbox = HitboxWorldPosition(&enemy->entity);
+			// Raycast every 45º to find a decent path around obstacle.
+			// Should try closest angles up to opposite angle: +45, -45, +90, -90, +135, -135, +180
+			Direction newDir;
+			for (int i = 1; i < 8; i++) {
+				switch (i) {
+					case 1: newDir = AngleToDirection(angle + DEG_45, false); break;
+					case 2: newDir = AngleToDirection(angle - DEG_45, false); break;
+					case 3: newDir = AngleToDirection(angle + DEG_90, false); break;
+					case 4: newDir = AngleToDirection(angle - DEG_90, false); break;
+					case 5: newDir = AngleToDirection(angle + DEG_135, false); break;
+					case 6: newDir = AngleToDirection(angle - DEG_135, false); break;
+					case 7: newDir = AngleToDirection(angle + PI, false); break;
+				}
+				if (newDir == dir || newDir == enemy->entity.dir) {
+					// Ignore directions that have already been tested.
+					continue;
+				}
+				// This direction won't collide, can use it.
+				if (!TestRectDirCollision(level->currentRoom, &enemy->entity, hitbox, newDir)) {
+					dir = newDir;
+					break;
+				}
+			}
+		}
+
+		// If the entity was completely stopped, we can check on next one already.
+		if (dir == NO_DIRECTION) {
+			goto stand;
+		}
+		SetStance(&enemy->entity, WALKING);
+		enemy->entity.dir = dir;
+		enemy->entity.speed = enemy->speed;
+		enemy->entity.anglev = DirectionToVector(enemy->entity.dir);
 	}
 
 	// Update entity position according to its movement.
@@ -680,6 +685,7 @@ static void AttackHitEntity(AttackCbArgs* cbArgs, GameEntity* entity, ActiveAtta
 	}
 
 	// Destroy projectiles.
+	// TODO: Detect collision for projectile and destroy it.
 	if (attack->attack->projectile) {
 		attack->completed = true;
 	}
@@ -692,7 +698,7 @@ static void AttackCallback(ObjectPool* pool, int index, void* args) {
 	}
 	ActiveAttack* attack = PoolIndexAddress(pool, index);
 	if (attack == NULL || attack->attack == NULL) {
-		LogDebug("Null pointer, invalid attack state");
+		LogDebug("Null pointer, invalid attack state on index %d", index);
 		// This means some pointer is pointing at invalid data.
 		goto cleanup;
 	}
@@ -817,33 +823,15 @@ static void UpdatePlayer(GameContext* context, Level* level, Player* player, flo
 
 	// Movement actions being pressed to pick current direction.
 	Direction newDir = PlayerUpdateDirection(player);
+	if (!player->entity.stunned && player->entity.stance != ATTACKING) {
+		// Execute dash.
+		if (IsActionActive(ACTION_D) && player->dash.cdLeft == 0.0f) {
+			return PlayerStartDash(context, player);
+		}
 
-	// Execute dash.
-	if (!player->entity.stunned && player->entity.stance != ATTACKING && IsActionActive(ACTION_D) && player->dash.cdLeft == 0.0f) {
-		return PlayerStartDash(context, player);
-	}
-
-	// Attack action.
-	if (!player->entity.stunned && player->entity.stance != ATTACKING && IsActionActive(ACTION_A)) {
-		Weapon* usedWeapon = player->gear.weapons[player->gear.weaponSlot];
-		if (usedWeapon != NULL && !usedWeapon->attacking) {
-			if (usedWeapon->attack == NULL) {
-				LogDebug("NULL attack on player weapon! %d %f", usedWeapon->type, usedWeapon->cooldown);
-				return;
-			}
-			SetStance(&player->entity, ATTACKING);
-			// Create attack.
-			//usedWeapon->attacking = true;
-			//usedWeapon->elapsed = 0.0f;
-			Vector2 mpos = GetWorldMousePos(context);
-			ActiveAttack att = InitiateAttack(&player->entity, &mpos, usedWeapon->attack, T_ENEMY);
-			void* result = AddToPool(&level->attacks, &att);
-			if (result == NULL) {
-				LogDebug("Failed to allocate character attack on object pool");
-			} else {
-				usedWeapon->attacking = true;
-				usedWeapon->elapsed = 0.0f;
-			}
+		// Attack action.
+		if (IsActionActive(ACTION_A)) {
+			PlayerAttackAction(context, player, &level->attacks);
 		}
 	}
 

@@ -5,8 +5,8 @@
 #include "lib.h"
 
 ObjectPool CreatePool(const int length, const size_t itemSize) {
-	bool* active = malloc(sizeof(bool) * length);
-	void* data = malloc(itemSize * length);
+	bool* active = calloc(length, sizeof(bool));
+	void* data = calloc(length, itemSize);
 	if (active == NULL || data == NULL) {
 		LogDebug("Failed to malloc ObjectPool!!");
 	}

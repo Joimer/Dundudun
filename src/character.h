@@ -4,6 +4,7 @@
 #include <raylib.h>
 #include "game.h"
 #include "item.h"
+#include "object-pool.h"
 
 #define PLAYER_SPEED 200.0f
 #define PLAYER_INIT_WEAPONS 2
@@ -39,5 +40,6 @@ void PlayerDashUpdate(Player* player, float dt);
 void PlayerStartDash(GameContext* context, Player* player);
 Direction PlayerUpdateDirection(Player* player);
 void UpdateWeaponStatus(Player* player, float delta);
+void PlayerAttackAction(GameContext* context, Player* player, ObjectPool* attPool);
 
 #endif
