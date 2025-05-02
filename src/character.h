@@ -8,7 +8,6 @@
 
 #define PLAYER_SPEED 200.0f
 #define PLAYER_INIT_WEAPONS 2
-
 #define DASH_SPEED_MULT 2.5f
 #define DASH_DURATION 0.25f
 #define DASH_LENGTH 150.0f
@@ -30,6 +29,9 @@ typedef struct {
 	float speed;
 	Dash dash;
 	Gear gear;
+	int relicCount;
+	Relic* relics;
+	float strength;
 } Player;
 
 Player CreatePlayer(Texture2D* characterTexture);

@@ -43,6 +43,15 @@ void DestroyLevel() {
 	DestroyPool(&level.texts);
 }
 
+void DestroyPlayer() {
+	if (player.gear.weapons != NULL) {
+		free(player.gear.weapons);
+		player.gear.equippedWeaps = 0;
+	}
+	free(player.relics);
+	player.relicCount = 0;
+}
+
 static float SpeedForTile(TileType type) {
 	switch (type) {
 		case WALL: return 0.0f;

@@ -40,6 +40,12 @@ typedef struct {
 	Boots* boots;
 } Gear;
 
+typedef struct {
+	float damage;
+	int dashes;
+	float speed;
+} Relic;
+
 Weapon* GetWeapon(int i);
 
 #endif

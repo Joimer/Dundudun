@@ -14,14 +14,16 @@ Player CreatePlayer(Texture2D* characterTexture) {
 	float halfWidth = (float) characterTexture->width / 2.0f;
 	float halfHeight = (float) characterTexture->height / 2.0f;
 	// TODO: realloc if limits are increased in-game? Always alloc to max possible weapons?
-	Weapon** playerWeapons = malloc(sizeof(Weapon*) * PLAYER_INIT_WEAPONS);
+	Weapon** playerWeapons = calloc(PLAYER_INIT_WEAPONS, sizeof(Weapon*));
 	// Pre-assign initial weapons.
 	// This will not be done here and initial room will have them so player can learn how to interact with items.
 	playerWeapons[0] = GetWeapon(0);
 	playerWeapons[1] = GetWeapon(1);
-	// TODO: What if NULL? Crash game gracefully? Reset it and count failures?
 	return (Player){
 		.speed = PLAYER_SPEED,
+		.relicCount = 0,
+		.relics = calloc(100, sizeof(Relic)),
+		.strength = 0,
 		.entity = (GameEntity){
 			.health = 50,
 			.maxHealth = 50,
@@ -207,4 +209,11 @@ void PlayerAttackAction(GameContext* context, Player* player, ObjectPool* attPoo
 			usedWeapon->elapsed = 0.0f;
 		}
 	}
+}
+
+void AddRelic(Player* player, Relic* relic) {
+	player->relics[player->relicCount++] = *relic;
+	player->dash.consecutive += relic->dashes;
+	player->speed += relic->speed;
+	player->strength += relic->damage;
 }

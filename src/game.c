@@ -139,6 +139,7 @@ int RunGame(GameContext* context) {
 
 	// Unload resources and memory before exit.
 	DestroyLevel();
+	DestroyPlayer();
 	UnloadTextures();
 	if (context->state->seedStr != NULL) {
 		free((char*)context->state->seedStr);

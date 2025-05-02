@@ -36,6 +36,8 @@ typedef struct {
 	Color color;
 } ActiveText;
 
+typedef enum { R_EXP, R_RELIC, R_ITEM, R_KEY, R_BOMB } Reward;
+
 typedef struct Room {
 	// Room position in regards to the central room.
 	Vector2 pos;
@@ -51,6 +53,7 @@ typedef struct Room {
 	int entityCount;
 	Enemy* entities;
 	// TODO: Store world corner positions? Would avoid some calcs
+	Reward reward;
 } Room;
 
 typedef struct {
@@ -75,6 +78,7 @@ typedef struct {
 
 void SetupLevel(GameContext* context);
 void DestroyLevel();
+void DestroyPlayer();
 void UpdateLevel(GameContext* context, float dt);
 Player* GetPlayer();
 Level* GetLevel();
