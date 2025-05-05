@@ -15,7 +15,7 @@ static Weapon weapons[TOTAL_WEAPONS] = {
 	{
 		.attack = &attacks[3],
 		.type = SHOOTING,
-		.cooldown = 0.25f,
+		.cooldown = 0.4f,
 		.attacking = false,
 		.elapsed = 0.0f
 	}

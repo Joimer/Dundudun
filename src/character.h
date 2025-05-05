@@ -30,7 +30,7 @@ typedef struct {
 	Dash dash;
 	Gear gear;
 	int relicCount;
-	Relic* relics;
+	Relic** relics;
 	float strength;
 } Player;
 

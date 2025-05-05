@@ -14,8 +14,11 @@ typedef union {
 	float radius;
 } Hitbox;
 
+typedef enum { D_PHYSICAL, D_BURN, D_POISON, D_ELECTRIC, D_ICE } DamageType;
+
 typedef struct {
 	int damage;
+	DamageType dmgType;
 	float windup;
 	float duration;
 	// Distance from the center of the attacker and the center of the attack.

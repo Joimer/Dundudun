@@ -5,6 +5,7 @@
 #include "game.h"
 #include "attack.h"
 #include "object-pool.h"
+#include "event.h"
 
 typedef enum { APPROACH, STAND, DISTANCE } EnemyBehaviour;
 
@@ -21,7 +22,8 @@ typedef struct {
 	Attack* attack;
 } Enemy;
 
-void UpdateInvuln(GameEntity* entity, float dt);
+int DamageEntity(GameEntity* entity, int damage);
+int AttackHitEntity(GameEntity* entity, ActiveAttack* attack);
 void SetStance(GameEntity* entity, Stance stance);
 Rectangle HitboxWorldPosition(GameEntity* entity);
 float MaxAttackRange(Enemy* enemy);
@@ -35,5 +37,9 @@ int EntityUnwindAttack(
 );
 int EnemyCheckAttack(Enemy* enemy, float playTime, Vector2* targetPos);
 void StandStill(GameEntity* entity);
+GameEntity CreateEntity(int health, Vector2 pos, Sprite sprite, Rectangle hitbox, float invuln);
+void SetupEntityEvents();
+Observable* GetEntityEvents();
+void EmitDmgEvent(GameEntity* entity, int damage, DamageType type);
 
 #endif

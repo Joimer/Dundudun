@@ -9,8 +9,6 @@
 #include "resource.h"
 #include "level.h"
 
-const Vector2 initialPos = { 100.0f, 100.0f };
-
 inline unsigned long GenerateGameSeed() {
 	// Seeds are 48 bits long.
 	// 6 bits per character, all numbers and caps ASCII alphabet

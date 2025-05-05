@@ -7,6 +7,7 @@
 #include "object-pool.h"
 #include "character.h"
 #include "entity.h"
+#include "event.h"
 
 #define DEFAULT_ENEMY_RADIUS 200.0f
 #define ENEMY_DEFAULT_SPEED 150.0f

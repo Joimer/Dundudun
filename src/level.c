@@ -76,6 +76,38 @@ Vector2 RoomOffsetPos(Room* room, int x, int y) {
 	return (Vector2){ corner.x + x * TILE_SIZE, corner.y + y * TILE_SIZE };
 }
 
+static void CreateDamageText(
+	GameEntity* entity, int damage, DamageType type, float playTime, ObjectPool* textPool
+) {
+	Vector2 spritePos = Vector2Subtract(entity->position, entity->sprite.position);
+	float startX = spritePos.x + entity->sprite.rect.width / 2.0f;
+	ActiveText txt = {
+		.content = IntToString(damage),
+		.start = (Vector2){ startX, spritePos.y },
+		.end = (Vector2){ startX, spritePos.y - 32.0f },
+		.startTime = playTime,
+		.endTime = playTime + 1.0f,
+		.fontSize = 15,
+		.color = type == D_POISON ? LIME : RED
+	};
+	void* result = AddToPool(textPool, &txt);
+	if (result == NULL) {
+		LogDebug("Failed to allocate text to pool");
+	}
+}
+
+void onEntityDamage(Event* ev) {
+	// ufbo
+	Level* level = GetLevel();
+	CreateDamageText(
+		ev->params.dmg.entity,
+		ev->params.dmg.amount,
+		ev->params.dmg.type,
+		level->playTime,
+		&level->texts
+	);
+}
+
 static void AddRoomExit(
 	Room* room, Room* destination,
 	int fromX, int fromY,
@@ -146,20 +178,18 @@ static Room GenerateRoom(GameContext* context, Level* level, int num, Vector2 po
 				.attack = i == 1 ? GetAttack(1) : (i == 2 ? GetAttack(4) : GetAttack(0)),
 				.lastAttack = 0.0f,
 				.attackCd = 2.0f,
-				.entity = (GameEntity){
-					.sprite = (Sprite){
+				.entity = CreateEntity(
+					40,
+					RoomOffsetPos(&room, 3, 3 + i),
+					(Sprite){
 						.rect = (Rectangle){ 0, 0, 32, 32 },
 						.position = (Vector2){ -16, -16 },
 						.visible = true,
 						.layer = 4
 					},
-					.position = RoomOffsetPos(&room, 3, 3 + i),
-					.health = 40,
-					.maxHealth = 40,
-					.invuln = (Invulnerability){ .duration = 0.5f },
-					.hitbox = { -8, -8, 16, 16 },
-					.dir = SOUTH
-				}
+					(Rectangle){ -8, -8, 16, 16 },
+					0.5f
+				)
 			};
 		}
 	}
@@ -269,6 +299,8 @@ void SetupLevel(GameContext* context) {
 	Texture2D* characterTexture = GetTexture(PLAYER_TEXTURE);
 	player = CreatePlayer(characterTexture);
 	level = GenerateLevel(context, 1);
+	SetupEntityEvents();
+	SubEvent(GetEntityEvents(), E_DMG, &onEntityDamage);
 	levelSetup = true;
 }
 
@@ -609,7 +641,7 @@ static void UpdateEnemy(GameContext* context, Player* player, Level* level, Enem
 	}
 }
 
-static void AttackHitEntity(AttackCbArgs* cbArgs, GameEntity* entity, ActiveAttack* attack) {
+static void DoesAttackHit(AttackCbArgs* cbArgs, GameEntity* entity, ActiveAttack* attack) {
 	Rectangle hitbox = HitboxWorldPosition(entity);
 	bool doesHit = false;
 	if (attack->attack->type == 1) {
@@ -623,10 +655,9 @@ static void AttackHitEntity(AttackCbArgs* cbArgs, GameEntity* entity, ActiveAtta
 	}
 	// Attack is hitting entity.
 	// TODO: Instantiate blood splash on ground.
-	entity->invuln.active = true;
-	int damage = attack->attack->damage > entity->health ? entity->health : attack->attack->damage;
-	entity->health -= damage;
-	Vector2 spritePos = Vector2Subtract(entity->position, entity->sprite.position);
+	int damage = AttackHitEntity(entity, attack);
+	EmitDmgEvent(entity, damage, attack->attack->type);
+	/*Vector2 spritePos = Vector2Subtract(entity->position, entity->sprite.position);
 	float startX = spritePos.x + entity->sprite.rect.width / 2.0f;
 	ActiveText txt = {
 		.content = IntToString(damage),
@@ -640,23 +671,7 @@ static void AttackHitEntity(AttackCbArgs* cbArgs, GameEntity* entity, ActiveAtta
 	void* result = AddToPool(cbArgs->textPool, &txt);
 	if (result == NULL) {
 		LogDebug("Failed to allocate text to pool");
-	}
-	if (attack->pushForce > 0.0f) {
-		entity->speed = attack->pushForce;
-		float angle = Vector2LineAngle(attack->center, entity->position);
-		entity->anglev = (Vector2){ .x = cosf(angle), .y = -(sinf(angle)) };
-	}
-	if (attack->stunDuration > 0.0f) {
-		entity->stunned = true;
-		entity->stunDuration = attack->stunDuration;
-		entity->stunElapsed = 0.0f;
-	}
-
-	// Destroy projectiles.
-	// TODO: Detect collision for projectile and destroy it.
-	if (attack->attack->projectile) {
-		attack->completed = true;
-	}
+	}*/
 }
 
 static void AttackCallback(ObjectPool* pool, int index, void* args) {
@@ -699,7 +714,7 @@ static void AttackCallback(ObjectPool* pool, int index, void* args) {
 		&& cbArgs->player != NULL
 		&& CanPlayerBeHit(cbArgs->player)
 	) {
-		AttackHitEntity(cbArgs, &cbArgs->player->entity, attack);
+		DoesAttackHit(cbArgs, &cbArgs->player->entity, attack);
 	}
 
 	// Attack that can hit enemies, go over them.
@@ -715,7 +730,7 @@ static void AttackCallback(ObjectPool* pool, int index, void* args) {
 				continue;
 			}
 			// Check if attack hits the entity and process it.
-			AttackHitEntity(cbArgs, &room->entities[i].entity, attack);
+			DoesAttackHit(cbArgs, &room->entities[i].entity, attack);
 		}
 	}
 	return;

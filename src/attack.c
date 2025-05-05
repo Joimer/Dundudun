@@ -13,7 +13,8 @@ Attack attacks[TOTAL_ATTACKS] = {
 		.type = HB_RECT,
 		.hitbox = { .rect = { 0, 0, 32.0f, 32.0f } },
 		.speed = 0,
-		.projectile = false
+		.projectile = false,
+		.dmgType = D_PHYSICAL
 	},
 	// Enemy circle explosion like attack?
 	{
@@ -24,7 +25,8 @@ Attack attacks[TOTAL_ATTACKS] = {
 		.type = HB_CIRCLE,
 		.hitbox = { .radius = 24.0f },
 		.speed = 0,
-		.projectile = false
+		.projectile = false,
+		.dmgType = D_PHYSICAL
 	},
 	// Player melee hit.
 	{
@@ -34,7 +36,8 @@ Attack attacks[TOTAL_ATTACKS] = {
 		.type = HB_RECT,
 		.hitbox = { .rect = { 0, 0, 40.0f, 40.0f } },
 		.speed = 0,
-		.projectile = false
+		.projectile = false,
+		.dmgType = D_PHYSICAL
 	},
 	// Player shooting.
 	{
@@ -44,7 +47,8 @@ Attack attacks[TOTAL_ATTACKS] = {
 		.type = HB_CIRCLE,
 		.hitbox = { .radius = 3.0f },
 		.speed = 300.0f,
-		.projectile = true
+		.projectile = true,
+		.dmgType = D_PHYSICAL
 	},
 	// Enemy shooting.
 	{
@@ -54,7 +58,8 @@ Attack attacks[TOTAL_ATTACKS] = {
 		.type = HB_CIRCLE,
 		.hitbox = { .radius = 3.0f },
 		.speed = 300.0f,
-		.projectile = true
+		.projectile = true,
+		.dmgType = D_PHYSICAL
 	},
 };
 

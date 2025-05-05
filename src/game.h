@@ -14,8 +14,6 @@
 #define MIN_TICKS 54.0f
 #define MAX_DELTA 1.0f / MIN_TICKS
 
-extern const Vector2 initialPos;
-
 typedef struct {
 	float elapsed;
 	float duration;
@@ -23,6 +21,13 @@ typedef struct {
 } Invulnerability;
 
 typedef enum { STANDING, ATTACKING, WALKING, RUNNING, FLYING, DASHING } Stance;
+
+typedef enum { POISON, BURN, FROZEN, PARALYSED } Status;
+
+typedef struct {
+	float value;
+	bool active;
+} ActiveStatus;
 
 typedef struct {
 	Sprite sprite;
@@ -45,6 +50,7 @@ typedef struct {
 	bool stunned;
 	float stunElapsed;
 	float stunDuration;
+	ActiveStatus statuses[4];
 } GameEntity;
 
 typedef struct {

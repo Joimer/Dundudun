@@ -28,7 +28,7 @@ int main(void) {
 		.elapsed = 0.0f,
 		// 2d World camera.
 		.camera = {
-			.target = (Vector2){ initialPos.x, initialPos.y },
+			.target = (Vector2){ 0, 0 },
 			.offset = (Vector2){ WORLD_SIZE_WIDTH / 2.0f, WORLD_SIZE_HEIGHT / 2.0f },
 			.zoom = 1.0f
 		}

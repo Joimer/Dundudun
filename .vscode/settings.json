@@ -20,6 +20,9 @@
 		"stdbool.h": "c",
 		"object-pool.h": "c",
 		"attack.h": "c",
-		"item.h": "c"
+		"item.h": "c",
+		"limits": "c",
+		"entity.h": "c",
+		"stdlib.h": "c"
 	}
 }

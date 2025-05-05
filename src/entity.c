@@ -1,6 +1,82 @@
 #include "entity.h"
+#include "event.h"
 
-void UpdateInvuln(GameEntity* entity, float dt) {
+static Observable entityEvents;
+
+void SetupEntityEvents() {
+	entityEvents = CreateEventEmitter(0);
+}
+
+// Probably should have an item within context able to hold arbitrary amounts of observables and observers,,,
+Observable* GetEntityEvents() {
+	return &entityEvents;
+}
+
+void EmitDmgEvent(GameEntity* entity, int damage, DamageType type) {
+	EmitEvent(&entityEvents, (Event){
+		.type = E_DMG,
+		.params = { .dmg = (DamageEvent){
+			.entity = entity,
+			.amount = damage,
+			.type = type,
+		}}
+	});
+}
+
+GameEntity CreateEntity(
+	int health, Vector2 pos, Sprite sprite, Rectangle hitbox, float invuln
+) {
+	GameEntity entity = {
+		.health = health,
+		.maxHealth = health,
+		.position = pos,
+		.dir = SOUTH,
+		.sprite = sprite,
+		.hitbox = hitbox,
+		.invuln = (Invulnerability){ .duration = invuln }
+	};
+	for (int i = POISON; i <= PARALYSED; i++) {
+		entity.statuses[i] = (ActiveStatus){ .value = 0.0f, .active = false	};
+	}
+
+	return entity;
+}
+
+int DamageEntity(GameEntity* entity, int damage) {
+	entity->invuln.active = true;
+	damage = damage > entity->health ? entity->health : damage;
+	entity->health -= damage;
+
+	return damage;
+}
+
+int AttackHitEntity(GameEntity* entity, ActiveAttack* attack) {
+	int damage = DamageEntity(entity, attack->attack->damage);
+
+	// Apply knockback.
+	if (attack->pushForce > 0.0f) {
+		entity->speed = attack->pushForce;
+		float angle = Vector2LineAngle(attack->center, entity->position);
+		entity->anglev = (Vector2){ .x = cosf(angle), .y = -(sinf(angle)) };
+	}
+
+	// Apply damage received stun.
+	if (attack->stunDuration > 0.0f) {
+		entity->stunned = true;
+		entity->stunDuration = attack->stunDuration;
+		entity->stunElapsed = 0.0f;
+	}
+
+	// Destroy projectiles.
+	// TODO: Detect collision for projectiles and destroy it too.
+	if (attack->attack->projectile) {
+		attack->completed = true;
+	}
+
+	return damage;
+}
+
+static void UpdateInvuln(GameEntity* entity, float dt) {
 	if (entity->invuln.active) {
 		entity->invuln.elapsed += dt;
 		if (entity->invuln.elapsed >= entity->invuln.duration) {
@@ -56,6 +132,41 @@ static void UpdateStun(GameEntity* entity, float delta) {
 	}
 }
 
+static void RunStatus(GameEntity* entity, Status status) {
+	if (!entity->statuses[status].active) {
+		return;
+	}
+	int damage;
+	switch (status) {
+		case POISON:
+			damage = entity->statuses[status].value;
+			if (damage <= 0) {
+				entity->statuses[status].active = false;
+			} else {
+				entity->statuses[status].value--;
+				EmitDmgEvent(entity, damage, D_POISON);
+			}
+			/// level.c AttackHitEntity
+			/// ahora mismo recibe el daño y crea el texto etc.
+			/// cómo pasar aquí el texto
+			/// y si meto un sistema global de eventos para consumir luego en la UI
+			/// AddEvent o algo así y se mira la lista entera en el frame para ver qué acciones meter
+			break;
+		case BURN: break;
+		case FROZEN: break;
+		case PARALYSED: break;
+		default: break;
+	}
+}
+
+static void UpdateStatuses(GameEntity* entity, float delta) {
+	for (int i = POISON; i <= PARALYSED; i++) {
+		if (entity->statuses[i].active) {
+
+		}
+	}
+}
+
 // Run update on all entity systems.
 void UpdateEntity(GameEntity* entity, float delta) {
 	entity->stanceTime += delta;
@@ -65,6 +176,9 @@ void UpdateEntity(GameEntity* entity, float delta) {
 
 	// Check stunned status.
 	UpdateStun(entity, delta);
+
+	// Update statuses.
+	UpdateStatuses(entity, delta);
 }
 
 // Returns wether unwinding or unwinded (movement stops) or no related attack unwind action (pick other action).

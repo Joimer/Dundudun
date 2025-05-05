@@ -22,28 +22,26 @@ Player CreatePlayer(Texture2D* characterTexture) {
 	return (Player){
 		.speed = PLAYER_SPEED,
 		.relicCount = 0,
-		.relics = calloc(100, sizeof(Relic)),
+		.relics = calloc(100, sizeof(Relic*)),
 		.strength = 0,
-		.entity = (GameEntity){
-			.health = 50,
-			.maxHealth = 50,
-			.position = initialPos,
-			.dir = SOUTH,
-			.sprite = (Sprite){
+		.entity = CreateEntity(
+			50,
+			(Vector2){ 100.0f, 100.0f },
+			(Sprite){
 				.texture = characterTexture,
 				.position = { halfWidth, halfHeight },
 				.rect = { 0.0f, 0.0f, characterTexture->width, characterTexture->height },
 				.visible = true,
 				.layer = 5
 			},
-			.hitbox = (Rectangle){
+			(Rectangle){
 				.x = -(halfWidth / 2.0f),
 				.y = -(halfHeight / 2.0f),
 				.width = halfWidth,
 				.height = halfHeight
 			},
-			.invuln = (Invulnerability){ .duration = 1.0f }
-		},
+			1.0f
+		),
 		.dash = (Dash){
 			.max = 1,
 			.cooldown = 0.5f
@@ -212,7 +210,7 @@ void PlayerAttackAction(GameContext* context, Player* player, ObjectPool* attPoo
 }
 
 void AddRelic(Player* player, Relic* relic) {
-	player->relics[player->relicCount++] = *relic;
+	player->relics[player->relicCount++] = relic;
 	player->dash.consecutive += relic->dashes;
 	player->speed += relic->speed;
 	player->strength += relic->damage;

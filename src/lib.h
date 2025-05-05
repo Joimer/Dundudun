@@ -31,6 +31,8 @@ typedef struct {
 	Texture2D* texture;
 	Rectangle rect;
 	Vector2 position;
+	// Cache of absolute position to avoid unnecessary calcs each frame.
+	Vector2 worldPos;
 	bool visible;
 	int layer;
 } Sprite;
