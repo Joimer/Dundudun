@@ -1,3 +1,7 @@
+/*********************************
+ * Game input control and config *
+ *********************************/
+
 #ifndef CONTROL_H
 #define CONTROL_H
 

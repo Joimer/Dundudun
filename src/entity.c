@@ -52,6 +52,15 @@ int DamageEntity(GameEntity* entity, int damage) {
 	return damage;
 }
 
+void ApplyStatus(GameEntity* entity, Status status, float value) {
+	// If status wasn't active prior, set tick timing to 0.
+	if (!entity->statuses[status].active) {
+		entity->statuses[status].tickElapsed = 0.0f;
+	}
+	entity->statuses[status].active = true;
+	entity->statuses[status].value += value;
+}
+
 int AttackHitEntity(GameEntity* entity, ActiveAttack* attack) {
 	int damage = DamageEntity(entity, attack->attack->damage);
 
@@ -207,7 +216,7 @@ int EntityUnwindAttack(
 		}
 
 		// Attack windup has finished, instantiate actual attack hitbox.
-		ActiveAttack att = InitiateAttack(entity, targetPos, attack, at);
+		ActiveAttack att = InitiateAttack(entity, targetPos, attack, at, false);
 		void* result = AddToPool(attackPool, &att);
 		if (result == NULL) {
 			LogDebug("Failed to allocate attack on object pool");

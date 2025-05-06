@@ -5,7 +5,7 @@
 #include "lib.h"
 #include "game.h"
 #include "object-pool.h"
-#include "character.h"
+#include "player.h"
 #include "entity.h"
 #include "event.h"
 

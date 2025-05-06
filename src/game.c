@@ -10,15 +10,15 @@
 
 const float statusTickrates[TOTAL_STATUSES] = { 0.66f, 1.0f, 1.0f, 1.0f};
 
-inline unsigned long GenerateGameSeed() {
+static size_t GenerateGameSeed() {
 	// Seeds are 48 bits long.
 	// 6 bits per character, all numbers and caps ASCII alphabet
 	// From 000000000000000000000000000000000000000000000000
 	// To   111111111111111111111111111111111111111111111111
 	// We assume 64 bits system and let's go.
-	unsigned long seed = 0;
+	size_t seed = 0;
 	for (int i = 0; i < SEED_LENGTH; i++) {
-		unsigned long part = GetRandomValue(0, 35);
+		size_t part = GetRandomValue(0, 35);
 		seed |= part << BITS_PER_SEED_CHAR * i;
 	}
 	return seed;

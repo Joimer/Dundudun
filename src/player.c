@@ -2,12 +2,23 @@
 #include <raymath.h>
 #include <math.h>
 #include <stdlib.h>
-#include "character.h"
+#include "player.h"
 #include "control.h"
 #include "game.h"
 #include "item.h"
+#include "level.h"
 #include "object-pool.h"
 #include "entity.h"
+
+static Observable playerEvents;
+
+Observable* GetPlayerEvents() {
+	return &playerEvents;
+}
+
+void SetupPlayerEvents() {
+	playerEvents = CreateEventEmitter(0);
+}
 
 Player CreatePlayer(Texture2D* characterTexture) {
 	float halfWidth = (float) characterTexture->width / 2.0f;
@@ -197,7 +208,7 @@ void PlayerAttackAction(GameContext* context, Player* player, ObjectPool* attPoo
 		SetStance(&player->entity, ATTACKING);
 		// Create attack.
 		Vector2 mpos = GetWorldMousePos(context);
-		ActiveAttack att = InitiateAttack(&player->entity, &mpos, usedWeapon->attack, T_ENEMY);
+		ActiveAttack att = InitiateAttack(&player->entity, &mpos, usedWeapon->attack, T_ENEMY, true);
 		void* result = AddToPool(attPool, &att);
 		if (result == NULL) {
 			LogDebug("Failed to allocate character attack on object pool: %d/%d", attPool->activeItems, attPool->length);
@@ -213,4 +224,29 @@ void AddRelic(Player* player, Relic* relic) {
 	player->dash.consecutive += relic->dashes;
 	player->speed += relic->speed;
 	player->strength += relic->damage;
+	if (relic->onHit != NULL) {
+
+	}
+}
+
+// Event to apply onHit effects from relics acquired during the run.
+void onPlayerHit(Event* ev) {
+	// TODO: This breaks potential local multiplayer and it is overall not good
+	// Think out a better way to organise code that does not rely on global getters
+	Player* player = GetPlayer();
+	GameEntity* target = ev->params.phit.target;
+	for (int i = 0; i < player->relicCount; i++) {
+		if (player->relics[i]->onHit != NULL) {
+			player->relics[i]->onHit(target);
+		}
+	}
+}
+
+void EmitPlayerHitEvent(GameEntity* target) {
+	EmitEvent(&playerEvents, (Event){
+		.type = E_PLAYER_HIT,
+		.params = { .phit = (PlayerHitEvent){
+			.target = target
+		}}
+	});
 }

@@ -1,3 +1,7 @@
+/*****************************************
+ * Live game entities (enemies, summons) *
+ *****************************************/
+
 #ifndef ENTITY_H
 #define ENTITY_H
 
@@ -23,6 +27,7 @@ typedef struct {
 } Enemy;
 
 int DamageEntity(GameEntity* entity, int damage);
+void ApplyStatus(GameEntity* entity, Status status, float value);
 int AttackHitEntity(GameEntity* entity, ActiveAttack* attack);
 void SetStance(GameEntity* entity, Stance stance);
 Rectangle HitboxWorldPosition(GameEntity* entity);

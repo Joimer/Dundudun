@@ -1,6 +1,8 @@
+#include "game.h"
 #include "lib.h"
 #include "item.h"
 #include "attack.h"
+#include "entity.h"
 
 static Weapon weapons[TOTAL_WEAPONS] = {
 	// Base melee weapon: Letter Opener
@@ -21,6 +23,19 @@ static Weapon weapons[TOTAL_WEAPONS] = {
 	}
 };
 
+void AddPoisonOnHit(GameEntity* entity) {
+	ApplyStatus(entity, POISON, 5.0f);
+}
+
+static Relic relics[TOTAL_RELICS] = {
+	{
+		.damage = 0,
+		.dashes = 0,
+		.speed = 0,
+		.onHit = &AddPoisonOnHit
+	}
+};
+
 Weapon* GetWeapon(int i) {
 	if (i > TOTAL_WEAPONS - 1) {
 		LogDebug("Attempting to get invalid weapon %d", i);
@@ -28,4 +43,13 @@ Weapon* GetWeapon(int i) {
 	}
 
 	return &weapons[i];
+}
+
+Relic* GetRelic(int i) {
+	if (i > TOTAL_RELICS - 1) {
+		LogDebug("Attempting to get invalid relic %d", i);
+		return NULL;
+	}
+
+	return &relics[i];
 }

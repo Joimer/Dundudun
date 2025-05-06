@@ -1,3 +1,7 @@
+/*****************************************
+ * Object pool to reuse object instances *
+ *****************************************/
+
 #ifndef POOL_H
 #define POOL_H
 

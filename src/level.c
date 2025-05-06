@@ -4,9 +4,11 @@
 #include <raylib.h>
 #include "control.h"
 #include "level.h"
+#include "event.h"
+#include "item.h"
 #include "lib.h"
 #include "game.h"
-#include "character.h"
+#include "player.h"
 #include "attack.h"
 #include "resource.h"
 #include "frame.h"
@@ -301,6 +303,8 @@ void SetupLevel(GameContext* context) {
 	level = GenerateLevel(context, 1);
 	SetupEntityEvents();
 	SubEvent(GetEntityEvents(), E_DMG, &onEntityDamage);
+	SetupPlayerEvents();
+	SubEvent(GetPlayerEvents(), E_PLAYER_HIT, &onPlayerHit);
 	levelSetup = true;
 }
 
@@ -417,7 +421,7 @@ static GameEntity* FindEntityCollision(Room* room, GameEntity* self, Rectangle* 
 		return NULL;
 	}
 	for (int j = 0; j < room->entityCount; j++) {
-		if (!room->entities[j].active || &room->entities[j].entity == NULL) {
+		if (!room->entities[j].active) {
 			// Ignore inactive entities.
 			continue;
 		}
@@ -654,24 +658,14 @@ static void DoesAttackHit(AttackCbArgs* cbArgs, GameEntity* entity, ActiveAttack
 		return;
 	}
 	// Attack is hitting entity.
-	// TODO: Instantiate blood splash on ground.
+	// TODO: Instantiate blood splash on ground from an event sub.
 	int damage = AttackHitEntity(entity, attack);
-	EmitDmgEvent(entity, damage, attack->attack->type);
-	/*Vector2 spritePos = Vector2Subtract(entity->position, entity->sprite.position);
-	float startX = spritePos.x + entity->sprite.rect.width / 2.0f;
-	ActiveText txt = {
-		.content = IntToString(damage),
-		.start = (Vector2){ startX, spritePos.y },
-		.end = (Vector2){ startX, spritePos.y - 32.0f },
-		.startTime = cbArgs->level->playTime,
-		.endTime = cbArgs->level->playTime + 1.0f,
-		.fontSize = 15,
-		.color = attack->target == T_ENEMY ? (Color){ 128, 80, 0, 255 } : RED
-	};
-	void* result = AddToPool(cbArgs->textPool, &txt);
-	if (result == NULL) {
-		LogDebug("Failed to allocate text to pool");
-	}*/
+	EmitDmgEvent(entity, damage, attack->attack->dmgType);
+	if (attack->fromPlayer) {
+		// Emit event if player is the one hitting.
+		// This allows us to manufacture many on hit events or combos without having to know about them here.
+		EmitPlayerHitEvent(entity);
+	}
 }
 
 static void AttackCallback(ObjectPool* pool, int index, void* args) {

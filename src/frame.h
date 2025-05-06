@@ -1,11 +1,13 @@
-// Frame construction and graphic management.
+/**********************************************
+ * Frame construction and graphic management. *
+ **********************************************/
 
 #ifndef FRAME_H
 #define FRAME_H
 
 #include <raylib.h>
 #include "game.h"
-#include "character.h"
+#include "player.h"
 
 typedef struct {
 	int width;

@@ -49,7 +49,7 @@ Attack attacks[TOTAL_ATTACKS] = {
 		.speed = 300.0f,
 		.projectile = true,
 		.dmgType = D_PHYSICAL,
-		.statuses = { 4, 0, 0, 0 }
+		//.statuses = { 4, 0, 0, 0 }
 	},
 	// Enemy shooting.
 	{
@@ -64,7 +64,9 @@ Attack attacks[TOTAL_ATTACKS] = {
 	},
 };
 
-ActiveAttack InitiateAttack(GameEntity* attacker, Vector2* target, Attack* attack, AttackTarget at) {
+ActiveAttack InitiateAttack(
+	GameEntity* attacker, Vector2* target, Attack* attack, AttackTarget at, bool fromPlayer
+) {
 	if (attacker == NULL || target == NULL || attack == NULL) {
 		LogDebug("Invalid call to InitiateAttack with a null pointer!");
 		return (ActiveAttack){};
@@ -87,7 +89,8 @@ ActiveAttack InitiateAttack(GameEntity* attacker, Vector2* target, Attack* attac
 				.x = anglev.x * attack->centerDist,
 				.y = anglev.y * attack->centerDist
 			}
-		)
+		),
+		.fromPlayer = fromPlayer
 	};
 
 	// Rectangle hitbox attack.

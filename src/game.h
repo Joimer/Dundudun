@@ -1,4 +1,6 @@
-// Game logic.
+/*********************************
+ * Main game logic and structure *
+ *********************************/
 
 #ifndef GAME_H
 #define GAME_H
@@ -87,7 +89,6 @@ typedef struct {
 } GameContext;
 
 int RunGame(GameContext* context);
-unsigned long GenerateGameSeed();
 const char* SeedToString(unsigned long seed);
 Vector2 GetWorldMousePos(GameContext* context);
 

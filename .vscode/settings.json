@@ -2,7 +2,7 @@
 	"files.associations": {
 		"screens.h": "c",
 		"raylib.h": "c",
-		"character.h": "c",
+		"player.h": "c",
 		"control.h": "c",
 		"type_traits": "c",
 		"raymath.h": "c",

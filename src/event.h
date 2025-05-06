@@ -1,10 +1,17 @@
+/************************************************************************
+ *                          Event system                                *
+ * Game subsystems can set up their own events and subs.                *
+ * When events are triggered, a callback can be executed synchronously, *
+ * or a queue for async execution can be used.                          *
+ ************************************************************************/
+
 #ifndef EVENT_H
 #define EVENT_H
 
 #include "game.h"
 #include "attack.h"
 
-typedef enum { E_DMG } EventType;
+typedef enum { E_DMG, E_PLAYER_HIT } EventType;
 
 typedef struct {
 	GameEntity* entity;
@@ -13,9 +20,14 @@ typedef struct {
 } DamageEvent;
 
 typedef struct {
+	GameEntity* target;
+} PlayerHitEvent;
+
+typedef struct {
 	EventType type;
 	union {
 		DamageEvent dmg;
+		PlayerHitEvent phit;
 	} params;
 } Event;
 

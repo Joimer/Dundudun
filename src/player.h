@@ -1,3 +1,7 @@
+/******************************
+ * Player character functions *
+ ******************************/
+
 #ifndef CHARACTER_H
 #define CHARACTER_H
 
@@ -5,6 +9,7 @@
 #include "game.h"
 #include "item.h"
 #include "object-pool.h"
+#include "event.h"
 
 #define PLAYER_SPEED 200.0f
 #define PLAYER_INIT_WEAPONS 2
@@ -43,5 +48,10 @@ void PlayerStartDash(GameContext* context, Player* player);
 Direction PlayerUpdateDirection(Player* player);
 void UpdateWeaponStatus(Player* player, float delta);
 void PlayerAttackAction(GameContext* context, Player* player, ObjectPool* attPool);
+void AddRelic(Player* player, Relic* relic);
+Observable* GetPlayerEvents();
+void SetupPlayerEvents();
+void onPlayerHit(Event* ev);
+void EmitPlayerHitEvent(GameEntity* target);
 
 #endif

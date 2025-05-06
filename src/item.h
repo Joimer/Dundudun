@@ -1,3 +1,7 @@
+/***********************************
+ * Game items to be used by player *
+ ***********************************/
+
 #ifndef ITEM_H
 #define ITEM_H
 
@@ -6,6 +10,7 @@
 #include "attack.h"
 
 #define TOTAL_WEAPONS 2
+#define TOTAL_RELICS 1
 
 typedef enum { MELEE, SHOOTING } WeaponType;
 
@@ -40,12 +45,16 @@ typedef struct {
 	Boots* boots;
 } Gear;
 
+typedef void RelicHitEvent(GameEntity*);
+
 typedef struct {
 	float damage;
 	int dashes;
 	float speed;
+	RelicHitEvent* onHit;
 } Relic;
 
 Weapon* GetWeapon(int i);
+Relic* GetRelic(int i);
 
 #endif

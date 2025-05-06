@@ -1,3 +1,7 @@
+/****************************************
+ * Attacks both from player and enemies *
+ ****************************************/
+
 #ifndef ATTACK_H
 #define ATTACK_H
 
@@ -48,9 +52,10 @@ typedef struct {
 	float pushForce;
 	Vector2 angle;
 	bool completed;
+	bool fromPlayer;
 } ActiveAttack;
 
-ActiveAttack InitiateAttack(GameEntity* attacker, Vector2* target, Attack* attack, AttackTarget at);
+ActiveAttack InitiateAttack(GameEntity* attacker, Vector2* target, Attack* attack, AttackTarget at, bool fromPlayer);
 Attack* GetAttack(int i);
 
 #endif
