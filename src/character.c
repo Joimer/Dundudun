@@ -4,7 +4,6 @@
 #include <stdlib.h>
 #include "character.h"
 #include "control.h"
-#include "frame.h"
 #include "game.h"
 #include "item.h"
 #include "object-pool.h"

@@ -4,7 +4,6 @@
 #include <stdlib.h>
 #include "frame.h"
 #include "screens.h"
-#include "control.h"
 #include "character.h"
 #include "game.h"
 #include "resource.h"

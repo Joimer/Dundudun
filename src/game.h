@@ -13,6 +13,7 @@
 #define BITS_PER_SEED_CHAR 6
 #define MIN_TICKS 54.0f
 #define MAX_DELTA 1.0f / MIN_TICKS
+#define TOTAL_STATUSES 4
 
 typedef struct {
 	float elapsed;
@@ -24,9 +25,12 @@ typedef enum { STANDING, ATTACKING, WALKING, RUNNING, FLYING, DASHING } Stance;
 
 typedef enum { POISON, BURN, FROZEN, PARALYSED } Status;
 
+extern const float statusTickrates[TOTAL_STATUSES];
+
 typedef struct {
 	float value;
 	bool active;
+	float tickElapsed;
 } ActiveStatus;
 
 typedef struct {
@@ -50,7 +54,7 @@ typedef struct {
 	bool stunned;
 	float stunElapsed;
 	float stunDuration;
-	ActiveStatus statuses[4];
+	ActiveStatus statuses[TOTAL_STATUSES];
 } GameEntity;
 
 typedef struct {

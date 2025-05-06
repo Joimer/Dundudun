@@ -28,6 +28,7 @@ typedef struct {
 	float speed;
 	// Projectile attacks destroy upon hitting a target.
 	bool projectile;
+	int statuses[TOTAL_STATUSES];
 } Attack;
 
 // TODO To declare the attack pointer straight in the weapon list, we need attack list to be a global.

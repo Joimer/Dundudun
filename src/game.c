@@ -4,10 +4,11 @@
 #include "control.h"
 #include "screens.h"
 #include "lib.h"
-#include "character.h"
 #include "frame.h"
 #include "resource.h"
 #include "level.h"
+
+const float statusTickrates[TOTAL_STATUSES] = { 0.66f, 1.0f, 1.0f, 1.0f};
 
 inline unsigned long GenerateGameSeed() {
 	// Seeds are 48 bits long.

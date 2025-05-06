@@ -1,5 +1,7 @@
 #include "entity.h"
 #include "event.h"
+#include "game.h"
+#include "lib.h"
 
 static Observable entityEvents;
 
@@ -71,6 +73,18 @@ int AttackHitEntity(GameEntity* entity, ActiveAttack* attack) {
 	// TODO: Detect collision for projectiles and destroy it too.
 	if (attack->attack->projectile) {
 		attack->completed = true;
+	}
+
+	// Apply statuses, if any.
+	for (int i = POISON; i <= PARALYSED; i++) {
+		if (attack->attack->statuses[i] > 0) {
+			// If status wasn't active prior, set tick timing to 0.
+			if (!entity->statuses[i].active) {
+				entity->statuses[i].tickElapsed = 0.0f;
+			}
+			entity->statuses[i].active = true;
+			entity->statuses[i].value += attack->attack->statuses[i];
+		}
 	}
 
 	return damage;
@@ -146,11 +160,6 @@ static void RunStatus(GameEntity* entity, Status status) {
 				entity->statuses[status].value--;
 				EmitDmgEvent(entity, damage, D_POISON);
 			}
-			/// level.c AttackHitEntity
-			/// ahora mismo recibe el daño y crea el texto etc.
-			/// cómo pasar aquí el texto
-			/// y si meto un sistema global de eventos para consumir luego en la UI
-			/// AddEvent o algo así y se mira la lista entera en el frame para ver qué acciones meter
 			break;
 		case BURN: break;
 		case FROZEN: break;
@@ -161,8 +170,10 @@ static void RunStatus(GameEntity* entity, Status status) {
 
 static void UpdateStatuses(GameEntity* entity, float delta) {
 	for (int i = POISON; i <= PARALYSED; i++) {
-		if (entity->statuses[i].active) {
-
+		entity->statuses[i].tickElapsed += delta;
+		if (entity->statuses[i].active && entity->statuses[i].tickElapsed >= statusTickrates[i]) {
+			RunStatus(entity, i);
+			entity->statuses[i].tickElapsed -= statusTickrates[i];
 		}
 	}
 }

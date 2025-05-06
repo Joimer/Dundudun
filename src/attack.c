@@ -48,7 +48,8 @@ Attack attacks[TOTAL_ATTACKS] = {
 		.hitbox = { .radius = 3.0f },
 		.speed = 300.0f,
 		.projectile = true,
-		.dmgType = D_PHYSICAL
+		.dmgType = D_PHYSICAL,
+		.statuses = { 4, 0, 0, 0 }
 	},
 	// Enemy shooting.
 	{

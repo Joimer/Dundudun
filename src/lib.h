@@ -4,7 +4,6 @@
 #include <stdio.h>
 #include <raylib.h>
 
-#define NULL ((void *)0)
 #define MAX_LEVEL 10
 #define LOG_YELL "\e[0;33m"
 #define LOG_PURP "\e[0;35m"
