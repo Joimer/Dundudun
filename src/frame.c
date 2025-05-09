@@ -509,7 +509,7 @@ static void RenderScreen(
 		DrawRectangle(20, screenHeight - 40, 255, 25, GOLD);
 		Color hpColor = DARKGREEN;
 		int hpBarWidth = 251;
-		int maxHp = player->entity.maxHealth ? player->entity.maxHealth : player->entity.health;
+		const int maxHp = player->entity.maxHealth ? player->entity.maxHealth : player->entity.health;
 		if (player->entity.health == 0) {
 			hpColor = BLACK;
 		} else if (player->entity.health < maxHp) {
@@ -522,6 +522,32 @@ static void RenderScreen(
 		}
 		DrawRectangle(22, screenHeight - 38, hpBarWidth, 21, hpColor);
 		DrawText(TextFormat("%d HP", player->entity.health), 285, screenHeight - 40, 22, DARKGREEN);
+	}
+
+	// Render the minimap.
+	Level* level = GetLevel();
+	const int cols = level->maxX - level->minX;
+	const int rows = level->maxY - level->minY;
+	const int roomPxSize = 5;
+	int screenWidth = GetScreenWidth();
+	const int mmWidth = cols * roomPxSize + roomPxSize;
+	const int mmHeight = rows * roomPxSize + roomPxSize;
+	const int mmStartX = screenWidth - mmWidth - roomPxSize * 2;
+	const int mmStartY = 40;
+	DrawRectangle(mmStartX, mmStartY, mmWidth + 2, mmHeight + 2, BLACK);
+	for (int i = 0; i < level->totalRooms; i++) {
+		Color mmc = GRAY;
+		if (
+			level->rooms[i].pos.x == level->currentRoom->pos.x
+			&& level->rooms[i].pos.y == level->currentRoom->pos.y
+		) {
+			mmc = ORANGE;
+		}
+		DrawRectangle(
+			mmStartX + 1 + ((level->rooms[i].pos.x - level->minX) * roomPxSize),
+			mmStartY + 1 + ((level->rooms[i].pos.y - level->minY) * roomPxSize),
+			roomPxSize, roomPxSize, mmc
+		);
 	}
 
 	// Mouse pointer.

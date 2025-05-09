@@ -115,6 +115,10 @@ static void AddRoomExit(
 	int fromX, int fromY,
 	int destX, int destY
 ) {
+	if (room == NULL || destination == NULL) {
+		LogDebug("Invalid room from %d to %d", (room == NULL), (destination == NULL));
+		return;
+	}
 	const int index = fromX + (room->columns * fromY);
 	if (index > room->tileCount - 1) {
 		LogDebug("Invalid tile position: %d/%d on starting pos %d,%d", index, room->tileCount, fromX, fromY);
@@ -132,6 +136,7 @@ static Room GenerateRoom(GameContext* context, Level* level, int num, Vector2 po
 	// Default room values.
 	// TODO: Other type of room sizes.
 	Room room = {
+		.roomNo = num,
 		.pos = pos,
 		.tileCount = 200,
 		.columns = 15,
@@ -199,6 +204,181 @@ static Room GenerateRoom(GameContext* context, Level* level, int num, Vector2 po
 	return room;
 }
 
+static void CalcAddRoomExit(Level* level, int prevRoomId, int currentRoomId, Direction previousDir) {
+	int fromX = 0, fromY = 0, destX = 1, destY = 1;
+	switch (previousDir) {
+		case NORTH:
+			fromX = level->rooms[prevRoomId].columns / 2;
+			destX = level->rooms[currentRoomId].columns / 2;
+			destY = level->rooms[currentRoomId].rows - 2;
+			break;
+		case SOUTH:
+			fromX = level->rooms[prevRoomId].columns / 2;
+			destX = level->rooms[currentRoomId].columns / 2;
+			break;
+		case WEST:
+			fromY = level->rooms[prevRoomId].rows - 1;
+			destY = level->rooms[currentRoomId].rows / 2;
+			break;
+		case EAST:
+			fromY = level->rooms[prevRoomId].rows - 1;
+			fromX = level->rooms[prevRoomId].columns;
+			destY = level->rooms[currentRoomId].rows / 2;
+			break;
+		default: break;
+	}
+	LogDebug("Adding exit on room %d on %d,%d to next room %d to %d,%d", prevRoomId, fromX, fromY, currentRoomId, destX, destY);
+	AddRoomExit(
+		&level->rooms[prevRoomId], &level->rooms[currentRoomId],
+		fromX, fromY,
+		destX, destY
+	);
+}
+
+static bool IsRoomForbidden(int x, int y) {
+	if (
+		(x == -1 && y == -1)
+		|| (x == 1 && y == -1)
+		|| (x == 1 && y == 1)
+		|| (x == -1 && y == 1)
+	) {
+		return true;
+	}
+
+	return false;
+}
+
+static bool IsFinalOrAdjacent(Level* level, int finalRoomNo, int x, int y) {
+	if (level->rooms == NULL || (x == 0 && y == 0)) {
+		return false;
+	}
+	// Find all final rooms and see if the wanted position lands on them or adjacent.
+	for (int i = 0; i < level->totalRooms; i++) {
+		if (
+			level->rooms[i].roomNo == finalRoomNo
+			&& (
+				(x == level->rooms[i].pos.x && y == level->rooms[i].pos.y)
+				|| (x == level->rooms[i].pos.x - 1 && y == level->rooms[i].pos.y)
+				|| (x == level->rooms[i].pos.x && y == level->rooms[i].pos.y - 1)
+				|| (x == level->rooms[i].pos.x + 1 && y == level->rooms[i].pos.y)
+				|| (x == level->rooms[i].pos.x && y == level->rooms[i].pos.y + 1)
+			)
+		) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
+// I think this is probably more efficient that storing a double key dict for rooms
+// should probably test it or something idk muh cache lines etc.
+static Room* FindRoom(Level* level, int x, int y) {
+	if (level->rooms == NULL) {
+		return NULL;
+	}
+	if (x == 0 && y == 0) {
+		return &level->rooms[0];
+	}
+	for (int i = 0; i < level->totalRooms; i++) {
+		if (level->rooms[i].roomNo == 0) {
+			continue;
+		}
+		if (level->rooms[i].pos.x == x && level->rooms[i].pos.y == y) {
+			return &level->rooms[i];
+		}
+	}
+
+	return NULL;
+}
+
+static bool CanPlaceRoom(Level* level, int x, int y, Direction prevDir, int path) {
+	// Check path boundaries to avoid path collision.
+	// Also check forbidden rooms.
+	if (
+		(path == 1 && y > -2)
+		|| (path == 2 && y < 2)
+		|| (path == 3 && x > -2)
+		|| (path == 4 && x < 2)
+		|| IsRoomForbidden(x, y)
+	) {
+		return false;
+	}
+
+	// Find whether x,y is free and would not lead to a room with non adjacent rooms.
+	if (
+		FindRoom(level, x, y) != NULL
+		|| (prevDir != NORTH && FindRoom(level, x, y - 1) != NULL)
+		|| (prevDir != SOUTH && FindRoom(level, x, y + 1) != NULL)
+		|| (prevDir != WEST && FindRoom(level, x + 1, y) != NULL)
+		|| (prevDir != EAST && FindRoom(level, x - 1, y) != NULL)
+	) {
+		return false;
+	}
+
+	return true;
+}
+
+static Direction GetNextViableDir(
+	Level* level, int currX, int currY, int path, Direction nextDir, Direction comeFrom, bool checkNext
+);
+
+static Direction CheckNextDir(Level* level, int x, int y, Direction nextDir, int path, bool checkNext) {
+	switch (nextDir) {
+		case NORTH: y++; break;
+		case SOUTH: y--; break;
+		case WEST: x--; break;
+		case EAST: x++; break;
+		default: break;
+	}
+	if (CanPlaceRoom(level, x, y, nextDir, path)) {
+		// If we have to check one step ahead too, we re-call.
+		if (checkNext) {
+			if  (GetNextViableDir(level, x, y, path, nextDir, OppositeDir(nextDir), false) == NO_DIRECTION) {
+				return NO_DIRECTION;
+			}
+		}
+		return nextDir;
+	}
+
+	return NO_DIRECTION;
+}
+
+static Direction GetNextViableDir(
+	Level* level, int currX, int currY, int path,
+	Direction nextDir, Direction comeFrom, bool checkNext
+) {
+	if (CheckNextDir(level, currX, currY, nextDir, path, checkNext) != NO_DIRECTION) {
+		return nextDir;
+	}
+	if (
+		comeFrom != NORTH && nextDir != NORTH
+		&& CheckNextDir(level, currX, currY, NORTH, path, checkNext) != NO_DIRECTION
+	) {
+		return NORTH;
+	}
+	if (
+		comeFrom != SOUTH && nextDir != SOUTH
+		&& CheckNextDir(level, currX, currY, SOUTH, path, checkNext) != NO_DIRECTION
+	) {
+		return SOUTH;
+	}
+	if (
+		comeFrom != WEST && nextDir != WEST
+		&& CheckNextDir(level, currX, currY, WEST, path, checkNext) != NO_DIRECTION
+	) {
+		return WEST;
+	}
+	if (
+		comeFrom != EAST && nextDir != EAST
+		&& CheckNextDir(level, currX, currY, EAST, path, checkNext) != NO_DIRECTION
+	) {
+		return EAST;
+	}
+
+	return NO_DIRECTION;
+}
+
 static Level GenerateLevel(GameContext* context, int floor) {
 	floor = (int) Clamp(floor, 1, MAX_LEVEL);
 	// Rooms per level: 6 base, 2 extra per floor, then either 0 or 1 more plus room 0.
@@ -218,6 +398,159 @@ static Level GenerateLevel(GameContext* context, int floor) {
 	// You can go back to all previously open rooms.
 	level.rooms[0] = GenerateRoom(context, &level, 0, (Vector2){ 0, 0 });
 	level.currentRoom = &level.rooms[0];
+
+	int roomId = 1;
+	for (int path = 1; path < 5; path++) {
+		LogDebug("Starting path %d", path);
+		Direction pathDir;
+		switch (path) {
+			case 1: pathDir = NORTH; break;
+			case 2: pathDir = SOUTH; break;
+			case 3: pathDir = WEST; break;
+			case 4: pathDir = EAST; break;
+		}
+		Direction nextDir;
+		Direction previousDir = pathDir;
+		int prevDirCount = 1;
+
+		for (int currentRoom = 1; currentRoom < roomsPerPath + 1; currentRoom++) {
+			LogDebug("Doing currentRoom %d", currentRoom);
+			// Since the 4 initial rooms are chosen pathwise, we decide direction of the next room
+			// at the end of this loop. Initial entry will be preset with the proper initial room per path.
+			int prevRoomId = currentRoom == 1 ? 0 : roomId - 1;
+			int currentRoomId = roomId;
+			int nextRoomId = ++roomId;
+			LogDebug("prev %d curr %d next %d", prevRoomId, currentRoomId, nextRoomId);
+
+			// We generate the room struct before finalising position so we are able to do several checks on next placement.
+			LogDebug("Generating room %d", currentRoomId);
+			// Calculate current room X and Y according to the room we came  from.
+			int roomX = level.rooms[prevRoomId].pos.x, roomY = level.rooms[prevRoomId].pos.y;
+			switch (previousDir) {
+				case NORTH: roomY++; break;
+				case SOUTH: roomY--; break;
+				case WEST: roomX--; break;
+				case EAST: roomX++; break;
+				default: break;
+			}
+			level.rooms[currentRoomId] = GenerateRoom(
+				context, &level, currentRoomId, (Vector2){ roomX, roomY }
+			);
+
+			LogDebug("Adding room exit to previous room.");
+			// Previous room exit can already be added, since here we already got which direction we came from.
+			CalcAddRoomExit(&level, prevRoomId, currentRoomId, previousDir);
+			LogDebug("Adding room exit to current room.");
+			CalcAddRoomExit(&level, currentRoomId, prevRoomId, OppositeDir(previousDir));
+			LogDebug("-- Placing room in %d,%d", roomX, roomY);
+			if (level.maxX < roomX) {
+				level.maxX = roomX;
+			}
+			if (level.minX > roomX) {
+				level.minX = roomX;
+			}
+			if (level.maxY < roomY) {
+				level.maxY = roomY;
+			}
+			if (level.minY > roomY) {
+				level.minY = roomY;
+			}
+
+			// If it's the last room on the path, there is no need to calculate next position.
+			// Continue onwards to the next path carving.
+			if (currentRoom == roomsPerPath) {
+				LogDebug("Path done");
+				break;
+			}
+
+			// First room on a path will always only contain a single exit continuing onwards.
+			if (currentRoom == 1) {
+				LogDebug("First room, next path is repeated");
+				nextDir = pathDir;
+			} else {
+				LogDebug("Find out next direction");
+				// North, south, east, west only.
+				// It's computationally cheap to have an index until last used direction and use the enum to access.
+				float chances[9] = { 0 };
+				// The chance to repeat the previous direction starts slightly higher than the rest.
+				// Then, it decreases on every step. This helps getting separate paths that aren't
+				// going diagonally all the time.
+				float preDirChance = 40.0f / (float)prevDirCount;
+
+				// Chances to go on the path's initial way are higher unless repeated too often.
+				float chanceRemainder;
+				if (previousDir == pathDir || OppositeDir(previousDir) == pathDir) {
+					chances[previousDir] = preDirChance;
+					chances[pathDir] *= 1.05f;
+					chanceRemainder = (100.0f - chances[previousDir]) / 2.0f;
+					for (int i = 1; i < 9; i++) {
+						if (
+							(i != 1 && i != 2 && i != 4 && i != 8)
+							|| i == pathDir
+							|| i == OppositeDir(previousDir)
+						) {
+							continue;
+						}
+						chances[i] = chanceRemainder;
+					}
+				} else {
+					chanceRemainder = 100.0F - preDirChance;
+					float pathChance = (chanceRemainder / 2.0f) * 1.05f;
+					float otherChance = chanceRemainder - pathChance;
+					for (int i = 1; i < 9; i++) {
+						chances[i] = otherChance;
+					}
+					chances[previousDir] = preDirChance;
+					chances[pathDir] = pathChance;
+					chances[OppositeDir(previousDir)] = 0.0f;
+				}
+
+				// Having decided the chance for each new direction, let's get roll to decide.
+				float dice = (GetRandomMTValue(&context->state->mtrand) % 100) + 1;
+				float acc = 0;
+				for (int i = 1; i < 9; i++) {
+					if ((i != 1 && i != 2 && i != 4 && i != 8) || chances[i] == 0.0f) {
+						continue;
+					}
+					acc += chances[i];
+					if (acc >= dice) {
+						nextDir = (Direction) i;
+						break;
+					}
+				}
+
+				// Unless it is the first room on the path, it is possible to try to go to a used or blocked room.
+				// Only check next room if there's 2 rooms to go, otherwise we can just place the next.
+				nextDir = GetNextViableDir(
+					&level,
+					level.rooms[currentRoomId].pos.x,
+					level.rooms[currentRoomId].pos.y,
+					path,
+					nextDir,
+					OppositeDir(previousDir),
+					path > 1 && currentRoom < roomsPerPath - 1
+				);
+				if (nextDir == NO_DIRECTION) {
+					LogDebug(
+						"-- Dead end trying to find next room!! room %d on path %d attempted %d,%d",
+						currentRoom, path, (int)level.rooms[currentRoomId].pos.x, (int)level.rooms[currentRoomId].pos.y
+					);
+					break;
+				}
+
+				if (nextDir == previousDir) {
+					prevDirCount++;
+				} else {
+					prevDirCount = 1;
+				}
+				previousDir = nextDir;
+			}
+		}
+
+		// Alternative routes
+		// TODO :)
+	}
+	/*
 	level.rooms[1] = GenerateRoom(context, &level, 1, (Vector2){ 0, -1 });
 	level.rooms[2] = GenerateRoom(context, &level, 2, (Vector2){ 0, 1 });
 	level.rooms[3] = GenerateRoom(context, &level, 3, (Vector2){ -1, 0 });
@@ -277,16 +610,8 @@ static Level GenerateLevel(GameContext* context, int floor) {
 		level.rooms[0].columns - 2,
 		level.rooms[0].rows / 2
 	);
+	*/
 
-	/*int currentRoom = 1;
-	for (int path = 1; path < 5; path++) {
-		Room nextRoom;
-		// First room on a path will always only contain a single exit continuing onwards.
-		if (currentRoom == 1) {
-
-		}
-		rooms->rooms[currentRoom++] = nextRoom;
-	}*/
 	// Number of attacks to allocate should be calculated by max enemies and their attack cadence.
 	level.attacks = CreatePoolOf(ActiveAttack, 128);
 	level.texts = CreatePoolOf(ActiveText, 128);

@@ -40,6 +40,8 @@ typedef struct {
 typedef enum { R_EXP, R_RELIC, R_ITEM, R_KEY, R_BOMB } Reward;
 
 typedef struct Room {
+	// Room number in the player pathing.
+	int roomNo;
 	// Room position in regards to the central room.
 	Vector2 pos;
 	bool complete;
@@ -59,6 +61,7 @@ typedef struct Room {
 
 typedef struct {
 	int floor;
+	// Pointers for room swap upon using a door or warp.
 	Room* currentRoom;
 	Room* nextRoom;
 	bool swappingRoom;
@@ -68,6 +71,11 @@ typedef struct {
 	ObjectPool texts;
 	// Room 0 is the center of the floor.
 	Room* rooms;
+	// Precalculate limits for minimap display
+	int minX;
+	int maxX;
+	int minY;
+	int maxY;
 } Level;
 
 typedef struct {
