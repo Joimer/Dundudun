@@ -274,6 +274,9 @@ static void RenderRoomCalls(GameContext* context, Room* room, Player* player, Dr
 				case DOOR: tileColor = BEIGE; break;
 				default: tileColor = BROWN;
 			}
+			if (room->tiles[index].warp.dest != NULL) {
+				tileColor = PURPLE;
+			}
 			Vector2 offsetPos = RoomOffsetPos(room, column, row);
 			tileRect = (Rectangle){ offsetPos.x, offsetPos.y, TILE_SIZE, TILE_SIZE };
 			if (CheckCollisionRecs(worldCamera, tileRect)) {
@@ -573,12 +576,12 @@ static void RenderLogo(
 
 	// Fade in logo 2s, fade out
 	if (context->state->elapsed <= LOGO_FADE_TIME) {
-		char t = (char)(255.0f * (LOGO_FADE_TIME - context->state->elapsed));
+		unsigned char t = (unsigned char)(255.0f * (LOGO_FADE_TIME - context->state->elapsed));
 		DrawRectangle(0, 0, worldRender->texture.width, worldRender->texture.height, (Color){ 0, 0, 0, t});
 	}
 	float fadeDiff = LOGO_DURATION - LOGO_FADE_TIME;
 	if (context->state->elapsed >= fadeDiff) {
-		char t = context->state->elapsed < LOGO_DURATION ? (char)(255.0f * -(fadeDiff - context->state->elapsed)) : 255;
+		unsigned char t = context->state->elapsed < LOGO_DURATION ? (unsigned char)(255.0f * -(fadeDiff - context->state->elapsed)) : 255;
 		DrawRectangle(0, 0, worldRender->texture.width, worldRender->texture.height, (Color){ 0, 0, 0, t});
 	}
 	EndTextureMode();

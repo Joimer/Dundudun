@@ -207,22 +207,24 @@ static Room GenerateRoom(GameContext* context, Level* level, int num, Vector2 po
 static void CalcAddRoomExit(Level* level, int prevRoomId, int currentRoomId, Direction previousDir) {
 	int fromX = 0, fromY = 0, destX = 1, destY = 1;
 	switch (previousDir) {
-		case NORTH:
+		case SOUTH:
 			fromX = level->rooms[prevRoomId].columns / 2;
 			destX = level->rooms[currentRoomId].columns / 2;
 			destY = level->rooms[currentRoomId].rows - 2;
 			break;
-		case SOUTH:
+		case NORTH:
 			fromX = level->rooms[prevRoomId].columns / 2;
+			fromY = level->rooms[prevRoomId].rows - 1;
 			destX = level->rooms[currentRoomId].columns / 2;
 			break;
 		case WEST:
-			fromY = level->rooms[prevRoomId].rows - 1;
+			fromY = level->rooms[prevRoomId].rows / 2;
+			destX = level->rooms[currentRoomId].columns - 2;
 			destY = level->rooms[currentRoomId].rows / 2;
 			break;
 		case EAST:
-			fromY = level->rooms[prevRoomId].rows - 1;
-			fromX = level->rooms[prevRoomId].columns;
+			fromY = level->rooms[prevRoomId].rows / 2;
+			fromX = level->rooms[prevRoomId].columns - 1;
 			destY = level->rooms[currentRoomId].rows / 2;
 			break;
 		default: break;
@@ -296,8 +298,8 @@ static bool CanPlaceRoom(Level* level, int x, int y, Direction prevDir, int path
 	// Check path boundaries to avoid path collision.
 	// Also check forbidden rooms.
 	if (
-		(path == 1 && y > -2)
-		|| (path == 2 && y < 2)
+		(path == 1 && y < 2)
+		|| (path == 2 && y > -2)
 		|| (path == 3 && x > -2)
 		|| (path == 4 && x < 2)
 		|| IsRoomForbidden(x, y)
