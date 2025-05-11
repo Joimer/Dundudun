@@ -132,9 +132,12 @@ static void AddRoomExit(
 	LogDebug("Adding exit from %d,%d (index %d, columns %d) to pos %f,%f", fromX, fromY, index, room->columns, destPos.x, destPos.y);
 	room->tiles[index].warp.dest = destination;
 	room->tiles[index].warp.pos = destPos;
+	room->tiles[index].type = DOOR;
+	room->tiles[index].obstacle = false;
+
 }
 
-static Room GenerateRoom(GameContext* context, Level* level, int num, Vector2 pos) {
+static Room GenerateRoom(GameContext* context, Level* level, int num, Vector2 pos, ItemType reward) {
 	const int entityCount = num == 0 ? 0 : 1;//3;
 	// Room that fits world screen: 15x8
 	// Default room values.
@@ -149,7 +152,7 @@ static Room GenerateRoom(GameContext* context, Level* level, int num, Vector2 po
 		.entities = NULL,
 		.tiles = NULL,
 		.complete = entityCount == 0,
-		.reward = I_KEY
+		.reward = reward
 	};
 	if (room.tileCount > 0) {
 		room.tiles = malloc(sizeof(Tile) * room.tileCount);
@@ -157,18 +160,11 @@ static Room GenerateRoom(GameContext* context, Level* level, int num, Vector2 po
 		for (int row = 0; row < room.rows; row++) {
 			for (int column = 0; column < room.columns; column++) {
 				bool isWall = (row == 0 || column == 0 || column == room.columns - 1 || row == room.rows - 1);
-				bool isDoor = (
-					(row == 0 || row == room.rows - 1)
-					&& (column == room.columns / 2)
-				) || (
-					(column == 0 || column == room.columns - 1)
-					&& (row == room.rows / 2)
-				);
 				const int index = column + (room.columns * row);
-				TileType type = isDoor ? DOOR : (isWall ? WALL : (index % 3 == 0 ? forGrass : GROUND));
+				TileType type = isWall ? WALL : (index % 3 == 0 ? forGrass : GROUND);
 				room.tiles[index] = (Tile){
 					.type = type,
-					.obstacle = isWall && !isDoor,
+					.obstacle = isWall,
 					.damage = 0,
 					.speed = SpeedForTile(type)
 				};
@@ -405,7 +401,8 @@ static Level GenerateLevel(GameContext* context, int floor) {
 	// There are 4 ways from the initial room.
 	// Every time you pick a door, the other alternative ones remain closed.
 	// You can go back to all previously open rooms.
-	level.rooms[0] = GenerateRoom(context, &level, 0, (Vector2){ 0, 0 });
+	ItemType reward = I_NONE;
+	level.rooms[0] = GenerateRoom(context, &level, 0, (Vector2){ 0, 0 }, reward);
 	level.currentRoom = &level.rooms[0];
 
 	int roomId = 1;
@@ -442,8 +439,22 @@ static Level GenerateLevel(GameContext* context, int floor) {
 				case EAST: roomX++; break;
 				default: break;
 			}
+			// Pick reward for the room.
+			if (currentRoom == 6) {
+				reward = I_RELIC;
+			} else {
+				// For now, let's just do this.
+				int dice = GetRandomMTValue(&context->state->mtrand) % 3;
+				switch (dice) {
+					case 0: reward = I_BOMB; break;
+					case 1: reward = I_KEY; break;
+					case 2: reward = I_EXP; break;
+				}
+			}
+			// TODO: Pick here when rooms are shops.
+			// Boss reward is always a relic as well.
 			level.rooms[currentRoomId] = GenerateRoom(
-				context, &level, currentRoomId, (Vector2){ roomX, roomY }
+				context, &level, currentRoomId, (Vector2){ roomX, roomY }, reward
 			);
 
 			LogDebug("Adding room exit to previous room.");
@@ -1171,7 +1182,7 @@ void UpdateLevel(GameContext* context, float dt) {
 			int amount = level.currentRoom->reward == I_EXP ? 5 : 1;
 			ItemType itype;
 			AddItem(&level, (Item){
-				.pos = worldPos,
+				.pos = Vector2AddValue(worldPos, TILE_SIZE / 2),
 				.type = level.currentRoom->reward,
 				.amount = amount,
 				.active = true,

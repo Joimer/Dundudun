@@ -3,6 +3,7 @@
 #include <raymath.h>
 #include <stdlib.h>
 #include "frame.h"
+#include "item.h"
 #include "screens.h"
 #include "player.h"
 #include "game.h"
@@ -274,10 +275,6 @@ static void RenderRoomCalls(GameContext* context, Room* room, Player* player, Dr
 				case DOOR: tileColor = BEIGE; break;
 				default: tileColor = BROWN;
 			}
-			// TEMP for debugging purposes.
-			if (room->tiles[index].warp.dest != NULL) {
-				tileColor = PURPLE;
-			}
 			Vector2 offsetPos = RoomOffsetPos(room, column, row);
 			tileRect = (Rectangle){ offsetPos.x, offsetPos.y, TILE_SIZE, TILE_SIZE };
 			if (CheckCollisionRecs(worldCamera, tileRect)) {
@@ -363,7 +360,12 @@ static void RenderWorldCalls(
 			if (!level->items[i].active) {
 				continue;
 			}
-			Color icolor = YELLOW;
+			Color icolor;
+			switch (level->items[i].type) {
+				case I_EXP: icolor = GOLD;
+				case I_BOMB: icolor = DARKPURPLE;
+				default: icolor = YELLOW;
+			}
 			AddDrawCall(queue, (DrawCall){
 				.fun = DRAW_RECT,
 				.layer = ENTITY_LAYER - 1,
@@ -543,8 +545,12 @@ static void RenderScreen(
 				hpColor = (pct > 75) ? YELLOW : (pct > 32 ? ORANGE : RED);
 			}
 		}
-		DrawRectangle(22, screenHeight - 38, hpBarWidth, 21, hpColor);
-		DrawText(TextFormat("%d HP", player->entity.health), 285, screenHeight - 40, 22, DARKGREEN);
+		const int playerHudX = 22;
+		DrawRectangle(playerHudX, screenHeight - 38, hpBarWidth, 21, hpColor);
+		DrawText(TextFormat("%d HP", player->entity.health), playerHudX + 263, screenHeight - 40, 22, DARKGREEN);
+		DrawText(TextFormat("Bombs: %d", player->bombs), playerHudX, screenHeight - 80, 22, DARKGREEN);
+		DrawText(TextFormat("Keys: %d", player->keys), playerHudX, screenHeight - 120, 22, DARKGREEN);
+		DrawText(TextFormat("EXP: %d", player->exp), playerHudX, screenHeight - 160, 22, DARKGREEN);
 	}
 
 	// Render the minimap.
