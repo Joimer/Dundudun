@@ -274,6 +274,7 @@ static void RenderRoomCalls(GameContext* context, Room* room, Player* player, Dr
 				case DOOR: tileColor = BEIGE; break;
 				default: tileColor = BROWN;
 			}
+			// TEMP for debugging purposes.
 			if (room->tiles[index].warp.dest != NULL) {
 				tileColor = PURPLE;
 			}
@@ -352,6 +353,25 @@ static void RenderWorldCalls(
 		}
 		if (level->currentRoom != &level->rooms[4]) {
 			RenderRoomCalls(context, &level->rooms[4], player, queue);
+		}
+	}
+
+	// Draw level items laying on the floor.
+	// TODO: Check if it's worth to check camera bounds, there aren't that many items.
+	if (level->itemCount > 0 && level->items != NULL) {
+		for (int i = 0; i < level->itemCount; i++) {
+			if (!level->items[i].active) {
+				continue;
+			}
+			Color icolor = YELLOW;
+			AddDrawCall(queue, (DrawCall){
+				.fun = DRAW_RECT,
+				.layer = ENTITY_LAYER - 1,
+				.args = { .rect = {
+					.rec = (Rectangle){ level->items[i].pos.x, level->items[i].pos.y, TILE_SIZE, TILE_SIZE },
+					.color = icolor
+				}}
+			});
 		}
 	}
 

@@ -43,6 +43,10 @@ void DestroyLevel() {
 	level.nextRoom = NULL;
 	DestroyPool(&level.attacks);
 	DestroyPool(&level.texts);
+	if (level.items != NULL) {
+		free(level.items);
+		level.itemCount = 0;
+	}
 }
 
 void DestroyPlayer() {
@@ -131,7 +135,7 @@ static void AddRoomExit(
 }
 
 static Room GenerateRoom(GameContext* context, Level* level, int num, Vector2 pos) {
-	const int entityCount = num == 0 ? 0 : 3;
+	const int entityCount = num == 0 ? 0 : 1;//3;
 	// Room that fits world screen: 15x8
 	// Default room values.
 	// TODO: Other type of room sizes.
@@ -144,7 +148,8 @@ static Room GenerateRoom(GameContext* context, Level* level, int num, Vector2 po
 		.entityCount = entityCount,
 		.entities = NULL,
 		.tiles = NULL,
-		.complete = entityCount == 0
+		.complete = entityCount == 0,
+		.reward = I_KEY
 	};
 	if (room.tileCount > 0) {
 		room.tiles = malloc(sizeof(Tile) * room.tileCount);
@@ -390,7 +395,9 @@ static Level GenerateLevel(GameContext* context, int floor) {
 		.currentRoom = NULL,
 		.swappingRoom = false,
 		.totalRooms = roomsPerPath * 4 + 1,
-		.nextRoom = NULL
+		.nextRoom = NULL,
+		.itemCount = 0,
+		.items = NULL
 	};
 	// Allocations that are run once per level or game execution should be set to 0.
 	level.rooms = calloc(level.totalRooms, sizeof(Room));
@@ -552,67 +559,6 @@ static Level GenerateLevel(GameContext* context, int floor) {
 		// Alternative routes
 		// TODO :)
 	}
-	/*
-	level.rooms[1] = GenerateRoom(context, &level, 1, (Vector2){ 0, -1 });
-	level.rooms[2] = GenerateRoom(context, &level, 2, (Vector2){ 0, 1 });
-	level.rooms[3] = GenerateRoom(context, &level, 3, (Vector2){ -1, 0 });
-	level.rooms[4] = GenerateRoom(context, &level, 4, (Vector2){ 1, 0 });
-
-	// Add exit rooms.
-	// 0-North to 1-South and otherwise.
-	AddRoomExit(
-		&level.rooms[0], &level.rooms[1],
-		level.rooms[0].columns / 2, 0,
-		level.rooms[1].columns / 2, level.rooms[1].rows - 2
-	);
-	AddRoomExit(
-		&level.rooms[1], &level.rooms[0],
-		level.rooms[1].columns / 2,
-		level.rooms[1].rows - 1,
-		level.rooms[0].columns / 2, 1
-	);
-
-	// South.
-	AddRoomExit(
-		&level.rooms[0], &level.rooms[2],
-		level.rooms[0].columns / 2,
-		level.rooms[0].rows - 1,
-		level.rooms[2].columns / 2, 1
-	);
-	AddRoomExit(
-		&level.rooms[2], &level.rooms[0],
-		level.rooms[2].columns / 2, 0,
-		level.rooms[0].columns / 2, level.rooms[0].rows - 2
-	);
-
-	// West.
-	AddRoomExit(
-		&level.rooms[0], &level.rooms[3],
-		0, level.rooms[0].rows / 2,
-		level.rooms[3].columns - 2,
-		level.rooms[3].rows / 2
-	);
-	AddRoomExit(
-		&level.rooms[3], &level.rooms[0],
-		level.rooms[3].columns - 1,
-		level.rooms[3].rows / 2,
-		1, level.rooms[0].rows / 2
-	);
-
-	// East.
-	AddRoomExit(
-		&level.rooms[0], &level.rooms[4],
-		level.rooms[0].columns - 1,
-		level.rooms[0].rows / 2,
-		1, level.rooms[4].rows / 2
-	);
-	AddRoomExit(
-		&level.rooms[4], &level.rooms[0],
-		0, level.rooms[4].rows / 2,
-		level.rooms[0].columns - 2,
-		level.rooms[0].rows / 2
-	);
-	*/
 
 	// Number of attacks to allocate should be calculated by max enemies and their attack cadence.
 	level.attacks = CreatePoolOf(ActiveAttack, 128);
@@ -715,7 +661,7 @@ Vector2 Raycast(Room* room, Vector2 start, Vector2 end, GameEntity* self) {
 				tilePos.x = newTilePosX;
 				tilePos.y = newTilePosY;
 				Tile* newTile = GetTileByPos(room, &tilePos);
-				if (newTile->obstacle) {
+				if (newTile->obstacle || (newTile->type == DOOR && !room->complete)) {
 					break;
 				}
 			}
@@ -1090,7 +1036,6 @@ static void UpdatePlayer(GameContext* context, Level* level, Player* player, flo
 	// Update physics and status counters.
 	// Each entity has their own because they could be individually frozen.
 	UpdateEntity(&player->entity, delta);
-	player->entity.stanceTime += delta;
 
 	// Update weapon statuses.
 	UpdateWeaponStatus(player, delta);
@@ -1104,6 +1049,18 @@ static void UpdatePlayer(GameContext* context, Level* level, Player* player, flo
 	// Update dash cooldown only after it has finished, as it is set at the end of the dash.
 	if (player->dash.cdLeft > 0) {
 		player->dash.cdLeft -= delta > player->dash.cdLeft ? player->dash.cdLeft : delta;
+	}
+
+	// Check for collision with active items.
+	if (level->itemCount > 0 && level->items != NULL) {
+		for (int i = 0; i < level->itemCount; i++) {
+			if (!level->items[i].active) {
+				continue;
+			}
+			if (CheckCollisionPointRec(level->items[i].pos, HitboxWorldPosition(&player->entity))) {
+				PlayerCollideItem(player, &level->items[i]);
+			}
+		}
 	}
 
 	// TODO: Add pushback here.
@@ -1138,6 +1095,22 @@ static void UpdatePlayer(GameContext* context, Level* level, Player* player, flo
 	if (newDir != NO_DIRECTION) {
 		MoveEntityByForce(level->currentRoom, &player->entity, delta);
 	}
+}
+
+static Vector2 FindRewardPosition(Room* room) {
+	// TODO: Find out if tile is obstacle or inacesible and then find out nearest proper tile.
+	// Could also just pick a tile adjacent to player that's free and towards the center.
+	return (Vector2){ room->columns / 2.0f, room->rows / 2.0f };
+}
+
+static void AddItem(Level* level, Item item) {
+	int itemId = level->itemCount++;
+	if (level->items == NULL) {
+		level->items = malloc(sizeof(Item) * level->itemCount);
+	} else {
+		level->items = realloc(level->items, sizeof(Item) * level->itemCount);
+	}
+	level->items[itemId] = item;
 }
 
 void UpdateLevel(GameContext* context, float dt) {
@@ -1189,5 +1162,20 @@ void UpdateLevel(GameContext* context, float dt) {
 	// Check if room has been completed to open doors.
 	if (level.currentRoom != NULL && !level.currentRoom->complete && activeEntities == 0) {
 		level.currentRoom->complete = true;
+		if (level.currentRoom->reward != I_NONE) {
+			LogDebug("Room has reward, instantiating it.");
+			Vector2 rpos = FindRewardPosition(level.currentRoom);
+			// TODO: Right now world offset thinks all rooms must be same size.
+			// Precalculate world position on room creation one by one.
+			Vector2 worldPos = RoomOffsetPos(level.currentRoom, rpos.x, rpos.y);
+			int amount = level.currentRoom->reward == I_EXP ? 5 : 1;
+			ItemType itype;
+			AddItem(&level, (Item){
+				.pos = worldPos,
+				.type = level.currentRoom->reward,
+				.amount = amount,
+				.active = true,
+			});
+		}
 	}
 }

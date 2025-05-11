@@ -34,6 +34,9 @@ Player CreatePlayer(Texture2D* characterTexture) {
 		.relicCount = 0,
 		.relics = calloc(100, sizeof(Relic*)),
 		.strength = 0,
+		.keys = 0,
+		.exp = 0,
+		.bombs = 0,
 		.entity = CreateEntity(
 			50,
 			(Vector2){ 100.0f, 100.0f },
@@ -249,4 +252,20 @@ void EmitPlayerHitEvent(GameEntity* target) {
 			.target = target
 		}}
 	});
+}
+
+void PlayerCollideItem(Player* player, Item* item) {
+	if (!item->active) {
+		return;
+	}
+	switch (item->type) {
+		case I_KEY: player->keys += item->amount; break;
+		case I_EXP: player->exp += item->amount;break;
+		case I_BOMB: player->bombs += item->amount; break;
+		case I_RELIC: /*TODO XD*/ break;
+		case I_CONSUMABLE: /*TODO XD*/ break;
+		case I_GEAR: /*TODO XD*/ break;
+		default: break;
+	}
+	item->active = false;
 }

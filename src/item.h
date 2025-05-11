@@ -54,6 +54,16 @@ typedef struct {
 	RelicHitEvent* onHit;
 } Relic;
 
+typedef enum { I_NONE, I_KEY, I_EXP, I_BOMB, I_RELIC, I_CONSUMABLE, I_GEAR } ItemType;
+
+// Representation of an item in the game world.
+typedef struct {
+	Vector2 pos;
+	ItemType type;
+	int amount;
+	bool active;
+} Item;
+
 Weapon* GetWeapon(int i);
 Relic* GetRelic(int i);
 

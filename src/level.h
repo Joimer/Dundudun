@@ -2,6 +2,7 @@
 #define LEVEL_H
 
 #include <raylib.h>
+#include "item.h"
 #include "lib.h"
 #include "game.h"
 #include "object-pool.h"
@@ -37,8 +38,6 @@ typedef struct {
 	Color color;
 } ActiveText;
 
-typedef enum { R_EXP, R_RELIC, R_ITEM, R_KEY, R_BOMB } Reward;
-
 typedef struct Room {
 	// Room number in the player pathing.
 	int roomNo;
@@ -56,7 +55,7 @@ typedef struct Room {
 	int entityCount;
 	Enemy* entities;
 	// TODO: Store world corner positions? Would avoid some calcs
-	Reward reward;
+	ItemType reward;
 } Room;
 
 typedef struct {
@@ -76,6 +75,9 @@ typedef struct {
 	int maxX;
 	int minY;
 	int maxY;
+	// Items on the floor.
+	int itemCount;
+	Item* items;
 } Level;
 
 typedef struct {

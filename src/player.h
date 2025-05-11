@@ -37,6 +37,13 @@ typedef struct {
 	int relicCount;
 	Relic** relics;
 	float strength;
+	// Keys to open doors and locked chests.
+	int keys;
+	// Exposure is the game currency.
+	int exp;
+	// Regular bombs to blow up stuff.
+	int bombs;
+	// TODO: Spell cards as bomb alternative
 } Player;
 
 Player CreatePlayer(Texture2D* characterTexture);
@@ -53,5 +60,6 @@ Observable* GetPlayerEvents();
 void SetupPlayerEvents();
 void onPlayerHit(Event* ev);
 void EmitPlayerHitEvent(GameEntity* target);
+void PlayerCollideItem(Player* player, Item* item);
 
 #endif
