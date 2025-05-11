@@ -18,6 +18,27 @@ static void SetDefaultKeys() {
 }
 */
 
+// TODO: use this for key config menu
+// const char *GetKeyName(int key);
+
+static bool DoActionCheckGamepad(GameAction action, int pad, bool padFn(int, int)) {
+	// TODO: float GetGamepadAxisMovement(int gamepad, int axis);
+	// Axis will give a direction to assert any of the GO actions.
+	switch (action) {
+		case GO_LEFT: return padFn(pad, GAMEPAD_BUTTON_LEFT_FACE_LEFT);
+		case GO_RIGHT: return padFn(pad, GAMEPAD_BUTTON_LEFT_FACE_RIGHT);
+		case GO_UP: return padFn(pad, GAMEPAD_BUTTON_LEFT_FACE_UP);
+		case GO_DOWN: return padFn(pad, GAMEPAD_BUTTON_LEFT_FACE_DOWN);
+		case ACCEPT: return padFn(pad, KEY_A);
+		case CANCEL: return padFn(pad, KEY_A);
+		case ACTION_A: return padFn(pad, GAMEPAD_BUTTON_RIGHT_FACE_DOWN);
+		case ACTION_B: return padFn(pad, GAMEPAD_BUTTON_RIGHT_FACE_RIGHT);
+		case ACTION_C: return padFn(pad, GAMEPAD_BUTTON_RIGHT_FACE_LEFT);
+		case ACTION_D: return padFn(pad, GAMEPAD_BUTTON_RIGHT_FACE_UP);
+		default: return false;
+	}
+}
+
 static bool DoActionCheck(GameAction action, bool fn(int), bool altFn(int)) {
 	switch (action) {
 		case GO_LEFT: return fn(KEY_A);
@@ -35,9 +56,22 @@ static bool DoActionCheck(GameAction action, bool fn(int), bool altFn(int)) {
 }
 
 bool IsActionActive(GameAction action) {
-	return DoActionCheck(action, IsKeyDown, IsMouseButtonDown);
+	bool result = false;
+	// TODO: actual gamepad detection
+	for (int i = 0; i < 5; i++) {
+		if (IsGamepadAvailable(i)) {
+			result |= DoActionCheckGamepad(action, i, IsGamepadButtonDown);
+		}
+	}
+	return result || DoActionCheck(action, IsKeyDown, IsMouseButtonDown);
 }
 
 bool IsActionOnce(GameAction action) {
-	return DoActionCheck(action, IsKeyPressed, IsMouseButtonPressed);
+	bool result = false;
+	for (int i = 0; i < 5; i++) {
+		if (IsGamepadAvailable(i)) {
+			result |= DoActionCheckGamepad(action, i, IsGamepadButtonPressed);
+		}
+	}
+	return result || DoActionCheck(action, IsKeyPressed, IsMouseButtonPressed);
 }
