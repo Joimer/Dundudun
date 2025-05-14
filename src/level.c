@@ -78,15 +78,15 @@ Vector2 RoomOffset(Room* room) {
 }
 
 Vector2 RoomOffsetPos(Room* room, int x, int y) {
-	Vector2 corner = RoomOffset(room);
+	const Vector2 corner = RoomOffset(room);
 	return (Vector2){ corner.x + x * TILE_SIZE, corner.y + y * TILE_SIZE };
 }
 
 static void CreateDamageText(
 	GameEntity* entity, int damage, DamageType type, float playTime, ObjectPool* textPool
 ) {
-	Vector2 spritePos = Vector2Subtract(entity->position, entity->sprite.position);
-	float startX = spritePos.x + entity->sprite.rect.width / 2.0f;
+	const Vector2 spritePos = Vector2Subtract(entity->position, entity->sprite.position);
+	const float startX = spritePos.x + entity->sprite.rect.width / 2.0f;
 	ActiveText txt = {
 		.content = IntToString(damage),
 		.start = (Vector2){ startX, spritePos.y },
@@ -128,7 +128,7 @@ static void AddRoomExit(
 		LogDebug("Invalid tile position: %d/%d on starting pos %d,%d", index, room->tileCount, fromX, fromY);
 		return;
 	}
-	Vector2 destPos = Vector2AddValue(RoomOffsetPos(destination, destX, destY), TILE_SIZE / 2.0f);
+	const Vector2 destPos = Vector2AddValue(RoomOffsetPos(destination, destX, destY), TILE_SIZE / 2.0f);
 	LogDebug("Adding exit from %d,%d (index %d, columns %d) to pos %f,%f", fromX, fromY, index, room->columns, destPos.x, destPos.y);
 	room->tiles[index].warp.dest = destination;
 	room->tiles[index].warp.pos = destPos;
@@ -137,12 +137,13 @@ static void AddRoomExit(
 
 }
 
-static Room GenerateRoom(GameContext* context, Level* level, int num, Vector2 pos, ItemType reward) {
+static Room GenerateRoom(GameContext* context, Level* level, int num, Vector2 pos, ItemType reward, int rewardAmount) {
 	// Room that fits world screen: 15x8
 	// Default room values.
 	// TODO: Other type of room sizes.
 	Room room = {
 		.roomNo = num,
+		.type = num == 0 ? HALL : ENCOUNTER,
 		.pos = pos,
 		.tileCount = 200,
 		.columns = 15,
@@ -152,16 +153,17 @@ static Room GenerateRoom(GameContext* context, Level* level, int num, Vector2 po
 		.tiles = NULL,
 		.complete = num == 0,
 		.reward = reward,
+		.rewardAmount = rewardAmount,
 		.visited = num == 0,
 	};
 	if (room.tileCount > 0) {
 		room.tiles = malloc(sizeof(Tile) * room.tileCount);
-		TileType forGrass = num == 0 ? GROUND : GRASS;
+		const TileType forGrass = num == 0 ? GROUND : GRASS;
 		for (int row = 0; row < room.rows; row++) {
 			for (int column = 0; column < room.columns; column++) {
-				bool isWall = (row == 0 || column == 0 || column == room.columns - 1 || row == room.rows - 1);
+				const bool isWall = (row == 0 || column == 0 || column == room.columns - 1 || row == room.rows - 1);
 				const int index = column + (room.columns * row);
-				TileType type = isWall ? WALL : (index % 3 == 0 ? forGrass : GROUND);
+				const TileType type = isWall ? WALL : (index % 3 == 0 ? forGrass : GROUND);
 				room.tiles[index] = (Tile){
 					.type = type,
 					.obstacle = isWall,
@@ -175,9 +177,10 @@ static Room GenerateRoom(GameContext* context, Level* level, int num, Vector2 po
 	}
 
 	// Entities for enemies that will be in the room.
-	if (num > 0) {
+	if (room.type == ENCOUNTER) {
 		// Pick enemy group apt for the room number and area.
 		// TODO: Actually consider that
+		// TODO: First rooms less weight on easy groups, ascension makes them same weight.
 		int groupId = GetRandomMTValue(&context->state->mtrand) % 6;
 		const EnemyGroup* group = GetEnemyGroup(groupId);
 		room.entityCount = group->count;
@@ -390,7 +393,7 @@ static Level GenerateLevel(GameContext* context, int floor) {
 	// Every time you pick a door, the other alternative ones remain closed.
 	// You can go back to all previously open rooms.
 	ItemType reward = I_NONE;
-	level.rooms[0] = GenerateRoom(context, &level, 0, (Vector2){ 0, 0 }, reward);
+	level.rooms[0] = GenerateRoom(context, &level, 0, (Vector2){ 0, 0 }, reward, 0);
 	level.currentRoom = &level.rooms[0];
 
 	int roomId = 1;
@@ -408,16 +411,14 @@ static Level GenerateLevel(GameContext* context, int floor) {
 		int prevDirCount = 1;
 
 		for (int currentRoom = 1; currentRoom < roomsPerPath + 1; currentRoom++) {
-			LogDebug("Doing currentRoom %d", currentRoom);
 			// Since the 4 initial rooms are chosen pathwise, we decide direction of the next room
 			// at the end of this loop. Initial entry will be preset with the proper initial room per path.
 			int prevRoomId = currentRoom == 1 ? 0 : roomId - 1;
 			int currentRoomId = roomId;
 			int nextRoomId = ++roomId;
-			LogDebug("prev %d curr %d next %d", prevRoomId, currentRoomId, nextRoomId);
 
 			// We generate the room struct before finalising position so we are able to do several checks on next placement.
-			LogDebug("Generating room %d", currentRoomId);
+			LogDebug("Room num %d Generating room %d", currentRoom, currentRoomId);
 			// Calculate current room X and Y according to the room we came  from.
 			int roomX = level.rooms[prevRoomId].pos.x, roomY = level.rooms[prevRoomId].pos.y;
 			switch (previousDir) {
@@ -428,6 +429,7 @@ static Level GenerateLevel(GameContext* context, int floor) {
 				default: break;
 			}
 			// Pick reward for the room.
+			int rewardAmount = 1;
 			if (currentRoom == 6) {
 				reward = I_RELIC;
 			} else {
@@ -436,21 +438,23 @@ static Level GenerateLevel(GameContext* context, int floor) {
 				switch (dice) {
 					case 0: reward = I_BOMB; break;
 					case 1: reward = I_KEY; break;
-					case 2: reward = I_EXP; break;
+					case 2:
+						reward = I_EXP;
+						rewardAmount = (GetRandomMTValue(&context->state->mtrand) % 3) + 2;
+						break;
 				}
 			}
 			// TODO: Pick here when rooms are shops.
 			// Boss reward is always a relic as well.
 			level.rooms[currentRoomId] = GenerateRoom(
-				context, &level, currentRoomId, (Vector2){ roomX, roomY }, reward
+				context, &level, currentRoomId, (Vector2){ roomX, roomY }, reward, rewardAmount
 			);
 
-			LogDebug("Adding room exit to previous room.");
+			LogDebug("Adding room exits.");
 			// Previous room exit can already be added, since here we already got which direction we came from.
 			CalcAddRoomExit(&level, prevRoomId, currentRoomId, previousDir);
-			LogDebug("Adding room exit to current room.");
 			CalcAddRoomExit(&level, currentRoomId, prevRoomId, OppositeDir(previousDir));
-			LogDebug("-- Placing room in %d,%d", roomX, roomY);
+			//LogDebug("-- Placing room in %d,%d", roomX, roomY);
 			if (level.maxX < roomX) {
 				level.maxX = roomX;
 			}
@@ -473,10 +477,10 @@ static Level GenerateLevel(GameContext* context, int floor) {
 
 			// First room on a path will always only contain a single exit continuing onwards.
 			if (currentRoom == 1) {
-				LogDebug("First room, next path is repeated");
+				//LogDebug("First room, next path is repeated");
 				nextDir = pathDir;
 			} else {
-				LogDebug("Find out next direction");
+				//LogDebug("Find out next direction");
 				// North, south, east, west only.
 				// It's computationally cheap to have an index until last used direction and use the enum to access.
 				float chances[9] = { 0 };
@@ -759,14 +763,18 @@ static void UpdateEnemy(GameContext* context, Player* player, Level* level, Acti
 
 	// It is preferable to check for stun here once rather than on every single entity action.
 	if (!enemy->entity.stunned) {
-		if (EntityUnwindAttack(
+		int unwindState = EntityUnwindAttack(
 			&enemy->entity, enemy->attack,
 			&player->entity.position,
 			&level->attacks,
 			T_PLAYER
-		)) {
+		);
+		if (unwindState > 0) {
 			// Enemy is winding up an attack or just finished doing so.
-			return StandStill(&enemy->entity);
+			if (unwindState == 2) {
+				return StandStill(&enemy->entity);
+			}
+			return;
 		}
 
 		// Check if player is within the entity's active area.
@@ -1057,7 +1065,14 @@ static void UpdatePlayer(GameContext* context, Level* level, Player* player, flo
 			if (!level->items[i].active) {
 				continue;
 			}
-			if (CheckCollisionPointRec(level->items[i].pos, HitboxWorldPosition(&player->entity))) {
+			// TODO: Put this on the item generation itself,,,
+			const Rectangle itemBox = {
+				level->items[i].pos.x,
+				level->items[i].pos.y,
+				32,
+				32
+			};
+			if (CheckCollisionRecs(itemBox, HitboxWorldPosition(&player->entity))) {
 				PlayerCollideItem(player, &level->items[i]);
 			}
 		}
@@ -1171,7 +1186,7 @@ void UpdateLevel(GameContext* context, float dt) {
 			int amount = level.currentRoom->reward == I_EXP ? 5 : 1;
 			ItemType itype;
 			AddItem(&level, (Item){
-				.pos = Vector2AddValue(worldPos, TILE_SIZE / 2),
+				.pos = worldPos,
 				.type = level.currentRoom->reward,
 				.amount = amount,
 				.active = true,

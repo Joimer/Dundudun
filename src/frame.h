@@ -19,11 +19,11 @@ extern const ScreenSize resolutions[5];
 #define WORLD_SIZE_WIDTH 480
 #define WORLD_SIZE_HEIGHT 270
 
-#define BG_LAYER 10000
-#define ENTITY_LAYER 20000
-#define EFFECTS_LAYER 30000
-#define GIZMO_LAYER 40000
-#define UI_LAYER 50000
+#define BG_LAYER 100000
+#define ENTITY_LAYER 200000
+#define EFFECTS_LAYER 300000
+#define GIZMO_LAYER 400000
+#define UI_LAYER 500000
 
 #define ROOM_CHANGE_TIME 0.5f
 

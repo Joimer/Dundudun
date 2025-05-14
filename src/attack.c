@@ -2,6 +2,7 @@
 #include <raymath.h>
 #include "attack.h"
 #include "game.h"
+#include "lib.h"
 
 Attack attacks[TOTAL_ATTACKS] = {
 	// Enemy melee hit.
@@ -31,6 +32,7 @@ Attack attacks[TOTAL_ATTACKS] = {
 	// Player melee hit.
 	{
 		.damage = 7,
+		.windup = 0.0f,
 		.duration = 0.15f,
 		.centerDist = 26.0f,
 		.type = HB_RECT,
@@ -42,6 +44,7 @@ Attack attacks[TOTAL_ATTACKS] = {
 	// Player shooting.
 	{
 		.damage = 5,
+		.windup = 0.0f,
 		.duration = 20.0f,
 		.centerDist = 0.0f,
 		.type = HB_CIRCLE,
@@ -54,6 +57,7 @@ Attack attacks[TOTAL_ATTACKS] = {
 	// Enemy shooting.
 	{
 		.damage = 4,
+		.windup = 0.0f,
 		.duration = 20.0f,
 		.centerDist = 0.0f,
 		.type = HB_CIRCLE,

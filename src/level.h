@@ -36,9 +36,12 @@ typedef struct {
 	Color color;
 } ActiveText;
 
+typedef enum { HALL, ENCOUNTER, SHOP, BOSS } RoomType;
+
 typedef struct Room {
 	// Room number in the player pathing.
 	int roomNo;
+	RoomType type;
 	// Room position in regards to the central room.
 	Vector2 pos;
 	bool complete;
@@ -54,6 +57,7 @@ typedef struct Room {
 	ActiveEnemy* entities;
 	// TODO: Store world corner positions? Would avoid some calcs
 	ItemType reward;
+	int rewardAmount;
 	bool visited;
 } Room;
 

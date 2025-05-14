@@ -27,7 +27,7 @@ Enemy enemies[TOTAL_ENEMIES] = {
 	},
 	// Basic slow heavy hitter.
 	[MAINT_FAT] = {
-		.activeRadius = DEFAULT_ENEMY_RADIUS,
+		.activeRadius = DEFAULT_ENEMY_RADIUS * 1.1f,
 		.behaviour = APPROACH,
 		.baseSpeed = ENEMY_DEFAULT_SPEED * 0.33f,
 		.attackCd = 2.0f,
@@ -40,7 +40,7 @@ Enemy enemies[TOTAL_ENEMIES] = {
 		.behaviour = APPROACH,
 		.baseSpeed = ENEMY_DEFAULT_SPEED * 1.5f,
 		.attackCd = 1.25f,
-		.maxhp = 5,
+		.maxhp = 9,
 		.attackId = 5
 	}
 };
@@ -368,13 +368,15 @@ int EntityUnwindAttack(
 		void* result = AddToPool(attackPool, &att);
 		if (result == NULL) {
 			LogDebug("Failed to allocate attack on object pool");
-			return 0;
+			return -1;
 		}
 		LogDebug("Amount of active attacks: %d", attackPool->activeItems);
 
-		return 1;
+		// Attack was instantiated.
+		return 2;
 	}
 
+	// Not currently attacking nor readying an attack.
 	return 0;
 }
 
@@ -386,8 +388,8 @@ int EnemyCheckAttack(ActiveEnemy* enemy, float playTime, Vector2* targetPos) {
 		// Shooting attack.
 		bool doAttack = enemy->attack->speed > 0.0f;
 
-		// Check if player is within range of entity attack.
-		if (!doAttack) {
+		// Check if player is within range of entity attack for melee attacks.
+		if (!doAttack && enemy->attack->speed == 0.0f) {
 			float maxRange = MaxAttackRange(enemy);
 			float dist = Vector2Distance(enemy->entity.position, *targetPos);
 			doAttack = dist <= maxRange;

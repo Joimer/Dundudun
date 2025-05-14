@@ -160,6 +160,7 @@ void DrawAttackCallback(ObjectPool* pool, int index, void* args) {
 	}
 	ActiveAttack* attack = PoolIndexAddress(pool, index);
 	if (attack == NULL || attack->attack == NULL) {
+		LogDebug("Invalid attack parameters");
 		return;
 	}
 	if (attack->elapsed >= attack->attack->duration) {
@@ -167,10 +168,10 @@ void DrawAttackCallback(ObjectPool* pool, int index, void* args) {
 	}
 
 	DrawAttackCbArgs* cbArgs = (DrawAttackCbArgs*) args;
-	Color color = attack->target == T_ENEMY ? (Color){ 25, 150, 25, 210 } : (Color){ 125, 11, 22, 210 };
-	//int layer = ENTITY_LAYER + 1 + attack->center.y * 100;
-	int layer = GIZMO_LAYER + 2 + attack->center.y * 100;
-	if (attack->attack->type == 1) {
+	const Color color = attack->target == T_ENEMY ? (Color){ 25, 150, 25, 210 } : (Color){ 125, 11, 22, 210 };
+	//int layer = ENTITY_LAYER + 1 + attack->center.y * 10;
+	const int layer = GIZMO_LAYER + 2 + attack->center.y * 10;
+	if (attack->attack->type == HB_RECT) {
 		// TODO: Attack animation and sprite check here.
 		//if (cbArgs->showGizmos) {
 			AddDrawCall(cbArgs->queue, (DrawCall){
@@ -183,7 +184,7 @@ void DrawAttackCallback(ObjectPool* pool, int index, void* args) {
 			});
 		//}
 	}
-	if (attack->attack->type == 2) {
+	if (attack->attack->type == HB_CIRCLE) {
 		//if (cbArgs->showGizmos) {
 			//DrawCircleV(attack->center, attack->attack->hitbox.radius, (Color){ 125, 11, 22, 210 });
 			AddDrawCall(cbArgs->queue, (DrawCall){
@@ -216,10 +217,10 @@ void DrawTextCallback(ObjectPool* pool, int index, void* args) {
 
 	// Text movement vector is text->start to text->end in (text->endTime - text->startTime) time.
 	// We just need to translate the position through the elapsed time.
-	float elapsed = cbArgs->playTime - text->startTime;
-	float pct = elapsed * 100.0f / (text->endTime - text->startTime);
-	float yPosDiff = (text->end.y - text->start.y) * pct / 100.0f;
-	float xPosDiff = (text->end.x - text->start.x) * pct / 100.0f;
+	const float elapsed = cbArgs->playTime - text->startTime;
+	const float pct = elapsed * 100.0f / (text->endTime - text->startTime);
+	const float yPosDiff = (text->end.y - text->start.y) * pct / 100.0f;
+	const float xPosDiff = (text->end.x - text->start.x) * pct / 100.0f;
 	// TODO: If 2 texts are overlapping, move one a bit? how?
 	AddDrawCall(cbArgs->queue, (DrawCall){
 		.fun = DRAW_TEXT,
