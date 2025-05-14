@@ -138,7 +138,6 @@ static void AddRoomExit(
 }
 
 static Room GenerateRoom(GameContext* context, Level* level, int num, Vector2 pos, ItemType reward) {
-	const int entityCount = num == 0 ? 0 : 1;//3;
 	// Room that fits world screen: 15x8
 	// Default room values.
 	// TODO: Other type of room sizes.
@@ -148,10 +147,10 @@ static Room GenerateRoom(GameContext* context, Level* level, int num, Vector2 po
 		.tileCount = 200,
 		.columns = 15,
 		.rows = 8,
-		.entityCount = entityCount,
+		.entityCount = 0,
 		.entities = NULL,
 		.tiles = NULL,
-		.complete = entityCount == 0,
+		.complete = num == 0,
 		.reward = reward,
 		.visited = num == 0,
 	};
@@ -176,10 +175,18 @@ static Room GenerateRoom(GameContext* context, Level* level, int num, Vector2 po
 	}
 
 	// Entities for enemies that will be in the room.
-	if (entityCount > 0) {
-		room.entities = malloc(sizeof(ActiveEnemy) * entityCount);
-		for (int i = 0; i < entityCount; i++) {
-			room.entities[i] = InstantiateEnemy(GetEnemy(i), RoomOffsetPos(&room, 3, 3 + i));
+	if (num > 0) {
+		// Pick enemy group apt for the room number and area.
+		// TODO: Actually consider that
+		int groupId = GetRandomMTValue(&context->state->mtrand) % 6;
+		const EnemyGroup* group = GetEnemyGroup(groupId);
+		room.entityCount = group->count;
+		room.entities = malloc(sizeof(ActiveEnemy) * group->count);
+		for (int i = 0; i < group->count; i++) {
+			room.entities[i] = InstantiateEnemy(
+				GetEnemy(group->enemies[i].enemyId),
+				RoomOffsetPos(&room, group->enemies[i].pos.x, group->enemies[i].pos.y)
+			);
 		}
 	}
 

@@ -36,6 +36,7 @@ typedef struct {
 } Attack;
 
 // TODO To declare the attack pointer straight in the weapon list, we need attack list to be a global.
+// (item.c)
 // Another option would be data setup functions that create the structures from a preset.
 // This could also make it easier to load data from config/mod files.
 extern Attack attacks[TOTAL_ATTACKS];

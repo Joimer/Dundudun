@@ -12,10 +12,13 @@
 #include "event.h"
 
 #define TOTAL_ENEMIES 4
+#define TOTAL_ENEMY_GROUPS 25
 #define DEFAULT_ENEMY_RADIUS 200.0f
 #define ENEMY_DEFAULT_SPEED 150.0f
 
 typedef enum { APPROACH, STAND, DISTANCE } EnemyBehaviour;
+
+typedef enum { MAINT_MELEE, MAINT_SHOOTER, MAINT_FAT, RAT } EnemyType;
 
 typedef struct {
 	float activeRadius;
@@ -39,8 +42,21 @@ typedef struct {
 	Attack* attack;
 } ActiveEnemy;
 
+typedef struct {
+	EnemyType enemyId;
+	// Spawn position is x,y relative to default room size, 15x8
+	Vector2 pos;
+} EnemySpawn;
+
+typedef struct {
+	int count;
+	EnemySpawn enemies[10];
+	int difficulty;
+} EnemyGroup;
+
 Enemy* GetEnemy(int i);
 ActiveEnemy InstantiateEnemy(Enemy* enemy, Vector2 pos);
+const EnemyGroup* GetEnemyGroup(int i);
 int DamageEntity(GameEntity* entity, int damage);
 void ApplyStatus(GameEntity* entity, Status status, float value);
 int AttackHitEntity(GameEntity* entity, ActiveAttack* attack);

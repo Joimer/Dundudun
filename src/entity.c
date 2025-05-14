@@ -8,7 +8,7 @@ static Observable entityEvents;
 
 Enemy enemies[TOTAL_ENEMIES] = {
 	// Basic approaching enemy.
-	{
+	[MAINT_MELEE] = {
 		.activeRadius = DEFAULT_ENEMY_RADIUS,
 		.behaviour = APPROACH,
 		.baseSpeed = ENEMY_DEFAULT_SPEED,
@@ -17,7 +17,7 @@ Enemy enemies[TOTAL_ENEMIES] = {
 		.attackId = 0,
 	},
 	// Basic shooting from distance enemy.
-	{
+	[MAINT_SHOOTER] = {
 		.activeRadius = DEFAULT_ENEMY_RADIUS,
 		.behaviour = DISTANCE,
 		.baseSpeed = ENEMY_DEFAULT_SPEED,
@@ -26,7 +26,7 @@ Enemy enemies[TOTAL_ENEMIES] = {
 		.attackId = 4
 	},
 	// Basic slow heavy hitter.
-	{
+	[MAINT_FAT] = {
 		.activeRadius = DEFAULT_ENEMY_RADIUS,
 		.behaviour = APPROACH,
 		.baseSpeed = ENEMY_DEFAULT_SPEED * 0.33f,
@@ -35,7 +35,7 @@ Enemy enemies[TOTAL_ENEMIES] = {
 		.attackId = 1
 	},
 	// Weak, fast, small enemy.
-	{
+	[RAT] = {
 		.activeRadius = DEFAULT_ENEMY_RADIUS,
 		.behaviour = APPROACH,
 		.baseSpeed = ENEMY_DEFAULT_SPEED * 1.5f,
@@ -45,12 +45,88 @@ Enemy enemies[TOTAL_ENEMIES] = {
 	}
 };
 
+// Enemy groups that are placed in picked fight rooms.
+// TODO: Pools weighted by difficulty and then divided by areas.
+// Can just divide areas by starting and ending indices.
+static const EnemyGroup enemyPool[TOTAL_ENEMY_GROUPS] = {
+	// Three basic melee enemies in triangle formation
+	{
+		.count = 3,
+		.enemies = {
+			(EnemySpawn){ .enemyId = MAINT_MELEE, .pos = (Vector2){ 10, 3 } },
+			(EnemySpawn){ .enemyId = MAINT_MELEE, .pos = (Vector2){ 6, 5 } },
+			(EnemySpawn){ .enemyId = MAINT_MELEE, .pos = (Vector2){ 13, 5 } },
+		},
+		.difficulty = 1
+	},
+	// Two shooters, one melee
+	{
+		.count = 3,
+		.enemies = {
+			(EnemySpawn){ .enemyId = MAINT_MELEE, .pos = (Vector2){ 10, 3 } },
+			(EnemySpawn){ .enemyId = MAINT_SHOOTER, .pos = (Vector2){ 6, 5 } },
+			(EnemySpawn){ .enemyId = MAINT_SHOOTER, .pos = (Vector2){ 13, 5 } },
+		},
+		.difficulty = 2
+	},
+	// One shooter, two melee.
+	{
+		.count = 3,
+		.enemies = {
+			(EnemySpawn){ .enemyId = MAINT_SHOOTER, .pos = (Vector2){ 10, 3 } },
+			(EnemySpawn){ .enemyId = MAINT_MELEE, .pos = (Vector2){ 6, 5 } },
+			(EnemySpawn){ .enemyId = MAINT_MELEE, .pos = (Vector2){ 13, 5 } },
+		},
+		.difficulty = 1
+	},
+	// Two shooters, fat one
+	{
+		.count = 3,
+		.enemies = {
+			(EnemySpawn){ .enemyId = MAINT_FAT, .pos = (Vector2){ 10, 3 } },
+			(EnemySpawn){ .enemyId = MAINT_SHOOTER, .pos = (Vector2){ 6, 5 } },
+			(EnemySpawn){ .enemyId = MAINT_SHOOTER, .pos = (Vector2){ 13, 5 } },
+		},
+		.difficulty = 3
+	},
+	// Group of rats
+	{
+		.count = 6,
+		.enemies = {
+			(EnemySpawn){ .enemyId = RAT, .pos = (Vector2){ 3, 3 } },
+			(EnemySpawn){ .enemyId = RAT, .pos = (Vector2){ 8, 3 } },
+			(EnemySpawn){ .enemyId = RAT, .pos = (Vector2){ 13, 3 } },
+			(EnemySpawn){ .enemyId = RAT, .pos = (Vector2){ 3, 6 } },
+			(EnemySpawn){ .enemyId = RAT, .pos = (Vector2){ 8, 6 } },
+			(EnemySpawn){ .enemyId = RAT, .pos = (Vector2){ 13, 6 } },
+		},
+		.difficulty = 1
+	},
+	// Two fat ones.
+	{
+		.count = 2,
+		.enemies = {
+			(EnemySpawn){ .enemyId = MAINT_FAT, .pos = (Vector2){ 6, 4 } },
+			(EnemySpawn){ .enemyId = MAINT_FAT, .pos = (Vector2){ 8, 4 } },
+		},
+		.difficulty = 1
+	},
+};
+
 Enemy* GetEnemy(int i) {
 	if (i > TOTAL_ENEMIES - 1) {
 		LogDebug("Attempting to get invalid enemy %d", i);
 		return NULL;
 	}
 	return &enemies[i];
+}
+
+const EnemyGroup* GetEnemyGroup(int i) {
+	if (i > TOTAL_ENEMY_GROUPS - 1) {
+		LogDebug("Attempting to get invalid enemy group %d", i);
+		return NULL;
+	}
+	return &enemyPool[i];
 }
 
 ActiveEnemy InstantiateEnemy(Enemy* enemy, Vector2 pos) {
