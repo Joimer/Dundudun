@@ -16,9 +16,9 @@ Attack attacks[TOTAL_ATTACKS] = {
 		.projectile = false,
 		.dmgType = D_PHYSICAL
 	},
-	// Enemy circle explosion like attack?
+	// Enemy circle explosion like attack
 	{
-		.damage = 6,
+		.damage = 10,
 		.windup = 0.3f,
 		.duration = 0.5f,
 		.centerDist = 32.0f,
@@ -62,6 +62,18 @@ Attack attacks[TOTAL_ATTACKS] = {
 		.projectile = true,
 		.dmgType = D_PHYSICAL
 	},
+	// Enemy weak melee hit.
+	{
+		.damage = 2,
+		.windup = 0.15f,
+		.duration = 0.33f,
+		.centerDist = 20.0f,
+		.type = HB_RECT,
+		.hitbox = { .rect = { 0, 0, 32.0f, 32.0f } },
+		.speed = 0,
+		.projectile = false,
+		.dmgType = D_PHYSICAL
+	}
 };
 
 ActiveAttack InitiateAttack(

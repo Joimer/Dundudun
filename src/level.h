@@ -10,8 +10,6 @@
 #include "entity.h"
 #include "event.h"
 
-#define DEFAULT_ENEMY_RADIUS 200.0f
-#define ENEMY_DEFAULT_SPEED 150.0f
 #define COLL_RAYCAST_ACTIVE 64.0f
 #define COLL_RAYCAST_DIST 16.0f
 
@@ -53,9 +51,10 @@ typedef struct Room {
 	Tile* tiles;
 	// Each room has its own entities.
 	int entityCount;
-	Enemy* entities;
+	ActiveEnemy* entities;
 	// TODO: Store world corner positions? Would avoid some calcs
 	ItemType reward;
+	bool visited;
 } Room;
 
 typedef struct {

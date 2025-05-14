@@ -1,9 +1,81 @@
 #include "entity.h"
+#include "attack.h"
 #include "event.h"
 #include "game.h"
 #include "lib.h"
 
 static Observable entityEvents;
+
+Enemy enemies[TOTAL_ENEMIES] = {
+	// Basic approaching enemy.
+	{
+		.activeRadius = DEFAULT_ENEMY_RADIUS,
+		.behaviour = APPROACH,
+		.baseSpeed = ENEMY_DEFAULT_SPEED,
+		.attackCd = 2.0f,
+		.maxhp = 40,
+		.attackId = 0,
+	},
+	// Basic shooting from distance enemy.
+	{
+		.activeRadius = DEFAULT_ENEMY_RADIUS,
+		.behaviour = DISTANCE,
+		.baseSpeed = ENEMY_DEFAULT_SPEED,
+		.attackCd = 2.0f,
+		.maxhp = 40,
+		.attackId = 4
+	},
+	// Basic slow heavy hitter.
+	{
+		.activeRadius = DEFAULT_ENEMY_RADIUS,
+		.behaviour = APPROACH,
+		.baseSpeed = ENEMY_DEFAULT_SPEED * 0.33f,
+		.attackCd = 2.0f,
+		.maxhp = 80,
+		.attackId = 1
+	},
+	// Weak, fast, small enemy.
+	{
+		.activeRadius = DEFAULT_ENEMY_RADIUS,
+		.behaviour = APPROACH,
+		.baseSpeed = ENEMY_DEFAULT_SPEED * 1.5f,
+		.attackCd = 1.25f,
+		.maxhp = 5,
+		.attackId = 5
+	}
+};
+
+Enemy* GetEnemy(int i) {
+	if (i > TOTAL_ENEMIES - 1) {
+		LogDebug("Attempting to get invalid enemy %d", i);
+		return NULL;
+	}
+	return &enemies[i];
+}
+
+ActiveEnemy InstantiateEnemy(Enemy* enemy, Vector2 pos) {
+	return (ActiveEnemy){
+		.active = true,
+		.activeRadius = enemy->activeRadius,
+		.behaviour = enemy->behaviour,
+		.speed = enemy->baseSpeed,
+		.attack = GetAttack(enemy->attackId),
+		.lastAttack = 0.0f,
+		.attackCd = enemy->attackCd,
+		.entity = CreateEntity(
+			enemy->maxhp,
+			pos,
+			(Sprite){
+				.rect = (Rectangle){ 0, 0, 32, 32 },
+				.position = (Vector2){ -16, -16 },
+				.visible = true,
+				.layer = 4
+			},
+			(Rectangle){ -8, -8, 16, 16 },
+			0.5f
+		)
+	};
+}
 
 void SetupEntityEvents() {
 	entityEvents = CreateEventEmitter(0);
@@ -129,7 +201,7 @@ Rectangle HitboxWorldPosition(GameEntity* entity) {
 	};
 }
 
-float MaxAttackRange(Enemy* enemy) {
+float MaxAttackRange(ActiveEnemy* enemy) {
 	if (enemy == NULL || enemy->attack == NULL) {
 		return 0.0f;
 	}
@@ -230,7 +302,7 @@ int EntityUnwindAttack(
 	return 0;
 }
 
-int EnemyCheckAttack(Enemy* enemy, float playTime, Vector2* targetPos) {
+int EnemyCheckAttack(ActiveEnemy* enemy, float playTime, Vector2* targetPos) {
 	if (
 		enemy->entity.stance != ATTACKING
 		&& (enemy->lastAttack == 0.0f || enemy->lastAttack + enemy->attackCd < playTime)

@@ -11,7 +11,20 @@
 #include "object-pool.h"
 #include "event.h"
 
+#define TOTAL_ENEMIES 4
+#define DEFAULT_ENEMY_RADIUS 200.0f
+#define ENEMY_DEFAULT_SPEED 150.0f
+
 typedef enum { APPROACH, STAND, DISTANCE } EnemyBehaviour;
+
+typedef struct {
+	float activeRadius;
+	EnemyBehaviour behaviour;
+	float baseSpeed;
+	float attackCd;
+	int attackId;
+	int maxhp;
+} Enemy;
 
 typedef struct {
 	GameEntity entity;
@@ -24,14 +37,16 @@ typedef struct {
 	float lastAttack;
 	float attackCd;
 	Attack* attack;
-} Enemy;
+} ActiveEnemy;
 
+Enemy* GetEnemy(int i);
+ActiveEnemy InstantiateEnemy(Enemy* enemy, Vector2 pos);
 int DamageEntity(GameEntity* entity, int damage);
 void ApplyStatus(GameEntity* entity, Status status, float value);
 int AttackHitEntity(GameEntity* entity, ActiveAttack* attack);
 void SetStance(GameEntity* entity, Stance stance);
 Rectangle HitboxWorldPosition(GameEntity* entity);
-float MaxAttackRange(Enemy* enemy);
+float MaxAttackRange(ActiveEnemy* enemy);
 void UpdateEntity(GameEntity* entity, float delta);
 int EntityUnwindAttack(
 	GameEntity* entity,
@@ -40,7 +55,7 @@ int EntityUnwindAttack(
 	ObjectPool* attackPool,
 	AttackTarget at
 );
-int EnemyCheckAttack(Enemy* enemy, float playTime, Vector2* targetPos);
+int EnemyCheckAttack(ActiveEnemy* enemy, float playTime, Vector2* targetPos);
 void StandStill(GameEntity* entity);
 GameEntity CreateEntity(int health, Vector2 pos, Sprite sprite, Rectangle hitbox, float invuln);
 void SetupEntityEvents();

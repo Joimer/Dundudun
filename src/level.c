@@ -152,7 +152,8 @@ static Room GenerateRoom(GameContext* context, Level* level, int num, Vector2 po
 		.entities = NULL,
 		.tiles = NULL,
 		.complete = entityCount == 0,
-		.reward = reward
+		.reward = reward,
+		.visited = num == 0,
 	};
 	if (room.tileCount > 0) {
 		room.tiles = malloc(sizeof(Tile) * room.tileCount);
@@ -176,29 +177,9 @@ static Room GenerateRoom(GameContext* context, Level* level, int num, Vector2 po
 
 	// Entities for enemies that will be in the room.
 	if (entityCount > 0) {
-		room.entities = malloc(sizeof(Enemy) * entityCount);
+		room.entities = malloc(sizeof(ActiveEnemy) * entityCount);
 		for (int i = 0; i < entityCount; i++) {
-			room.entities[i] = (Enemy){
-				.active = true,
-				.activeRadius = DEFAULT_ENEMY_RADIUS,
-				.behaviour = i == 2 ? DISTANCE : APPROACH,
-				.speed = ENEMY_DEFAULT_SPEED,
-				.attack = i == 1 ? GetAttack(1) : (i == 2 ? GetAttack(4) : GetAttack(0)),
-				.lastAttack = 0.0f,
-				.attackCd = 2.0f,
-				.entity = CreateEntity(
-					40,
-					RoomOffsetPos(&room, 3, 3 + i),
-					(Sprite){
-						.rect = (Rectangle){ 0, 0, 32, 32 },
-						.position = (Vector2){ -16, -16 },
-						.visible = true,
-						.layer = 4
-					},
-					(Rectangle){ -8, -8, 16, 16 },
-					0.5f
-				)
-			};
+			room.entities[i] = InstantiateEnemy(GetEnemy(i), RoomOffsetPos(&room, 3, 3 + i));
 		}
 	}
 
@@ -514,7 +495,7 @@ static Level GenerateLevel(GameContext* context, int floor) {
 						chances[i] = chanceRemainder;
 					}
 				} else {
-					chanceRemainder = 100.0F - preDirChance;
+					chanceRemainder = 100.0f - preDirChance;
 					float pathChance = (chanceRemainder / 2.0f) * 1.05f;
 					float otherChance = chanceRemainder - pathChance;
 					for (int i = 1; i < 9; i++) {
@@ -758,7 +739,7 @@ static bool TestRectDirCollision(Room* room, GameEntity* self, Rectangle hitbox,
 	return TestPointDirCollision(room, self, cornerX, cornerY, dir);
 }
 
-static void UpdateEnemy(GameContext* context, Player* player, Level* level, Enemy* enemy, float dt) {
+static void UpdateEnemy(GameContext* context, Player* player, Level* level, ActiveEnemy* enemy, float dt) {
 	// Check for death.
 	if (enemy->entity.health <= 0) {
 		enemy->active = false;
@@ -1022,6 +1003,7 @@ static void TriggerRoomChange(Level* level, Room* room) {
 		return;
 	}
 	level->nextRoom = room;
+	room->visited = true;
 	level->swappingRoom = true;
 	level->playTime = 0.0f;
 }
