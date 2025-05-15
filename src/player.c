@@ -225,11 +225,9 @@ void PlayerAttackAction(GameContext* context, Player* player, ObjectPool* attPoo
 void AddRelic(Player* player, Relic* relic) {
 	player->relics[player->relicCount++] = relic;
 	player->dash.consecutive += relic->dashes;
+	// TODO: Use percentage increments?
 	player->speed += relic->speed;
 	player->strength += relic->damage;
-	if (relic->onHit != NULL) {
-
-	}
 }
 
 // Event to apply onHit effects from relics acquired during the run.
@@ -262,7 +260,10 @@ void PlayerCollideItem(Player* player, Item* item) {
 		case I_KEY: player->keys += item->amount; break;
 		case I_EXP: player->exp += item->amount;break;
 		case I_BOMB: player->bombs += item->amount; break;
-		case I_RELIC: /*TODO XD*/ break;
+		case I_RELIC:
+			// For now can use amount to mark ID on relcis. We'll see later.
+			AddRelic(player, GetRelic(item->amount));
+			break;
 		case I_CONSUMABLE: /*TODO XD*/ break;
 		case I_GEAR: /*TODO XD*/ break;
 		default: break;

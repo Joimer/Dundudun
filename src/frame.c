@@ -363,9 +363,10 @@ static void RenderWorldCalls(
 			}
 			Color icolor;
 			switch (level->items[i].type) {
-				case I_EXP: icolor = GOLD;
-				case I_BOMB: icolor = DARKPURPLE;
-				default: icolor = YELLOW;
+				case I_EXP: icolor = GOLD; break;
+				case I_BOMB: icolor = DARKPURPLE; break;
+				case I_RELIC: icolor = SKYBLUE; break;
+				default: icolor = YELLOW; break;
 			}
 			AddDrawCall(queue, (DrawCall){
 				.fun = DRAW_RECT,
@@ -525,13 +526,18 @@ static void RenderScreen(
 	DrawTexturePro(worldRender->texture, renderSource, context->options->screenSize, (Vector2){ 0, 0 }, 0.0f, WHITE);
 
 	// Draw UI elements.
-	DrawFPS(GetScreenWidth() - 95, 10);
-	DrawText(TextFormat("Seed: %s", context->state->seedStr), 10, 10, 25, PURPLE);
+	const int screenWidth = GetScreenWidth();
+	const int screenHeight = GetScreenHeight();
+	const int seedFontSize = 25;
+	DrawFPS( screenWidth - 95, 10);
+	DrawText(
+		TextFormat("Seed: %s", context->state->seedStr),
+		screenWidth - 10 - (9 * seedFontSize), screenHeight - 10 - seedFontSize, seedFontSize, PURPLE
+	);
 
 	// Player status elements in the UI.
 	if (player != NULL) {
 		// HP Bar.
-		int screenHeight = GetScreenHeight();
 		DrawRectangle(20, screenHeight - 40, 255, 25, GOLD);
 		Color hpColor = DARKGREEN;
 		int hpBarWidth = 251;
@@ -552,6 +558,14 @@ static void RenderScreen(
 		DrawText(TextFormat("Bombs: %d", player->bombs), playerHudX, screenHeight - 80, 22, DARKGREEN);
 		DrawText(TextFormat("Keys: %d", player->keys), playerHudX, screenHeight - 120, 22, DARKGREEN);
 		DrawText(TextFormat("EXP: %d", player->exp), playerHudX, screenHeight - 160, 22, DARKGREEN);
+
+		// Draw relics.
+		if (player->relicCount > 0) {
+			int posX = 10, posY = 10;
+			for (int i = 0; i < player->relicCount; i++) {
+				DrawText(TextFormat("[%d]", i), posX + 30 * i, posY, 22, DARKGREEN);
+			}
+		}
 	}
 
 	// Render the minimap.
@@ -559,7 +573,6 @@ static void RenderScreen(
 	const int cols = level->maxX - level->minX;
 	const int rows = level->maxY - level->minY;
 	const int roomPxSize = 5;
-	int screenWidth = GetScreenWidth();
 	const int mmWidth = cols * roomPxSize + roomPxSize;
 	const int mmHeight = rows * roomPxSize + roomPxSize;
 	const int mmStartX = screenWidth - mmWidth - roomPxSize * 2;

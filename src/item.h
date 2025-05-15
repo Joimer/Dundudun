@@ -9,8 +9,8 @@
 #include "game.h"
 #include "attack.h"
 
-#define TOTAL_WEAPONS 2
-#define TOTAL_RELICS 1
+#define TOTAL_WEAPONS 100
+#define TOTAL_RELICS 50
 
 typedef enum { MELEE, SHOOTING } WeaponType;
 
@@ -47,12 +47,25 @@ typedef struct {
 
 typedef void RelicHitEvent(GameEntity*);
 
+typedef enum {
+	LEFTOVER_LUNCH, MACHINE_COFFEE, HR_HEART, SHOCKING_PIC,
+} RelicName;
+
 typedef struct {
+	RelicName id;
 	float damage;
 	int dashes;
 	float speed;
 	RelicHitEvent* onHit;
+	float cooldown;
 } Relic;
+
+typedef enum { KEFIR_DRINK } ConsumableName;
+
+typedef struct {
+	int heal;
+	bool statusHeal[4];
+} Consumable;
 
 typedef enum { I_NONE, I_KEY, I_EXP, I_BOMB, I_RELIC, I_CONSUMABLE, I_GEAR } ItemType;
 

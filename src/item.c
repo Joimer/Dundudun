@@ -24,16 +24,54 @@ static Weapon weapons[TOTAL_WEAPONS] = {
 };
 
 void AddPoisonOnHit(GameEntity* entity) {
-	ApplyStatus(entity, POISON, 5.0f);
+	ApplyStatus(entity, POISON, 2.0f);
+}
+
+void AddBurnOnHit(GameEntity* entity) {
+	ApplyStatus(entity, BURN, 1.0f);
+}
+
+void AddFreezeOnHit(GameEntity* entity) {
+	ApplyStatus(entity, FROZEN, 1.0f);
+}
+
+void AddParalyseOnHit(GameEntity* entity) {
+	ApplyStatus(entity, PARALYSED, 1.0f);
 }
 
 static Relic relics[TOTAL_RELICS] = {
-	{
+	[LEFTOVER_LUNCH] = {
+		.id = LEFTOVER_LUNCH,
 		.damage = 0,
 		.dashes = 0,
 		.speed = 0,
-		.onHit = &AddPoisonOnHit
-	}
+		.onHit = &AddPoisonOnHit,
+		.cooldown = 0,
+	},
+	[MACHINE_COFFEE] = {
+		.id = MACHINE_COFFEE,
+		.damage = 0,
+		.dashes = 0,
+		.speed = 0,
+		.onHit = &AddBurnOnHit,
+		.cooldown = 0,
+	},
+	[HR_HEART] = {
+		.id = HR_HEART,
+		.damage = 0,
+		.dashes = 0,
+		.speed = 0,
+		.onHit = &AddFreezeOnHit,
+		.cooldown = 2.5f,
+	},
+	[SHOCKING_PIC] = {
+		.id = SHOCKING_PIC,
+		.damage = 0,
+		.dashes = 0,
+		.speed = 0,
+		.onHit = &AddParalyseOnHit,
+		.cooldown = 2.5f,
+	},
 };
 
 Weapon* GetWeapon(int i) {
