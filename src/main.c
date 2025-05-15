@@ -11,7 +11,8 @@ int main(void) {
 		.dashMode = DIRECTIONAL,
 		.targetFps = 170,
 		.showGizmos = false,
-		.screenSize = (Rectangle){ 0, 0, 1920, 1080 }
+		.screenSize = (Rectangle){ 0, 0, 1920, 1080 },
+		.fullMap = false,
 	};
 
 	// Initial game window configuration.

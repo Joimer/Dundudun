@@ -7,6 +7,7 @@
 #include "game.h"
 #include "item.h"
 #include "level.h"
+#include "lib.h"
 #include "object-pool.h"
 #include "entity.h"
 
@@ -182,7 +183,7 @@ void UpdateWeaponStatus(Player* player, float delta) {
 	}
 
 	// Check weapon swap.
-	if (IsActionOnce(ACTION_B) && player->gear.equippedWeaps > 1) {
+	if (IsActionOnce(ACTION_SWAP) && player->gear.equippedWeaps > 1) {
 		Weapon* weapon = player->gear.weapons[player->gear.weaponSlot];
 		if (weapon == NULL || !weapon->attacking) {
 			int nextSlot = player->gear.weaponSlot + 1;

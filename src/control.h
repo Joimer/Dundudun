@@ -13,10 +13,11 @@ typedef enum {
 	GO_DOWN,
 	ACCEPT,
 	CANCEL,
-	ACTION_A,
-	ACTION_B,
-	ACTION_C,
-	ACTION_D
+	ACTION_ATT,
+	ACTION_SWAP,
+	ACTION_BOMB,
+	ACTION_DASH,
+	ACTION_TAB,
 } GameAction;
 
 bool IsActionActive(GameAction action);

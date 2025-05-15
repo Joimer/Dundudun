@@ -1096,12 +1096,12 @@ static void UpdatePlayer(GameContext* context, Level* level, Player* player, flo
 	Direction newDir = PlayerUpdateDirection(player);
 	if (!player->entity.stunned && player->entity.stance != ATTACKING) {
 		// Execute dash.
-		if (IsActionActive(ACTION_D) && player->dash.cdLeft == 0.0f) {
+		if (IsActionActive(ACTION_DASH) && player->dash.cdLeft == 0.0f) {
 			return PlayerStartDash(context, player);
 		}
 
 		// Attack action.
-		if (IsActionActive(ACTION_A)) {
+		if (IsActionActive(ACTION_ATT)) {
 			PlayerAttackAction(context, player, &level->attacks);
 		}
 	}
@@ -1146,6 +1146,10 @@ void UpdateLevel(GameContext* context, float dt) {
 		}
 		// Even if the movement was finished, we don't run updates yet until next frame.
 		return;
+	}
+
+	if (IsActionOnce(ACTION_TAB)) {
+		context->options->fullMap = !context->options->fullMap;
 	}
 
 	// TODO: Add death/game over check here. Player ref may be to an uninitialised player if we get to a bad state due to bad code, but should never be null.

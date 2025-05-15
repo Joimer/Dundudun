@@ -569,15 +569,20 @@ static void RenderScreen(
 	}
 
 	// Render the minimap.
+	//fullMap
 	Level* level = GetLevel();
 	const int cols = level->maxX - level->minX;
 	const int rows = level->maxY - level->minY;
-	const int roomPxSize = 5;
+	const int roomPxSize = context->options->fullMap ? 25 : 5;
 	const int mmWidth = cols * roomPxSize + roomPxSize;
 	const int mmHeight = rows * roomPxSize + roomPxSize;
-	const int mmStartX = screenWidth - mmWidth - roomPxSize * 2;
-	const int mmStartY = 40;
-	DrawRectangle(mmStartX, mmStartY, mmWidth + 2, mmHeight + 2, BLACK);
+	const int mmStartX = context->options->fullMap ? (screenWidth - mmWidth) / 2 : screenWidth - mmWidth - roomPxSize * 2;
+	const int mmStartY = context->options->fullMap ? (screenHeight - mmHeight) / 2 : 40;
+	Color outMap = BLACK;
+	if (context->options->fullMap) {
+		outMap.a = 96;
+	}
+	DrawRectangle(mmStartX, mmStartY, mmWidth + 2, mmHeight + 2, outMap);
 	for (int i = 0; i < level->totalRooms; i++) {
 		Color mmc = GRAY;
 		if (
@@ -585,6 +590,9 @@ static void RenderScreen(
 			&& level->rooms[i].pos.y == level->currentRoom->pos.y
 		) {
 			mmc = ORANGE;
+		}
+		if (context->options->fullMap) {
+			mmc.a = 96;
 		}
 		DrawRectangle(
 			mmStartX + 1 + ((level->rooms[i].pos.x - level->minX) * roomPxSize),

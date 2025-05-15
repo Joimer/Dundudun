@@ -66,10 +66,10 @@ static void UpdateLogo(GameContext* context) {
 			context->state->elapsed > 0.1f && (
 			IsActionActive(ACCEPT)
 			|| IsActionActive(CANCEL)
-			|| IsActionActive(ACTION_A)
-			|| IsActionActive(ACTION_B)
-			|| IsActionActive(ACTION_C)
-			|| IsActionActive(ACTION_D)
+			|| IsActionActive(ACTION_ATT)
+			|| IsActionActive(ACTION_SWAP)
+			|| IsActionActive(ACTION_BOMB)
+			|| IsActionActive(ACTION_DASH)
 		))
 	) {
 		LoadNextScreen(context, TITLE);
@@ -80,10 +80,10 @@ static void UpdateTitle(GameContext* context) {
 	if (
 		IsActionActive(ACCEPT)
 		|| IsActionActive(CANCEL)
-		|| IsActionActive(ACTION_A)
-		|| IsActionActive(ACTION_B)
-		|| IsActionActive(ACTION_C)
-		|| IsActionActive(ACTION_D)
+		|| IsActionActive(ACTION_ATT)
+		|| IsActionActive(ACTION_SWAP)
+		|| IsActionActive(ACTION_BOMB)
+		|| IsActionActive(ACTION_DASH)
 	) {
 		LoadNextScreen(context, GAMEPLAY);
 	}

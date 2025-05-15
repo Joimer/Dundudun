@@ -11,10 +11,10 @@ static void SetDefaultKeys() {
 	defaultKeys[GO_DOWN] = KEY_S;
 	defaultKeys[ACCEPT] = KEY_ENTER;
 	defaultKeys[CANCEL] = KEY_X;
-	defaultKeys[ACTION_A] = KEY_Z;
-	defaultKeys[ACTION_B] = KEY_X;
-	defaultKeys[ACTION_C] = KEY_C;
-	defaultKeys[ACTION_D] = KEY_SPACE;
+	defaultKeys[ACTION_ATT] = KEY_Z;
+	defaultKeys[ACTION_SWAP] = KEY_X;
+	defaultKeys[ACTION_BOMB] = KEY_C;
+	defaultKeys[ACTION_DASH] = KEY_SPACE;
 }
 */
 
@@ -31,10 +31,11 @@ static bool DoActionCheckGamepad(GameAction action, int pad, bool padFn(int, int
 		case GO_DOWN: return padFn(pad, GAMEPAD_BUTTON_LEFT_FACE_DOWN);
 		case ACCEPT: return padFn(pad, KEY_A);
 		case CANCEL: return padFn(pad, KEY_A);
-		case ACTION_A: return padFn(pad, GAMEPAD_BUTTON_RIGHT_FACE_DOWN);
-		case ACTION_B: return padFn(pad, GAMEPAD_BUTTON_RIGHT_FACE_RIGHT);
-		case ACTION_C: return padFn(pad, GAMEPAD_BUTTON_RIGHT_FACE_LEFT);
-		case ACTION_D: return padFn(pad, GAMEPAD_BUTTON_RIGHT_FACE_UP);
+		case ACTION_ATT: return padFn(pad, GAMEPAD_BUTTON_RIGHT_FACE_DOWN);
+		case ACTION_SWAP: return padFn(pad, GAMEPAD_BUTTON_RIGHT_FACE_RIGHT);
+		case ACTION_BOMB: return padFn(pad, GAMEPAD_BUTTON_RIGHT_FACE_LEFT);
+		case ACTION_DASH: return padFn(pad, GAMEPAD_BUTTON_RIGHT_FACE_UP);
+		case ACTION_TAB: return padFn(pad, GAMEPAD_BUTTON_MIDDLE);
 		default: return false;
 	}
 }
@@ -47,10 +48,11 @@ static bool DoActionCheck(GameAction action, bool fn(int), bool altFn(int)) {
 		case GO_DOWN: return fn(KEY_S);
 		case ACCEPT: return fn(KEY_ENTER);
 		case CANCEL: return fn(KEY_X);
-		case ACTION_A: return fn(KEY_Z) || altFn(MOUSE_BUTTON_LEFT);
-		case ACTION_B: return fn(KEY_X) || altFn(MOUSE_BUTTON_RIGHT);
-		case ACTION_C: return fn(KEY_C);
-		case ACTION_D: return fn(KEY_SPACE);
+		case ACTION_ATT: return fn(KEY_Z) || altFn(MOUSE_BUTTON_LEFT);
+		case ACTION_SWAP: return fn(KEY_X) || altFn(MOUSE_BUTTON_RIGHT);
+		case ACTION_BOMB: return fn(KEY_Q);
+		case ACTION_DASH: return fn(KEY_SPACE);
+		case ACTION_TAB: return fn(KEY_TAB);
 		default: return false;
 	}
 }

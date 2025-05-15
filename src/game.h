@@ -81,6 +81,7 @@ typedef struct {
 	Rectangle screenSize;
 	bool systemCursor;
 	Sprite cursor;
+	bool fullMap;
 } GameOptions;
 
 typedef struct {
