@@ -630,7 +630,11 @@ static void MoveEntityByForce(Room* room, GameEntity* entity, float force) {
 		LogDebug("Invalid tile!!");
 		return;
 	}
-	Vector2 newPos = AdvancePointByVector(entity->position, entity->anglev, entity->speed * tile->speed * force);
+	float speed = GetEntitySpeed(entity);
+	if (speed == 0.0f) {
+		return StandStill(entity);
+	}
+	Vector2 newPos = AdvancePointByVector(entity->position, entity->anglev, speed * tile->speed * force);
 	Tile* newTile = GetTileByPos(room, &newPos);
 	// Would hit an obstacle on next tile, stop movement.
 	if (newTile->obstacle || (newTile->type == DOOR && !room->complete)) {
@@ -862,8 +866,8 @@ static void UpdateEnemy(GameContext* context, Player* player, Level* level, Acti
 		} else {
 			Vector2 anglev = DirectionToVector(enemy->entity.dir);
 			Rectangle newHitbox = HitboxWorldPosition(&enemy->entity);
-			newHitbox.x += anglev.x * enemy->speed * dt;
-			newHitbox.y += anglev.y * enemy->speed * dt;
+			newHitbox.x += anglev.x * enemy->entity.speed * dt;
+			newHitbox.y += anglev.y * enemy->entity.speed * dt;
 			willCollide = (FindEntityCollision(level->currentRoom, &enemy->entity, &newHitbox) != NULL);
 		}
 
@@ -910,13 +914,15 @@ static void UpdateEnemy(GameContext* context, Player* player, Level* level, Acti
 
 	// Update entity position according to its movement.
 	// Collision checks to be done before this.
-	if (enemy->entity.speed > 0.0f) {
+	float speed = GetEntitySpeed(&enemy->entity);
+	if (speed > 0.0f) {
 		Tile* currentTile = GetTileByPos(level->currentRoom, &enemy->entity.position);
 		if (currentTile == NULL) {
 			LogDebug("Invalid tile!");
 		} else {
 			// Check that the incoming tile after movement ends is not an obstacle.
-			Vector2 nextPos = AdvancePointByDir(enemy->entity.position, enemy->entity.dir, enemy->entity.speed * currentTile->speed * dt);
+			// TODO: Reuse same function as player.
+			Vector2 nextPos = AdvancePointByDir(enemy->entity.position, enemy->entity.dir, speed * currentTile->speed * dt);
 			Tile* nextTile = GetTileByPos(level->currentRoom, &nextPos);
 			if (!nextTile->obstacle && nextTile->speed > 0.0f) {
 				enemy->entity.position = nextPos;

@@ -85,13 +85,14 @@ ActiveAttack InitiateAttack(
 ) {
 	if (attacker == NULL || target == NULL || attack == NULL) {
 		LogDebug("Invalid call to InitiateAttack with a null pointer!");
-		return (ActiveAttack){};
+		return (ActiveAttack){ .source = NULL };
 	}
 	float angle = Vector2LineAngle(attacker->position, *target);
 	float stunDuration = at == T_ENEMY ? 0.2f : 0.1f;
 	float pushForce = at == T_ENEMY ? 150.0f : 50.0f;
 	Vector2 anglev = { cosf(angle), -(sinf(angle)) };
 	ActiveAttack att = {
+		.source = attacker,
 		.attack = attack,
 		.elapsed = 0.0f,
 		.target = at,

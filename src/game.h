@@ -25,14 +25,24 @@ typedef struct {
 
 typedef enum { STANDING, ATTACKING, WALKING, RUNNING, FLYING, DASHING } Stance;
 
-typedef enum { POISON, BURN, FROZEN, PARALYSED } Status;
+typedef enum { POISON, BURN, FROZEN, PARALYSED } StatusName;
 
-extern const float statusTickrates[TOTAL_STATUSES];
+typedef struct {
+	StatusName id;
+	float tickRate;
+	float duration;
+	float speedMod;
+	float dmgMod;
+	bool accumulative;
+} Status;
+
+extern const Status statuses[TOTAL_STATUSES];
 
 typedef struct {
 	float value;
 	bool active;
 	float tickElapsed;
+	float totalElapsed;
 } ActiveStatus;
 
 typedef struct {
@@ -49,6 +59,10 @@ typedef struct {
 	Vector2 anglev;
 	// Speed at which the entity will move in its angle.
 	float speed;
+	// Percentual modifier to final speed.
+	float speedMod;
+	// Percentual modifier to final damage.
+	float dmgMod;
 	// Entity state and the time it's been in that state.
 	Stance stance;
 	float stanceTime;

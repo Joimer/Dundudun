@@ -124,6 +124,17 @@ static void DrawEntity(GameEntity* entity, bool withGizmo, DrawQueue* queue) {
 				.color = doDraw ? RED : (Color){ 230, 41, 55, 10 }
 			}}
 		});
+		AddDrawCall(queue, (DrawCall){
+			.fun = DRAW_TEXT,
+			.layer = ENTITY_LAYER + 1000 + entity->position.y * 15,
+			.args = { .text = {
+				.text = "teki",
+				.posX = pos.x + TILE_SIZE / 5,
+				.posY = pos.y + TILE_SIZE / 4,
+				.fontSize = 15,
+				.color = BLACK
+			}}
+		});
 	}
 	if (withGizmo) {
 		AddDrawCall(queue, (DrawCall){
@@ -532,10 +543,10 @@ static void RenderScreen(
 	DrawFPS( screenWidth - 95, 10);
 	DrawText(
 		TextFormat("Seed: %s", context->state->seedStr),
-		screenWidth - 10 - (9 * seedFontSize), screenHeight - 10 - seedFontSize, seedFontSize, PURPLE
+		screenWidth - 10 - (8 * seedFontSize), screenHeight - 10 - seedFontSize, seedFontSize, PURPLE
 	);
 
-	// Player status elements in the UI.
+	// Player status elements in the UI. (Should player ever be NULL here??)
 	if (player != NULL) {
 		// HP Bar.
 		DrawRectangle(20, screenHeight - 40, 255, 25, GOLD);

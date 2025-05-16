@@ -58,7 +58,7 @@ Enemy* GetEnemy(int i);
 ActiveEnemy InstantiateEnemy(Enemy* enemy, Vector2 pos);
 const EnemyGroup* GetEnemyGroup(int i);
 int DamageEntity(GameEntity* entity, int damage);
-void ApplyStatus(GameEntity* entity, Status status, float value);
+void ApplyStatus(GameEntity* entity, StatusName status, float value);
 int AttackHitEntity(GameEntity* entity, ActiveAttack* attack);
 void SetStance(GameEntity* entity, Stance stance);
 Rectangle HitboxWorldPosition(GameEntity* entity);
@@ -77,5 +77,6 @@ GameEntity CreateEntity(int health, Vector2 pos, Sprite sprite, Rectangle hitbox
 void SetupEntityEvents();
 Observable* GetEntityEvents();
 void EmitDmgEvent(GameEntity* entity, int damage, DamageType type);
+float GetEntitySpeed(GameEntity* entity);
 
 #endif

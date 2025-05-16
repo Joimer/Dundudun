@@ -28,7 +28,7 @@ void AddPoisonOnHit(GameEntity* entity) {
 }
 
 void AddBurnOnHit(GameEntity* entity) {
-	ApplyStatus(entity, BURN, 1.0f);
+	ApplyStatus(entity, BURN, 5.0f);
 }
 
 void AddFreezeOnHit(GameEntity* entity) {

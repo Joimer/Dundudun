@@ -44,6 +44,7 @@ extern Attack attacks[TOTAL_ATTACKS];
 typedef enum { T_PLAYER, T_ENEMY, T_ALL } AttackTarget;
 
 typedef struct {
+	GameEntity* source;
 	Attack* attack;
 	float elapsed;
 	Vector2 center;

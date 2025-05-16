@@ -8,7 +8,40 @@
 #include "resource.h"
 #include "level.h"
 
-const float statusTickrates[TOTAL_STATUSES] = { 0.66f, 1.0f, 1.0f, 1.0f};
+const Status statuses[TOTAL_STATUSES] = {
+	[POISON] = {
+		.id = POISON,
+		.tickRate = 0.66f,
+		.duration = -1,
+		.speedMod = 0,
+		.dmgMod = 0,
+		.accumulative = true,
+	},
+	[BURN] = {
+		.id = BURN,
+		.tickRate = 1.0f,
+		.duration = 5.0f,
+		.speedMod = 0,
+		.dmgMod = 25,
+		.accumulative = false,
+	},
+	[FROZEN] = {
+		.id = FROZEN,
+		.tickRate = 0,
+		.duration = 1.0f,
+		.speedMod = -100,
+		.dmgMod = 0,
+		.accumulative = false,
+	},
+	[PARALYSED] = {
+		.id = PARALYSED,
+		.tickRate = 0,
+		.duration = 10.0f,
+		.speedMod = -50,
+		.dmgMod = 0,
+		.accumulative = false,
+	},
+};
 
 static size_t GenerateGameSeed() {
 	// Seeds are 48 bits long.

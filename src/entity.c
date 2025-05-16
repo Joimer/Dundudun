@@ -183,7 +183,9 @@ GameEntity CreateEntity(
 		.dir = SOUTH,
 		.sprite = sprite,
 		.hitbox = hitbox,
-		.invuln = (Invulnerability){ .duration = invuln }
+		.invuln = (Invulnerability){ .duration = invuln },
+		.speedMod = 1.0f,
+		.dmgMod = 1.0f,
 	};
 	for (int i = POISON; i <= PARALYSED; i++) {
 		entity.statuses[i] = (ActiveStatus){ .value = 0.0f, .active = false	};
@@ -200,17 +202,44 @@ int DamageEntity(GameEntity* entity, int damage) {
 	return damage;
 }
 
-void ApplyStatus(GameEntity* entity, Status status, float value) {
+void ApplyStatus(GameEntity* entity, StatusName status, float value) {
 	// If status wasn't active prior, set tick timing to 0.
 	if (!entity->statuses[status].active) {
 		entity->statuses[status].tickElapsed = 0.0f;
+		entity->statuses[status].totalElapsed = 0.0f;
 	}
 	entity->statuses[status].active = true;
-	entity->statuses[status].value += value;
+	if (statuses[status].accumulative) {
+		entity->statuses[status].value += value;
+	} else {
+		entity->statuses[status].value = value;
+	}
+	if (statuses[status].speedMod != 0.0f) {
+		entity->speedMod += statuses[status].speedMod;
+	}
+	if (statuses[status].dmgMod != 0.0f) {
+		entity->dmgMod += statuses[status].dmgMod;
+	}
+}
+
+static void RemoveStatus(GameEntity* entity, StatusName status) {
+	if (entity->statuses[status].active) {
+		entity->statuses[status].active = false;
+		if (statuses[status].speedMod != 0.0f) {
+			entity->speedMod -= statuses[status].speedMod;
+		}
+		if (statuses[status].dmgMod != 0.0f) {
+			entity->dmgMod -= statuses[status].dmgMod;
+		}
+	}
 }
 
 int AttackHitEntity(GameEntity* entity, ActiveAttack* attack) {
+	// Calculate attack damage from source and active modifiers.
 	int damage = DamageEntity(entity, attack->attack->damage);
+	if (attack->source->dmgMod != 1.0f) {
+		damage = damage + damage * attack->source->dmgMod / 100.0f;
+	}
 
 	// Apply knockback.
 	if (attack->pushForce > 0.0f) {
@@ -235,12 +264,7 @@ int AttackHitEntity(GameEntity* entity, ActiveAttack* attack) {
 	// Apply statuses, if any.
 	for (int i = POISON; i <= PARALYSED; i++) {
 		if (attack->attack->statuses[i] > 0) {
-			// If status wasn't active prior, set tick timing to 0.
-			if (!entity->statuses[i].active) {
-				entity->statuses[i].tickElapsed = 0.0f;
-			}
-			entity->statuses[i].active = true;
-			entity->statuses[i].value += attack->attack->statuses[i];
+			ApplyStatus(entity, i, attack->attack->statuses[i]);
 		}
 	}
 
@@ -303,34 +327,48 @@ static void UpdateStun(GameEntity* entity, float delta) {
 	}
 }
 
-static void RunStatus(GameEntity* entity, Status status) {
+static void RunStatus(GameEntity* entity, StatusName status) {
 	if (!entity->statuses[status].active) {
 		return;
 	}
-	int damage;
 	switch (status) {
 		case POISON:
-			damage = entity->statuses[status].value;
-			if (damage <= 0) {
-				entity->statuses[status].active = false;
+			if (entity->statuses[status].value <= 0) {
+				RemoveStatus(entity, status);
 			} else {
+				EmitDmgEvent(entity, entity->statuses[status].value, D_POISON);
 				entity->statuses[status].value--;
-				EmitDmgEvent(entity, damage, D_POISON);
 			}
 			break;
-		case BURN: break;
-		case FROZEN: break;
-		case PARALYSED: break;
+		case BURN:
+			EmitDmgEvent(entity, entity->statuses[status].value, D_BURN);
+			break;
 		default: break;
 	}
 }
 
+float GetEntitySpeed(GameEntity* entity) {
+	if (entity->speedMod == 1.0f) {
+		return entity->speed;
+	}
+	if (entity->speedMod <= -100.0f) {
+		return 0.0f;
+	}
+	return entity->speed + entity->speed * entity->speedMod / 100.0f;
+}
+
 static void UpdateStatuses(GameEntity* entity, float delta) {
 	for (int i = POISON; i <= PARALYSED; i++) {
-		entity->statuses[i].tickElapsed += delta;
-		if (entity->statuses[i].active && entity->statuses[i].tickElapsed >= statusTickrates[i]) {
-			RunStatus(entity, i);
-			entity->statuses[i].tickElapsed -= statusTickrates[i];
+		if (entity->statuses[i].active) {
+			entity->statuses[i].tickElapsed += delta;
+			entity->statuses[i].totalElapsed += delta;
+			if (statuses[i].tickRate != 0.0f && entity->statuses[i].tickElapsed >= statuses[i].tickRate) {
+				RunStatus(entity, i);
+				entity->statuses[i].tickElapsed -= statuses[i].tickRate;
+			}
+			if (entity->statuses[i].totalElapsed >= statuses[i].duration) {
+				RemoveStatus(entity, i);
+			}
 		}
 	}
 }
@@ -365,6 +403,10 @@ int EntityUnwindAttack(
 
 		// Attack windup has finished, instantiate actual attack hitbox.
 		ActiveAttack att = InitiateAttack(entity, targetPos, attack, at, false);
+		if (att.source == NULL) {
+			LogDebug("Failed creating active attack instance");
+			return -1;
+		}
 		void* result = AddToPool(attackPool, &att);
 		if (result == NULL) {
 			LogDebug("Failed to allocate attack on object pool");
