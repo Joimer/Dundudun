@@ -9,6 +9,7 @@
 #include "player.h"
 #include "entity.h"
 #include "event.h"
+#include "boss.h"
 
 #define COLL_RAYCAST_ACTIVE 64.0f
 #define COLL_RAYCAST_DIST 16.0f
@@ -59,6 +60,7 @@ typedef struct Room {
 	ItemType reward;
 	int rewardAmount;
 	bool visited;
+	ActiveBoss boss;
 } Room;
 
 typedef struct {

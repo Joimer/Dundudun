@@ -13,6 +13,7 @@
 #include "resource.h"
 #include "frame.h"
 #include "entity.h"
+#include "boss.h"
 
 static bool levelSetup = false;
 static Player player;
@@ -137,13 +138,15 @@ static void AddRoomExit(
 
 }
 
-static Room GenerateRoom(GameContext* context, Level* level, int num, Vector2 pos, ItemType reward, int rewardAmount) {
+static Room GenerateRoom(
+	GameContext* context, Level* level, int num, Vector2 pos, ItemType reward, int rewardAmount, RoomType type
+) {
 	// Room that fits world screen: 15x8
 	// Default room values.
 	// TODO: Other type of room sizes.
 	Room room = {
 		.roomNo = num,
-		.type = num == 0 ? HALL : ENCOUNTER,
+		.type = type,
 		.pos = pos,
 		.tileCount = 200,
 		.columns = 15,
@@ -191,6 +194,18 @@ static Room GenerateRoom(GameContext* context, Level* level, int num, Vector2 po
 				RoomOffsetPos(&room, group->enemies[i].pos.x, group->enemies[i].pos.y)
 			);
 		}
+	}
+
+	// Pick boss for the path according to the level.
+	if (room.type == BOSS) {
+		LogDebug("montando room de boss");
+		const Boss* boss = GetBoss(context, level->floor);
+		room.boss = InstantiateBoss(
+			boss,
+			RoomOffsetPos(&room, room.columns / 2, room.rows / 2)
+		);
+	} else {
+		room.boss.active = false;
 	}
 
 	return room;
@@ -393,7 +408,7 @@ static Level GenerateLevel(GameContext* context, int floor) {
 	// Every time you pick a door, the other alternative ones remain closed.
 	// You can go back to all previously open rooms.
 	ItemType reward = I_NONE;
-	level.rooms[0] = GenerateRoom(context, &level, 0, (Vector2){ 0, 0 }, reward, 0);
+	level.rooms[0] = GenerateRoom(context, &level, 0, (Vector2){ 0, 0 }, reward, 0, HALL);
 	level.currentRoom = &level.rooms[0];
 
 	int roomId = 1;
@@ -430,7 +445,8 @@ static Level GenerateLevel(GameContext* context, int floor) {
 			}
 			// Pick reward for the room.
 			int rewardAmount = 1;
-			if (currentRoom == 6) {
+			bool isBoss = currentRoom == roomsPerPath;
+			if (currentRoom == 6 || isBoss) {
 				reward = I_RELIC;
 			} else {
 				// For now, let's just do this.
@@ -447,7 +463,7 @@ static Level GenerateLevel(GameContext* context, int floor) {
 			// TODO: Pick here when rooms are shops.
 			// Boss reward is always a relic as well.
 			level.rooms[currentRoomId] = GenerateRoom(
-				context, &level, currentRoomId, (Vector2){ roomX, roomY }, reward, rewardAmount
+				context, &level, currentRoomId, (Vector2){ roomX, roomY }, reward, rewardAmount, isBoss ? BOSS : ENCOUNTER
 			);
 
 			LogDebug("Adding room exits.");
@@ -470,7 +486,7 @@ static Level GenerateLevel(GameContext* context, int floor) {
 
 			// If it's the last room on the path, there is no need to calculate next position.
 			// Continue onwards to the next path carving.
-			if (currentRoom == roomsPerPath) {
+			if (isBoss) {
 				LogDebug("Path done");
 				break;
 			}
@@ -621,6 +637,16 @@ static GameEntity* FindEntityCollisionPoint(Room* room, Vector2* point, GameEnti
 		}
 	}
 
+	// TODO? Every time the entities are checked in a loop it'd be cool to do an iterator or something
+	// and add the boss or player or whatever too, in the end it's all game entities,,,
+	// Think about it.
+	if (room->boss.active) {
+		entityWorldHitbox = HitboxWorldPosition(&room->boss.entity);
+		if (CheckCollisionPointRec(*point, entityWorldHitbox)) {
+			return &room->boss.entity;
+		}
+	}
+
 	return NULL;
 }
 
@@ -700,6 +726,7 @@ static GameEntity* FindEntityCollision(Room* room, GameEntity* self, Rectangle* 
 		LogDebug("Invalid parameter, null pointer");
 		return NULL;
 	}
+	Rectangle entityWorldHitbox;
 	for (int j = 0; j < room->entityCount; j++) {
 		if (!room->entities[j].active) {
 			// Ignore inactive entities.
@@ -711,9 +738,17 @@ static GameEntity* FindEntityCollision(Room* room, GameEntity* self, Rectangle* 
 		}
 
 		// Check collision with entity.
-		Rectangle entityWorldHitbox = HitboxWorldPosition(&room->entities[j].entity);
+		entityWorldHitbox = HitboxWorldPosition(&room->entities[j].entity);
 		if (CheckCollisionRecs(entityWorldHitbox, *newPos)) {
 			return &room->entities[j].entity;
+		}
+	}
+
+	// TODO: Same as the other todo with similar code
+	if (room->boss.active) {
+		entityWorldHitbox = HitboxWorldPosition(&room->boss.entity);
+		if (CheckCollisionRecs(entityWorldHitbox, *newPos)) {
+			return &room->boss.entity;
 		}
 	}
 
@@ -916,18 +951,7 @@ static void UpdateEnemy(GameContext* context, Player* player, Level* level, Acti
 	// Collision checks to be done before this.
 	float speed = GetEntitySpeed(&enemy->entity);
 	if (speed > 0.0f) {
-		Tile* currentTile = GetTileByPos(level->currentRoom, &enemy->entity.position);
-		if (currentTile == NULL) {
-			LogDebug("Invalid tile!");
-		} else {
-			// Check that the incoming tile after movement ends is not an obstacle.
-			// TODO: Reuse same function as player.
-			Vector2 nextPos = AdvancePointByDir(enemy->entity.position, enemy->entity.dir, speed * currentTile->speed * dt);
-			Tile* nextTile = GetTileByPos(level->currentRoom, &nextPos);
-			if (!nextTile->obstacle && nextTile->speed > 0.0f) {
-				enemy->entity.position = nextPos;
-			}
-		}
+		MoveEntityByForce(level->currentRoom, &enemy->entity, dt);
 	}
 }
 
@@ -1012,6 +1036,9 @@ static void AttackCallback(ObjectPool* pool, int index, void* args) {
 			// Check if attack hits the entity and process it.
 			DoesAttackHit(cbArgs, &room->entities[i].entity, attack);
 		}
+	}
+	if (room->boss.active && !room->boss.entity.invuln.active) {
+		DoesAttackHit(cbArgs, &room->boss.entity, attack);
 	}
 	return;
 
@@ -1134,6 +1161,20 @@ static void AddItem(Level* level, Item item) {
 	level->items[itemId] = item;
 }
 
+static void UpdateRoomBoss(Level* level, ActiveBoss* boss, float dt) {
+	// Update boss state.
+	UpdateBoss(boss, dt);
+	// Apply boss specific behaviour.
+	boss->boss->behaviour(boss, &player);
+	// Boss behaviour does not implement movement as it is agnostic to the room.
+	// We apply here movement and stop it if necessary.
+	// Boss behaviour will find out if it's been stopped.
+	MoveEntityByForce(level->currentRoom, &boss->entity, dt);
+	if (boss->entity.health <= 0.0f) {
+		boss->active = false;
+	}
+}
+
 void UpdateLevel(GameContext* context, float dt) {
 	// During first update we set up the level.
 	// TODO: Loading screen step for this
@@ -1175,11 +1216,20 @@ void UpdateLevel(GameContext* context, float dt) {
 
 	// Update all active entities on current room.
 	int activeEntities = 0;
-	if (level.currentRoom != NULL && level.currentRoom->entityCount > 0) {
-		for (int i = 0; i < level.currentRoom->entityCount; i++) {
-			if (level.currentRoom->entities[i].active) {
-				UpdateEnemy(context, &player, &level, &level.currentRoom->entities[i], dt);
-				activeEntities++;
+	if (level.currentRoom != NULL) {
+		// Run boss behaviour update on boss rooms.
+		if (level.currentRoom->type == BOSS && level.currentRoom->boss.active) {
+			UpdateRoomBoss(&level, &level.currentRoom->boss, dt);
+			activeEntities++;
+		}
+
+		// Boss rooms may also have regular entities.
+		if (level.currentRoom->entityCount > 0) {
+			for (int i = 0; i < level.currentRoom->entityCount; i++) {
+				if (level.currentRoom->entities[i].active) {
+					UpdateEnemy(context, &player, &level, &level.currentRoom->entities[i], dt);
+					activeEntities++;
+				}
 			}
 		}
 	}

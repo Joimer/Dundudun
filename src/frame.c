@@ -334,6 +334,11 @@ static void RenderRoomCalls(GameContext* context, Room* room, Player* player, Dr
 			}
 		}
 	}
+
+	// Draw boss.
+	if (room->boss.active) {
+		DrawEntity(&room->boss.entity, context->options->showGizmos, queue);
+	}
 }
 
 static void RenderWorldCalls(
