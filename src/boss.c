@@ -21,6 +21,7 @@ void Forklift(ActiveBoss* boss, Player* player) {
 		boss->entity.anglev = AngleToVector(angle);
 		boss->entity.dir = AngleToDirection(angle, false);
 		boss->entity.speed = boss->boss->baseSpeed;
+		boss->entity.unstoppable = true;
 		return;
 	}
 
@@ -28,6 +29,7 @@ void Forklift(ActiveBoss* boss, Player* player) {
 	if (boss->stateCount == 1) {
 		// Was stopped upon hitting an obstacle.
 		if (boss->entity.speed == 0.0f) {
+			boss->entity.unstoppable = false;
 			// Change to charging next attack.
 			boss->stateCount = 2;
 			boss->elapsed = 0;
@@ -74,12 +76,12 @@ ActiveBoss InstantiateBoss(const Boss* boss, Vector2 pos) {
 			boss->maxhp,
 			pos,
 			(Sprite){
-				.rect = (Rectangle){ 0, 0, 32, 32 },
-				.position = (Vector2){ -16, -16 },
+				.rect = (Rectangle){ 0, 0, 48, 48 },
+				.position = (Vector2){ -24, -24 },
 				.visible = true,
 				.layer = 4
 			},
-			(Rectangle){ -8, -8, 16, 16 },
+			(Rectangle){ -12, -12, 24, 24 },
 			0.5f
 		)
 	};

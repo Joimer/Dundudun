@@ -63,6 +63,8 @@ typedef struct {
 	float speedMod;
 	// Percentual modifier to final damage.
 	float dmgMod;
+	// Whether the entity can be affected by external physical forces.
+	bool unstoppable;
 	// Entity state and the time it's been in that state.
 	Stance stance;
 	float stanceTime;

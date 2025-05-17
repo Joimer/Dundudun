@@ -120,13 +120,13 @@ static void DrawEntity(GameEntity* entity, bool withGizmo, DrawQueue* queue) {
 			.fun = DRAW_RECT,
 			.layer = ENTITY_LAYER + entity->position.y * 10,
 			.args = { .rect = {
-				.rec = (Rectangle){ pos.x, pos.y, TILE_SIZE, TILE_SIZE },
+				.rec = (Rectangle){ pos.x, pos.y, entity->sprite.rect.width, entity->sprite.rect.height },
 				.color = doDraw ? RED : (Color){ 230, 41, 55, 10 }
 			}}
 		});
 		AddDrawCall(queue, (DrawCall){
 			.fun = DRAW_TEXT,
-			.layer = ENTITY_LAYER + 1000 + entity->position.y * 15,
+			.layer = ENTITY_LAYER + 10 + entity->position.y * 10,
 			.args = { .text = {
 				.text = "teki",
 				.posX = pos.x + TILE_SIZE / 5,

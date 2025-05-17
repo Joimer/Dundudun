@@ -186,6 +186,7 @@ GameEntity CreateEntity(
 		.invuln = (Invulnerability){ .duration = invuln },
 		.speedMod = 1.0f,
 		.dmgMod = 1.0f,
+		.unstoppable = false,
 	};
 	for (int i = POISON; i <= PARALYSED; i++) {
 		entity.statuses[i] = (ActiveStatus){ .value = 0.0f, .active = false	};
@@ -242,14 +243,14 @@ int AttackHitEntity(GameEntity* entity, ActiveAttack* attack) {
 	}
 
 	// Apply knockback.
-	if (attack->pushForce > 0.0f) {
+	if (!entity->unstoppable && attack->pushForce > 0.0f) {
 		entity->speed = attack->pushForce;
 		float angle = Vector2LineAngle(attack->center, entity->position);
 		entity->anglev = (Vector2){ .x = cosf(angle), .y = -(sinf(angle)) };
 	}
 
 	// Apply damage received stun.
-	if (attack->stunDuration > 0.0f) {
+	if (!entity->unstoppable && attack->stunDuration > 0.0f) {
 		entity->stunned = true;
 		entity->stunDuration = attack->stunDuration;
 		entity->stunElapsed = 0.0f;
