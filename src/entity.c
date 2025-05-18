@@ -419,7 +419,7 @@ int EntityUnwindAttack(
 		}
 
 		// Attack windup has finished, instantiate actual attack hitbox.
-		ActiveAttack att = InitiateAttack(entity, targetPos, attack, at, false);
+		ActiveAttack att = InitiateAttack(entity, targetPos, attack, at, at == T_ALL);
 		if (att.source == NULL) {
 			LogDebug("Failed creating active attack instance");
 			return -1;

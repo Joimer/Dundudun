@@ -819,7 +819,7 @@ static void UpdateEnemy(GameContext* context, Player* player, Level* level, Acti
 			&enemy->entity, enemy->attack,
 			&player->entity.position,
 			&level->attacks,
-			T_PLAYER
+			enemy->behaviour == BOMB ? T_ALL : T_PLAYER
 		);
 		if (unwindState > 0) {
 			// Enemy just finished winding an attack.
