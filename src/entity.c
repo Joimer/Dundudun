@@ -261,6 +261,8 @@ int AttackHitEntity(GameEntity* entity, ActiveAttack* attack) {
 		entity->speed = attack->pushForce;
 		float angle = Vector2LineAngle(attack->center, entity->position);
 		entity->anglev = (Vector2){ .x = cosf(angle), .y = -(sinf(angle)) };
+		// Interrupts attacking stances.
+		SetStance(entity, WALKING);
 	}
 
 	// Apply damage received stun.
