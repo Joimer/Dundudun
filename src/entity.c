@@ -15,6 +15,7 @@ Enemy enemies[TOTAL_ENEMIES] = {
 		.attackCd = 2.0f,
 		.maxhp = 40,
 		.attackId = 0,
+		.touchDmg = 0,
 	},
 	// Basic shooting from distance enemy.
 	[MAINT_SHOOTER] = {
@@ -23,7 +24,8 @@ Enemy enemies[TOTAL_ENEMIES] = {
 		.baseSpeed = ENEMY_DEFAULT_SPEED,
 		.attackCd = 2.0f,
 		.maxhp = 40,
-		.attackId = 4
+		.attackId = 4,
+		.touchDmg = 0,
 	},
 	// Basic slow heavy hitter.
 	[MAINT_FAT] = {
@@ -32,7 +34,8 @@ Enemy enemies[TOTAL_ENEMIES] = {
 		.baseSpeed = ENEMY_DEFAULT_SPEED * 0.33f,
 		.attackCd = 2.0f,
 		.maxhp = 80,
-		.attackId = 1
+		.attackId = 1,
+		.touchDmg = 0,
 	},
 	// Weak, fast, small enemy.
 	[RAT] = {
@@ -41,8 +44,19 @@ Enemy enemies[TOTAL_ENEMIES] = {
 		.baseSpeed = ENEMY_DEFAULT_SPEED * 1.5f,
 		.attackCd = 1.25f,
 		.maxhp = 9,
-		.attackId = 5
-	}
+		.attackId = 5,
+		.touchDmg = 0,
+	},
+	// Player bomb is treated as an enemy that does not hurt on hit.
+	[PBOMB] = {
+		.activeRadius = DEFAULT_ENEMY_RADIUS * 10,
+		.behaviour = BOMB,
+		.baseSpeed = 0,
+		.attackCd = 2.0f,
+		.maxhp = 1,
+		.attackId = 6,
+		.touchDmg = 0,
+	},
 };
 
 // Enemy groups that are placed in picked fight rooms.

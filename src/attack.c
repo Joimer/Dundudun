@@ -77,7 +77,19 @@ Attack attacks[TOTAL_ATTACKS] = {
 		.speed = 0,
 		.projectile = false,
 		.dmgType = D_PHYSICAL
-	}
+	},
+	// Player bomb explosion.
+	{
+		.damage = 35,
+		.windup = 2.0f,
+		.duration = 0.75f,
+		.centerDist = 0.0f,
+		.type = HB_CIRCLE,
+		.hitbox = { .radius = 64.0f },
+		.speed = 0,
+		.projectile = false,
+		.dmgType = D_PHYSICAL
+	},
 };
 
 ActiveAttack InitiateAttack(

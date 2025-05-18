@@ -23,7 +23,7 @@ extern const ScreenSize resolutions[5];
 #define ENTITY_LAYER 200000
 #define EFFECTS_LAYER 300000
 #define GIZMO_LAYER 400000
-#define UI_LAYER 500000
+#define UI_LAYER 1000000
 
 #define ROOM_CHANGE_TIME 0.5f
 

@@ -196,13 +196,17 @@ static Room GenerateRoom(
 		int groupId = GetRandomMTValue(&context->state->mtrand) % 6;
 		const EnemyGroup* group = GetEnemyGroup(groupId);
 		room.entityCount = group->count;
-		room.entities = malloc(sizeof(ActiveEnemy) * group->count);
+		// Allocate enough for enemies and for 99 bombs.
+		room.entities = calloc(sizeof(ActiveEnemy), group->count + 99);
 		for (int i = 0; i < group->count; i++) {
 			room.entities[i] = InstantiateEnemy(
 				GetEnemy(group->enemies[i].enemyId),
 				RoomOffsetPos(&room, group->enemies[i].pos.x, group->enemies[i].pos.y)
 			);
 		}
+	} else {
+		// Make site for bombs and such on non encounter rooms.
+		room.entities = calloc(sizeof(ActiveEnemy),99);
 	}
 
 	// Pick boss for the path according to the level.
@@ -818,10 +822,17 @@ static void UpdateEnemy(GameContext* context, Player* player, Level* level, Acti
 			T_PLAYER
 		);
 		if (unwindState > 0) {
-			// Enemy is winding up an attack or just finished doing so.
+			// Enemy just finished winding an attack.
 			if (unwindState == 2) {
-				return StandStill(&enemy->entity);
+				if (enemy->behaviour == BOMB) {
+					// Bombs are deactivated after exploding.
+					enemy->active = false;
+					return;
+				} else {
+					return StandStill(&enemy->entity);
+				}
 			}
+			// Enemy is winding up.
 			return;
 		}
 
@@ -1065,6 +1076,22 @@ static void TriggerRoomChange(Level* level, Room* room) {
 	level->playTime = 0.0f;
 }
 
+static void SpawnBomb(Level* level, Vector2 pos) {
+	// TODO: Realloc?
+	if (level->currentRoom->entities == NULL) {
+		LogDebug("Invalid entities pointer on room");
+		return;
+	}
+	int bombId = level->currentRoom->entityCount++;
+	level->currentRoom->entities[bombId] = InstantiateEnemy(
+		GetEnemy(PBOMB),
+		pos
+	);
+	level->currentRoom->entities[bombId].entity.invuln.active = true;
+	level->currentRoom->entities[bombId].entity.invuln.duration = 1000.0f;
+	level->currentRoom->entities[bombId].entity.unstoppable = true;
+}
+
 static void UpdatePlayer(GameContext* context, Level* level, Player* player, float delta) {
 	if (level->swappingRoom) {
 		return;
@@ -1138,6 +1165,12 @@ static void UpdatePlayer(GameContext* context, Level* level, Player* player, flo
 	// Movement actions being pressed to pick current direction.
 	Direction newDir = PlayerUpdateDirection(player);
 	if (!player->entity.stunned && player->entity.stance != ATTACKING) {
+		// Plant bomb, first action.
+		if (IsActionOnce(ACTION_BOMB) && player->bombs > 0) {
+			player->bombs--;
+			SpawnBomb(level, player->entity.position);
+		}
+
 		// Execute dash.
 		if (IsActionActive(ACTION_DASH) && player->dash.cdLeft == 0.0f) {
 			return PlayerStartDash(context, player);
@@ -1209,7 +1242,7 @@ void UpdateLevel(GameContext* context, float dt) {
 		context->options->fullMap = !context->options->fullMap;
 	}
 
-	// TODO: Add death/game over check here. Player ref may be to an uninitialised player if we get to a bad state due to bad code, but should never be null.
+	// TODO: Add death/game over check here.
 	UpdatePlayer(context, &level, &player, dt);
 
 	// Run ongoing attacks.

@@ -8,7 +8,7 @@
 #include <raylib.h>
 #include "game.h"
 
-#define TOTAL_ATTACKS 6
+#define TOTAL_ATTACKS 10
 
 // Hitboxes are either rectangles or circles, for now.
 typedef enum { HB_RECT = 1, HB_CIRCLE = 2 } HitboxType;

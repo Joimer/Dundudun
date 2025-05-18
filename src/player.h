@@ -44,6 +44,7 @@ typedef struct {
 	// Regular bombs to blow up stuff.
 	int bombs;
 	// TODO: Spell cards as bomb alternative
+	float bombElapsed;
 } Player;
 
 Player CreatePlayer(Texture2D* characterTexture);

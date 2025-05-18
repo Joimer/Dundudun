@@ -133,7 +133,7 @@ static void DrawEntity(GameEntity* entity, bool withGizmo, DrawQueue* queue) {
 				.text = "teki",
 				.posX = pos.x + TILE_SIZE / 5,
 				.posY = pos.y + TILE_SIZE / 4,
-				.fontSize = 15,
+				.fontSize = 12,
 				.color = BLACK
 			}}
 		});

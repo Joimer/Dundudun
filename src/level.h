@@ -41,6 +41,16 @@ typedef struct {
 
 typedef enum { HALL, ENCOUNTER, SHOP, BOSS } RoomType;
 
+/* TODO or idk
+typedef struct {
+	EntityType type;
+	union {
+		ActiveBoss boss;
+		ActiveEnemy enemy;
+	} entity;
+} ActiveEntity;
+*/
+
 typedef struct Room {
 	// Room number in the player pathing.
 	int roomNo;

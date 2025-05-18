@@ -11,15 +11,19 @@
 #include "object-pool.h"
 #include "event.h"
 
-#define TOTAL_ENEMIES 4
+#define TOTAL_ENEMIES 5
 #define TOTAL_ENEMY_GROUPS 25
 #define DEFAULT_ENEMY_RADIUS 200.0f
 #define ENEMY_DEFAULT_SPEED 150.0f
 
-typedef enum { APPROACH, STAND, DISTANCE } EnemyBehaviour;
+// Will I use this? Could be better idk haha
+typedef enum { PLAYER_ENT, ENEMY_ENT, BOSS_ENT, ITEM_ENT } EntityType;
 
-typedef enum { MAINT_MELEE, MAINT_SHOOTER, MAINT_FAT, RAT } EnemyType;
+typedef enum { APPROACH, STAND, DISTANCE, BOMB } EnemyBehaviour;
 
+typedef enum { MAINT_MELEE, MAINT_SHOOTER, MAINT_FAT, RAT, PBOMB } EnemyType;
+
+// Enemy template to instantiate an live entity on a level.
 typedef struct {
 	float activeRadius;
 	EnemyBehaviour behaviour;
@@ -27,6 +31,7 @@ typedef struct {
 	float attackCd;
 	int attackId;
 	int maxhp;
+	int touchDmg;
 } Enemy;
 
 typedef struct {
