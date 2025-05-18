@@ -551,7 +551,10 @@ static void RenderScreen(
 		screenWidth - 10 - (8 * seedFontSize), screenHeight - 10 - seedFontSize, seedFontSize, PURPLE
 	);
 
+	const Vector2 mousePos = GetMousePosition();
+
 	// Player status elements in the UI. (Should player ever be NULL here??)
+	int relicHover = -1;
 	if (player != NULL) {
 		// HP Bar.
 		DrawRectangle(20, screenHeight - 40, 255, 25, GOLD);
@@ -578,14 +581,24 @@ static void RenderScreen(
 		// Draw relics.
 		if (player->relicCount > 0) {
 			int posX = 10, posY = 10;
+			const char* relicText = "[%d]";
+			const int fontSize = 22;
+			int txtWidth = MeasureText(relicText, fontSize);
+
 			for (int i = 0; i < player->relicCount; i++) {
-				DrawText(TextFormat("[%d]", i), posX + 30 * i, posY, 22, DARKGREEN);
+				int currPosX = posX + 30 * i;
+				DrawText(TextFormat(relicText, player->relics[i]->id), currPosX, posY, fontSize, DARKGREEN);
+				if (CheckCollisionPointRec(mousePos, (Rectangle){
+					currPosX, posY,
+					txtWidth, fontSize
+				})) {
+					relicHover = i;
+				}
 			}
 		}
 	}
 
 	// Render the minimap.
-	//fullMap
 	Level* level = GetLevel();
 	const int cols = level->maxX - level->minX;
 	const int rows = level->maxY - level->minY;
@@ -619,7 +632,24 @@ static void RenderScreen(
 
 	// Mouse pointer.
 	if (!context->options->systemCursor) {
-		DrawTextureEx(*context->options->cursor.texture, GetMousePosition(), 0.0f, GetScreenScale(), WHITE);
+		DrawTextureEx(*context->options->cursor.texture, mousePos, 0.0f, GetScreenScale(), WHITE);
+	}
+
+	// Tooltips.
+	if (relicHover > -1) {
+		const int tooltipSize = 25;
+		const char* label = GetRelicLabel(context->options->lang, player->relics[relicHover]->id);
+		const char* tooltip = GetRelicTooltip(context->options->lang, player->relics[relicHover]->id);
+		const int labelWidth = MeasureText(label, tooltipSize);
+		const int tooltipWidth = MeasureText(tooltip, tooltipSize);
+		const int maxWidth = labelWidth > tooltipWidth ? labelWidth : tooltipWidth;
+		DrawRectangle(
+			mousePos.x -5, mousePos.y -5,
+			maxWidth + 10, tooltipSize * 2 + 10,
+			(Color){ 80, 80, 80, 190 }
+		);
+		DrawText(label, mousePos.x, mousePos.y, tooltipSize, (Color){ 255, 255, 255, 190 });
+		DrawText(tooltip, mousePos.x, mousePos.y + 5 + tooltipSize, tooltipSize, (Color){ 255, 255, 255, 190 });
 	}
 
 	// We are done, show the frame.
@@ -736,8 +766,8 @@ void SetupGameWindow(GameContext* context) {
 	int monitorWidth = GetMonitorWidth(monitor);
 	int monitorHeight = GetMonitorHeight(monitor);
 	int scale = (int) Clamp(fmin(
-		monitorWidth / WORLD_SIZE_WIDTH,
-		monitorHeight / WORLD_SIZE_HEIGHT
+		(float)monitorWidth / WORLD_SIZE_WIDTH,
+		(float)monitorHeight / WORLD_SIZE_HEIGHT
 	), 1, 10);
 	ScreenSize newSize = { WORLD_SIZE_WIDTH * scale, WORLD_SIZE_HEIGHT * scale };
 	ResizeWindow(context, newSize);

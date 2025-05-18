@@ -9,6 +9,7 @@
 #include <raymath.h>
 #include "lib.h"
 #include "screens.h"
+#include "text.h"
 
 #define GAME_CLOSE_SUCCESS 0
 #define SEED_LENGTH 8
@@ -98,6 +99,7 @@ typedef struct {
 	bool systemCursor;
 	Sprite cursor;
 	bool fullMap;
+	Language lang;
 } GameOptions;
 
 typedef struct {
