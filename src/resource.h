@@ -7,9 +7,12 @@
 
 #include <raylib.h>
 
-typedef enum { CURSOR_TEXTURE, PLAYER_TEXTURE, DOOR_TEXTURE } GameTexture;
+typedef enum {
+	CURSOR_TEXTURE, PLAYER_TEXTURE, DOOR_TEXTURE, DOOR_OPEN_TEXTURE
+} GameTexture;
 
 Texture2D* GetTexture(GameTexture text);
 void UnloadTextures();
+void LoadAllTextures();
 
 #endif

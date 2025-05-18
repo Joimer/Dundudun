@@ -7,6 +7,7 @@
 #include "frame.h"
 #include "resource.h"
 #include "level.h"
+#include "text.h"
 
 const Status statuses[TOTAL_STATUSES] = {
 	[POISON] = {
@@ -160,6 +161,13 @@ int RunGame(GameContext* context) {
 	// Generate initial seed (can be set by player later, too).
 	SetupGamePRNG(context);
 
+	// Load fonts to be used in the game.
+	LoadGameFont();
+
+	// Load game textures.
+	// TODO: Maybe load them by level or something?
+	LoadAllTextures();
+
 	// Main game loop
 	while (!WindowShouldClose()) {
 		// First run the logic updates.
@@ -172,10 +180,11 @@ int RunGame(GameContext* context) {
 	// Unload resources and memory before exit.
 	DestroyLevel();
 	DestroyPlayer();
-	UnloadTextures();
 	if (context->state->seedStr != NULL) {
 		free((char*)context->state->seedStr);
 	}
+	UnloadGameFont();
+	UnloadTextures();
 	CloseWindow();
 
 	return GAME_CLOSE_SUCCESS;

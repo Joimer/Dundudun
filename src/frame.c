@@ -297,7 +297,7 @@ static void RenderRoomCalls(GameContext* context, Room* room, Player* player, Dr
 						.fun = DRAW_TEXTURE,
 						.layer = BG_LAYER + row,
 						.args = { .texture = {
-							.texture = *GetTexture(DOOR_TEXTURE),
+							.texture = *GetTexture(room->tiles[index].warp.touched && room->complete ? DOOR_OPEN_TEXTURE : DOOR_TEXTURE),
 							.source = tileRect,
 							.position = (Vector2){ tileRect.x, tileRect.y },
 							.tint = WHITE,
@@ -657,6 +657,9 @@ static void RenderScreen(
 	}
 	DrawRectangle(mmStartX, mmStartY, mmWidth + 2, mmHeight + 2, outMap);
 	for (int i = 0; i < level->totalRooms; i++) {
+		if (!level->rooms[i].visited) {
+			continue;
+		}
 		Color mmc = GRAY;
 		if (
 			level->rooms[i].pos.x == level->currentRoom->pos.x

@@ -20,6 +20,8 @@ typedef enum {
 	SHOCKING_PIC_LABEL, SHOCKING_PIC_TOOLTIP,
 } GameText;
 
+void LoadGameFont();
+void UnloadGameFont();
 Font GetGameFont();
 void DrawColourText(const char *text, int posX, int posY, float fontSize, Color baseTint);
 const char* GetText(Language lang, GameText text);

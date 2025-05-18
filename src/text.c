@@ -13,11 +13,18 @@ static float GetLineSpacing() {
 
 static Font gameFont;
 
+void LoadGameFont() {
+	gameFont = LoadFont("src/resources/fonts/pixantiqua.png");
+}
+
+void UnloadGameFont() {
+	UnloadFont(gameFont);
+}
+
 Font GetGameFont() {
 	if (gameFont.texture.id == 0) {
-		gameFont = LoadFont("src/resources/fonts/pixantiqua.png");
+		return GetFontDefault();
 	}
-	if (gameFont.texture.id == 0) return GetFontDefault();
 	return gameFont;
 }
 

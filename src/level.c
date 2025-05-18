@@ -133,15 +133,16 @@ static void AddRoomExit(
 	LogDebug("Adding exit from %d,%d (index %d, columns %d) to pos %f,%f", fromX, fromY, index, room->columns, destPos.x, destPos.y);
 	room->tiles[index].warp.dest = destination;
 	room->tiles[index].warp.pos = destPos;
+	room->tiles[index].warp.touched = false;
 	room->tiles[index].type = DOOR;
 	room->tiles[index].obstacle = false;
 	// TODO: Not sure if the best way to do this tbh.
 	if (fromX == destX && fromY > destY) {
-		room->tiles[index].rotation = DirectionToAngle(WEST) / DEG2RAD;
+		room->tiles[index].rotation = 180.0f;
 	} else if (fromX > destX) {
-		room->tiles[index].rotation = DirectionToAngle(NORTH) / DEG2RAD;
+		room->tiles[index].rotation = 90.0f;
 	} else if (fromX < destX) {
-		room->tiles[index].rotation = DirectionToAngle(SOUTH) / DEG2RAD;
+		room->tiles[index].rotation = 270.0f;
 	}
 }
 
@@ -1078,6 +1079,7 @@ static void UpdatePlayer(GameContext* context, Level* level, Player* player, flo
 			// Set player to the warp position.
 			context->state->lastCamPos = context->state->camera.target;
 			player->entity.position = tile->warp.pos;
+			tile->warp.touched = true;
 			return TriggerRoomChange(level, tile->warp.dest);
 		}
 	}
