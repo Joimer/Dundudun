@@ -6,3 +6,4 @@ Running `valgrind.sh` will run Valgrind on the program with a preset of options.
 
 Using camelCase and PascalCase so the code has the same style as Raylib.
 
+The Pixantiqua font is designed by designed by Gerhard Grossmann and is a free to use font distributed alongside Raylib.

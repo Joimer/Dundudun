@@ -11,6 +11,16 @@ static float GetLineSpacing() {
 	return textLineSpacing;
 }
 
+static Font gameFont;
+
+Font GetGameFont() {
+	if (gameFont.texture.id == 0) {
+		gameFont = LoadFont("src/resources/fonts/pixantiqua.png");
+	}
+	if (gameFont.texture.id == 0) return GetFontDefault();
+	return gameFont;
+}
+
 const Color gameColours[TOTAL_GCOLOURS] = {
 	[C_RED] = { 210, 31, 45, 255 },
 	[C_GREEN] = { 0, 111, 231, 255 },
@@ -36,9 +46,9 @@ static Color GetGameColor(int code, Color defColour) {
 
 // Reimplements DrawTextEx to use various different colours within the same text.
 void DrawColourText(
-	Font font, const char *text, Vector2 position, float fontSize, Color baseTint
+	const char *text, int posX, int posY, float fontSize, Color baseTint
 ) {
-	if (font.texture.id == 0) font = GetFontDefault();
+	Font font = GetGameFont();
 	float spacing = GetLineSpacing();
 	int size = TextLength(text);
 	float textOffsetY = 0;
@@ -67,6 +77,7 @@ void DrawColourText(
 					currentTint = baseTint;
 				} else {
 					currentTint = GetGameColor(codepoint, baseTint);
+					currentTint.a = baseTint.a;
 				}
 			}
 			i += codepointByteCount;
@@ -79,7 +90,7 @@ void DrawColourText(
 			textOffsetX = 0.0f;
 		} else {
 			if ((codepoint != ' ') && (codepoint != '\t')) {
-				DrawTextCodepoint(font, codepoint, (Vector2){ position.x + textOffsetX, position.y + textOffsetY }, fontSize, currentTint);
+				DrawTextCodepoint(font, codepoint, (Vector2){ posX + textOffsetX, posY + textOffsetY }, fontSize, currentTint);
 			}
 
 			if (font.glyphs[index].advanceX == 0) {

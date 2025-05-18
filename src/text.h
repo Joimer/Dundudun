@@ -20,7 +20,8 @@ typedef enum {
 	SHOCKING_PIC_LABEL, SHOCKING_PIC_TOOLTIP,
 } GameText;
 
-void DrawColourText(Font font, const char *text, Vector2 position, float fontSize, Color baseTint);
+Font GetGameFont();
+void DrawColourText(const char *text, int posX, int posY, float fontSize, Color baseTint);
 const char* GetText(Language lang, GameText text);
 // TODO etc. game.c loads text.h so we cannot use the enums from other places here uuuuh DOUSHIOU
 const char* GetRelicLabel(Language lang, int relic);

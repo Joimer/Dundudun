@@ -54,7 +54,6 @@ const Boss bosses[TOTAL_BOSSES] = {
 };
 
 const Boss* GetBoss(GameContext* context, int level) {
-	LogDebug("GetBoss %d", level);
 	for (int i = 0; i < TOTAL_BOSSES; i++) {
 		if (bosses[i].level == level) {
 			// TODO: Random between bosses of same level.

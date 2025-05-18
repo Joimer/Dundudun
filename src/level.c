@@ -166,7 +166,7 @@ static Room GenerateRoom(
 			for (int column = 0; column < room.columns; column++) {
 				const bool isWall = (row == 0 || column == 0 || column == room.columns - 1 || row == room.rows - 1);
 				const int index = column + (room.columns * row);
-				const TileType type = isWall ? WALL : (index % 3 == 0 ? forGrass : GROUND);
+				const TileType type = isWall ? WALL : (index % 6 == 0 ? forGrass : GROUND);
 				room.tiles[index] = (Tile){
 					.type = type,
 					.obstacle = isWall,

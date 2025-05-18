@@ -478,7 +478,7 @@ static void RenderWorld(
 				break;
 			case DRAW_TEXT:
 				if (call->args.text.text != NULL) {
-					DrawText(
+					DrawColourText(
 						call->args.text.text,
 						call->args.text.posX,
 						call->args.text.posY,
@@ -546,7 +546,7 @@ static void RenderScreen(
 	const int screenHeight = GetScreenHeight();
 	const int seedFontSize = 25;
 	DrawFPS( screenWidth - 95, 10);
-	DrawText(
+	DrawColourText(
 		TextFormat("Seed: %s", context->state->seedStr),
 		screenWidth - 10 - (8 * seedFontSize), screenHeight - 10 - seedFontSize, seedFontSize, PURPLE
 	);
@@ -573,10 +573,10 @@ static void RenderScreen(
 		}
 		const int playerHudX = 22;
 		DrawRectangle(playerHudX, screenHeight - 38, hpBarWidth, 21, hpColor);
-		DrawText(TextFormat("%d HP", player->entity.health), playerHudX + 263, screenHeight - 40, 22, DARKGREEN);
-		DrawText(TextFormat("Bombs: %d", player->bombs), playerHudX, screenHeight - 80, 22, DARKGREEN);
-		DrawText(TextFormat("Keys: %d", player->keys), playerHudX, screenHeight - 120, 22, DARKGREEN);
-		DrawText(TextFormat("EXP: %d", player->exp), playerHudX, screenHeight - 160, 22, DARKGREEN);
+		DrawColourText(TextFormat("%d HP", player->entity.health), playerHudX + 263, screenHeight - 40, 22, DARKGREEN);
+		DrawColourText(TextFormat("Bombs: %d", player->bombs), playerHudX, screenHeight - 80, 22, DARKGREEN);
+		DrawColourText(TextFormat("Keys: %d", player->keys), playerHudX, screenHeight - 120, 22, DARKGREEN);
+		DrawColourText(TextFormat("EXP: %d", player->exp), playerHudX, screenHeight - 160, 22, DARKGREEN);
 
 		// Draw relics.
 		if (player->relicCount > 0) {
@@ -587,7 +587,7 @@ static void RenderScreen(
 
 			for (int i = 0; i < player->relicCount; i++) {
 				int currPosX = posX + 30 * i;
-				DrawText(TextFormat(relicText, player->relics[i]->id), currPosX, posY, fontSize, DARKGREEN);
+				DrawColourText(TextFormat(relicText, player->relics[i]->id), currPosX, posY, fontSize, DARKGREEN);
 				if (CheckCollisionPointRec(mousePos, (Rectangle){
 					currPosX, posY,
 					txtWidth, fontSize
@@ -648,10 +648,8 @@ static void RenderScreen(
 			maxWidth + 10, tooltipSize * 2 + 10,
 			(Color){ 80, 80, 80, 190 }
 		);
-		//DrawText(label, mousePos.x, mousePos.y, tooltipSize, (Color){ 255, 255, 255, 190 });
-		DrawColourText(GetFontDefault(), label, mousePos, tooltipSize, (Color){ 255, 255, 255, 190 });
-		//DrawText(tooltip, mousePos.x, mousePos.y + 5 + tooltipSize, tooltipSize, (Color){ 255, 255, 255, 190 });
-		DrawColourText(GetFontDefault(), tooltip, (Vector2){ mousePos.x, mousePos.y + 5 + tooltipSize}, tooltipSize, (Color){ 255, 255, 255, 190 });
+		DrawColourText(label, mousePos.x, mousePos.y, tooltipSize, (Color){ 255, 255, 255, 190 });
+		DrawColourText(tooltip, mousePos.x, mousePos.y + 5 + tooltipSize, tooltipSize, (Color){ 255, 255, 255, 190 });
 	}
 
 	// We are done, show the frame.
@@ -668,7 +666,7 @@ static void RenderLogo(
 	const char* text = "Mantis Shrimp";
 	int fontSize = 42;
 	int textPxSize = MeasureText(text, fontSize);
-	DrawText(text, worldRender->texture.width / 2 - textPxSize / 2, worldRender->texture.height / 2 - fontSize / 2, fontSize, BLACK);
+	DrawColourText(text, worldRender->texture.width / 2 - textPxSize / 2, worldRender->texture.height / 2 - fontSize / 2, fontSize, BLACK);
 
 	// Fade in logo 2s, fade out
 	if (context->state->elapsed <= LOGO_FADE_TIME) {
@@ -704,7 +702,7 @@ static void RenderTitle(
 	const char* text = "This is a title";
 	int fontSize = 35;
 	int textPxSize = MeasureText(text, fontSize);
-	DrawText(text, worldRender->texture.width / 2 - textPxSize / 2, worldRender->texture.height / 2 - fontSize / 2, fontSize, BLACK);
+	DrawColourText(text, worldRender->texture.width / 2 - textPxSize / 2, worldRender->texture.height / 2 - fontSize / 2, fontSize, BLACK);
 	EndTextureMode();
 
 	BeginDrawing();
