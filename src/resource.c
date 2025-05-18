@@ -6,7 +6,8 @@
 Texture2D gameTextures[TEXTURE_COUNT] = {};
 const char* textToSource[] = {
 	"src/resources/cursor.png",
-	"src/resources/testpj.png"
+	"src/resources/testpj.png",
+	"src/resources/doapi.png",
 };
 
 // TODO: Use a texture atlas.

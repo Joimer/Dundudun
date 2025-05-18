@@ -135,7 +135,14 @@ static void AddRoomExit(
 	room->tiles[index].warp.pos = destPos;
 	room->tiles[index].type = DOOR;
 	room->tiles[index].obstacle = false;
-
+	// TODO: Not sure if the best way to do this tbh.
+	if (fromX == destX && fromY > destY) {
+		room->tiles[index].rotation = DirectionToAngle(WEST) / DEG2RAD;
+	} else if (fromX > destX) {
+		room->tiles[index].rotation = DirectionToAngle(NORTH) / DEG2RAD;
+	} else if (fromX < destX) {
+		room->tiles[index].rotation = DirectionToAngle(SOUTH) / DEG2RAD;
+	}
 }
 
 static Room GenerateRoom(
@@ -171,7 +178,8 @@ static Room GenerateRoom(
 					.type = type,
 					.obstacle = isWall,
 					.damage = 0,
-					.speed = SpeedForTile(type)
+					.speed = SpeedForTile(type),
+					.rotation = 0.0f,
 				};
 			}
 		}

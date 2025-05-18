@@ -25,6 +25,7 @@ typedef struct {
 		struct Room* dest;
 		Vector2 pos;
 	} warp;
+	float rotation;
 } Tile;
 
 typedef struct {

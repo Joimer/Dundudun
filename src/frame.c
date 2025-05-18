@@ -110,7 +110,9 @@ static void DrawEntity(GameEntity* entity, bool withGizmo, DrawQueue* queue) {
 					: entity->sprite.rect
 				,
 				.position = Vector2Subtract(entity->position, entity->sprite.position),
-				.tint = doDraw ? WHITE : (Color){ 255, 255, 255, 10 }
+				.tint = doDraw ? WHITE : (Color){ 255, 255, 255, 10 },
+				.rotation = 0.0f,
+				.scale = 1.0f,
 			}}
 		});
 	} else {
@@ -290,14 +292,29 @@ static void RenderRoomCalls(GameContext* context, Room* room, Player* player, Dr
 			Vector2 offsetPos = RoomOffsetPos(room, column, row);
 			tileRect = (Rectangle){ offsetPos.x, offsetPos.y, TILE_SIZE, TILE_SIZE };
 			if (CheckCollisionRecs(worldCamera, tileRect)) {
-				AddDrawCall(queue, (DrawCall){
-					.fun = DRAW_RECT,
-					.layer = BG_LAYER + row,
-					.args = { .rect = {
-						.rec = tileRect,
-						.color = tileColor
-					}}
-				});
+				if (room->tiles[index].type == DOOR) {
+					AddDrawCall(queue, (DrawCall){
+						.fun = DRAW_TEXTURE,
+						.layer = BG_LAYER + row,
+						.args = { .texture = {
+							.texture = *GetTexture(DOOR_TEXTURE),
+							.source = tileRect,
+							.position = (Vector2){ tileRect.x, tileRect.y },
+							.tint = WHITE,
+							.rotation = room->tiles[index].rotation,
+							.scale = 1.0f,
+						}}
+					});
+				} else {
+					AddDrawCall(queue, (DrawCall){
+						.fun = DRAW_RECT,
+						.layer = BG_LAYER + row,
+						.args = { .rect = {
+							.rec = tileRect,
+							.color = tileColor
+						}}
+					});
+				}
 			}
 		}
 	}
@@ -488,12 +505,39 @@ static void RenderWorld(
 				}
 				break;
 			case DRAW_TEXTURE:
-				DrawTextureRec(
-					call->args.texture.texture,
-					call->args.texture.source,
-					call->args.texture.position,
-					call->args.texture.tint
-				);
+				if (call->args.texture.rotation == 0.0f) {
+					DrawTextureRec(
+						call->args.texture.texture,
+						call->args.texture.source,
+						call->args.texture.position,
+						call->args.texture.tint
+					);
+				} else {
+					// FIXME MAYBE? This works for 90º rotations, let's go with this for now.
+					const float halfWidth = call->args.texture.source.width * 0.5f;
+					const float halfHeight = call->args.texture.source.height * 0.5f;
+					DrawTexturePro(
+						call->args.texture.texture,
+						(Rectangle){
+							0,
+							0,
+							call->args.texture.source.width,
+							call->args.texture.source.height,
+						},
+						(Rectangle){
+							call->args.texture.position.x + halfWidth,
+							call->args.texture.position.y + halfHeight,
+							call->args.texture.source.width,
+							call->args.texture.source.height,
+						},
+						(Vector2){
+							halfWidth,
+							halfHeight,
+						},
+						call->args.texture.rotation,
+						call->args.texture.tint
+					);
+				}
 				break;
 			case DRAW_LINE:
 				DrawLine(call->args.line.startPosX, call->args.line.startPosY, call->args.line.endPosX, call->args.line.endPosY, call->args.line.color);

@@ -47,6 +47,8 @@ typedef struct {
 	Rectangle source;
 	Vector2 position;
 	Color tint;
+	float rotation;
+	float scale;
 } DrawTextureArgs;
 
 typedef struct {
