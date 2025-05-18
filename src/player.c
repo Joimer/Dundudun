@@ -39,6 +39,7 @@ Player CreatePlayer(Texture2D* characterTexture) {
 		.exp = 0,
 		.bombs = 0,
 		.bombElapsed = 0,
+		.nextAction = NONE,
 		.entity = CreateEntity(
 			50,
 			(Vector2){ 100.0f, 100.0f },

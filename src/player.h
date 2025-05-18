@@ -6,6 +6,7 @@
 #define CHARACTER_H
 
 #include <raylib.h>
+#include "control.h"
 #include "game.h"
 #include "item.h"
 #include "object-pool.h"
@@ -45,6 +46,7 @@ typedef struct {
 	int bombs;
 	// TODO: Spell cards as bomb alternative
 	float bombElapsed;
+	GameAction nextAction;
 } Player;
 
 Player CreatePlayer(Texture2D* characterTexture);

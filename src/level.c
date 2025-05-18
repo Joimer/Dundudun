@@ -828,9 +828,8 @@ static void UpdateEnemy(GameContext* context, Player* player, Level* level, Acti
 					// Bombs are deactivated after exploding.
 					enemy->active = false;
 					return;
-				} else {
-					return StandStill(&enemy->entity);
 				}
+				return StandStill(&enemy->entity);
 			}
 			// Enemy is winding up.
 			return;
@@ -1118,10 +1117,24 @@ static void UpdatePlayer(GameContext* context, Level* level, Player* player, flo
 	// Update weapon statuses.
 	UpdateWeaponStatus(player, delta);
 
+	bool isAttacking = IsActionActive(ACTION_ATT);
+
 	// Player is mid dash, no control on actions until it is finished.
 	if (player->dash.dashing) {
+		if (isAttacking) {
+			player->nextAction = ACTION_ATT;
+		}
 		PlayerDashUpdate(player, delta);
-		return MoveEntityByForce(level->currentRoom, &player->entity, delta);
+		MoveEntityByForce(level->currentRoom, &player->entity, delta);
+		if (player->dash.dashing) {
+			// Still mid-dash.
+			return;
+		}
+		// Dash just finished this frame.
+		if (player->nextAction == ACTION_ATT) {
+			isAttacking = true;
+		}
+		player->nextAction = NONE;
 	}
 
 	// Update dash cooldown only after it has finished, as it is set at the end of the dash.
@@ -1177,7 +1190,7 @@ static void UpdatePlayer(GameContext* context, Level* level, Player* player, flo
 		}
 
 		// Attack action.
-		if (IsActionActive(ACTION_ATT)) {
+		if (isAttacking) {
 			PlayerAttackAction(context, player, &level->attacks);
 		}
 	}

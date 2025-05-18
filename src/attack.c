@@ -80,7 +80,7 @@ Attack attacks[TOTAL_ATTACKS] = {
 	},
 	// Player bomb explosion.
 	{
-		.damage = 35,
+		.damage = 41,
 		.windup = 2.0f,
 		.duration = 0.75f,
 		.centerDist = 0.0f,
