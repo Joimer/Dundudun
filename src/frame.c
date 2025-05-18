@@ -648,8 +648,10 @@ static void RenderScreen(
 			maxWidth + 10, tooltipSize * 2 + 10,
 			(Color){ 80, 80, 80, 190 }
 		);
-		DrawText(label, mousePos.x, mousePos.y, tooltipSize, (Color){ 255, 255, 255, 190 });
-		DrawText(tooltip, mousePos.x, mousePos.y + 5 + tooltipSize, tooltipSize, (Color){ 255, 255, 255, 190 });
+		//DrawText(label, mousePos.x, mousePos.y, tooltipSize, (Color){ 255, 255, 255, 190 });
+		DrawColourText(GetFontDefault(), label, mousePos, tooltipSize, (Color){ 255, 255, 255, 190 });
+		//DrawText(tooltip, mousePos.x, mousePos.y + 5 + tooltipSize, tooltipSize, (Color){ 255, 255, 255, 190 });
+		DrawColourText(GetFontDefault(), tooltip, (Vector2){ mousePos.x, mousePos.y + 5 + tooltipSize}, tooltipSize, (Color){ 255, 255, 255, 190 });
 	}
 
 	// We are done, show the frame.
