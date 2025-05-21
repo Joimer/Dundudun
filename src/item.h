@@ -10,7 +10,7 @@
 #include "attack.h"
 
 #define TOTAL_WEAPONS 100
-#define TOTAL_RELICS 50
+#define TOTAL_RELICS 4
 
 typedef enum { MELEE, SHOOTING } WeaponType;
 
@@ -30,11 +30,13 @@ typedef struct {
 	float cooldown;
 	float elapsed;
 	bool attacking;
+	int cost;
 } Weapon;
 
 typedef struct {
 	float speed;
 	int dashes;
+	int cost;
 } Boots;
 
 typedef struct {
@@ -58,6 +60,7 @@ typedef struct {
 	float speed;
 	RelicHitEvent* onHit;
 	float cooldown;
+	int cost;
 } Relic;
 
 typedef enum { KEFIR_DRINK } ConsumableName;
@@ -65,6 +68,7 @@ typedef enum { KEFIR_DRINK } ConsumableName;
 typedef struct {
 	int heal;
 	bool statusHeal[4];
+	int cost;
 } Consumable;
 
 typedef enum { I_NONE, I_KEY, I_EXP, I_BOMB, I_RELIC, I_CONSUMABLE, I_GEAR } ItemType;
@@ -75,6 +79,7 @@ typedef struct {
 	ItemType type;
 	int amount;
 	bool active;
+	int cost;
 } Item;
 
 Weapon* GetWeapon(int i);

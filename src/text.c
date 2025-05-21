@@ -33,20 +33,38 @@ const Color gameColours[TOTAL_GCOLOURS] = {
 	[C_GREEN] = { 0, 111, 231, 255 },
 	[C_LIGHTBLUE] = { 0, 121, 241, 255 },
 	[C_YELLOW] = { 253, 249, 0, 255 },
+	[C_GOLD] = { 255, 203, 0, 255 },
+	[C_DARKPURPLE] = DARKPURPLE,
+	[C_SKYBLUE] = SKYBLUE,
 };
+
+Color GetGameColorAlpha(GameColours c, unsigned char a) {
+	Color gc = gameColours[c];
+	gc.a = a;
+	return gc;
+}
 
 static Color GetGameColor(int code, Color defColour) {
 	if (code == '0') {
-		return gameColours[C_RED];
+		return GetGameColorAlpha(C_RED, defColour.a);
 	}
 	if (code == '1') {
-		return gameColours[C_GREEN];
+		return GetGameColorAlpha(C_GREEN, defColour.a);
 	}
 	if (code == '2') {
-		return gameColours[C_LIGHTBLUE];
+		return GetGameColorAlpha(C_LIGHTBLUE, defColour.a);
 	}
 	if (code == '3') {
-		return gameColours[C_YELLOW];
+		return GetGameColorAlpha(C_YELLOW, defColour.a);
+	}
+	if (code == '4') {
+		return GetGameColorAlpha(C_GOLD, defColour.a);
+	}
+	if (code == '5') {
+		return GetGameColorAlpha(C_DARKPURPLE, defColour.a);
+	}
+	if (code == '6') {
+		return GetGameColorAlpha(C_SKYBLUE, defColour.a);
 	}
 	return defColour;
 }
@@ -126,6 +144,12 @@ static const char* texts[TOTAL_TEXTS] = {
 	[HR_HEART_TOOLTIP] = "Adds {2}freeze{r} on hit.",
 	[SHOCKING_PIC_LABEL] = "Shocking Picture",
 	[SHOCKING_PIC_TOOLTIP] = "Adds {3}paralyse{r} on hit.",
+	[IDESC_KEY] = "{3}key{r}",
+	[IDESC_KEYS] = "{3}keys{r}",
+	[BUY_ITEM] = "Do you want to buy %d %s?",
+	[IDESC_EXP] = "{4}exposure{r}",
+	[IDESC_BOMB] = "{5}bomb{r}",
+	[IDESC_BOMBS] = "{5}bombs{r}",
 };
 
 const char* GetText(Language lang, GameText text) {
@@ -170,4 +194,22 @@ const char* GetRelicTooltip(Language lang, int relic) {
 	}
 
 	return INVALID_STRING;
+}
+
+const char* GetBuyItemText(Language lang, ItemType itype, int count) {
+	switch (itype) {
+		case I_KEY:
+			return TextFormat(GetText(lang, BUY_ITEM), count, GetText(lang, count == 1 ? IDESC_KEY : IDESC_KEYS));
+		case I_EXP:
+			return TextFormat(GetText(lang, BUY_ITEM), count, GetText(lang, IDESC_EXP));
+		case I_BOMB:
+			return TextFormat(GetText(lang, BUY_ITEM), count, GetText(lang, count == 1 ? IDESC_BOMB : IDESC_BOMBS));
+		case I_RELIC:
+			return "relic";
+		case I_CONSUMABLE:
+			return "consumable";
+		case I_GEAR:
+			return "gear";
+		default: return INVALID_STRING;
+	}
 }

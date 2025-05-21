@@ -146,6 +146,16 @@ static void AddRoomExit(
 	}
 }
 
+static void AddItem(Level* level, Item item) {
+	int itemId = level->itemCount++;
+	if (level->items == NULL) {
+		level->items = malloc(sizeof(Item) * level->itemCount);
+	} else {
+		level->items = realloc(level->items, sizeof(Item) * level->itemCount);
+	}
+	level->items[itemId] = item;
+}
+
 static Room GenerateRoom(
 	GameContext* context, Level* level, int num, Vector2 pos, ItemType reward, int rewardAmount, RoomType type
 ) {
@@ -206,7 +216,7 @@ static Room GenerateRoom(
 		}
 	} else {
 		// Make site for bombs and such on non encounter rooms.
-		room.entities = calloc(sizeof(ActiveEnemy),99);
+		room.entities = calloc(sizeof(ActiveEnemy), 99);
 	}
 
 	// Pick boss for the path according to the level.
@@ -219,6 +229,37 @@ static Room GenerateRoom(
 		);
 	} else {
 		room.boss.active = false;
+	}
+
+	// Add shop items.
+	// TODO: Finish this all up.
+	if (room.type == SHOP) {
+		const int yPos = room.rows / 2;
+		const int XPos = room.columns / 4;
+		// TODO Pick items from an item pool
+		// Items sold can be relics, gear, consumables, and they have a cost.
+		// Has to be an Item collection of sorts that mixes item types
+		AddItem(level, (Item){
+			.pos = RoomOffsetPos(&room, XPos, yPos),
+			.type = I_KEY,
+			.amount = 2,
+			.active = true,
+			.cost = 10,
+		});
+		AddItem(level, (Item){
+			.pos = RoomOffsetPos(&room, XPos * 2, yPos),
+			.type = I_BOMB,
+			.amount = 1,
+			.active = true,
+			.cost = 5,
+		});
+		AddItem(level, (Item){
+			.pos = RoomOffsetPos(&room, XPos * 3, yPos),
+			.type = I_BOMB,
+			.amount = 2,
+			.active = true,
+			.cost = 9,
+		});
 	}
 
 	return room;
@@ -459,24 +500,37 @@ static Level GenerateLevel(GameContext* context, int floor) {
 			// Pick reward for the room.
 			int rewardAmount = 1;
 			bool isBoss = currentRoom == roomsPerPath;
-			if (currentRoom == 6 || isBoss) {
-				reward = I_RELIC;
+			// TODO For now put shop before boss, have to think how to manage it algorithmically.
+			bool isShop = currentRoom == roomsPerPath - 2;
+			if (isShop) {
+				reward = I_NONE;
 			} else {
-				// For now, let's just do this.
-				int dice = GetRandomMTValue(&context->state->mtrand) % 3;
-				switch (dice) {
-					case 0: reward = I_BOMB; break;
-					case 1: reward = I_KEY; break;
-					case 2:
-						reward = I_EXP;
-						rewardAmount = (GetRandomMTValue(&context->state->mtrand) % 3) + 2;
-						break;
+				// Boss reward is always a relic as well.
+				if (currentRoom == 6 || isBoss) {
+					reward = I_RELIC;
+					// Item amount is mapped to relic ID when getting a relic.
+					// Will probably have to update this if there's a way to get 2+ relics as reward...
+					rewardAmount = (GetRandomMTValue(&context->state->mtrand) % TOTAL_RELICS);
+				} else {
+					// For now, let's just do this.
+					int dice = GetRandomMTValue(&context->state->mtrand) % 3;
+					switch (dice) {
+						case 0: reward = I_BOMB; break;
+						case 1: reward = I_KEY; break;
+						case 2:
+							reward = I_EXP;
+							rewardAmount = (GetRandomMTValue(&context->state->mtrand) % 3) + 2;
+							break;
+					}
 				}
 			}
 			// TODO: Pick here when rooms are shops.
-			// Boss reward is always a relic as well.
 			level.rooms[currentRoomId] = GenerateRoom(
-				context, &level, currentRoomId, (Vector2){ roomX, roomY }, reward, rewardAmount, isBoss ? BOSS : ENCOUNTER
+				context,
+				&level,
+				currentRoomId,
+				(Vector2){ roomX, roomY }, reward, rewardAmount,
+				isBoss ? BOSS : (isShop ? SHOP : ENCOUNTER)
 			);
 
 			LogDebug("Adding room exits.");
@@ -1142,10 +1196,10 @@ static void UpdatePlayer(GameContext* context, Level* level, Player* player, flo
 		player->dash.cdLeft -= delta > player->dash.cdLeft ? player->dash.cdLeft : delta;
 	}
 
-	// Check for collision with active items.
+	// Check for collision with active items (non buyable).
 	if (level->itemCount > 0 && level->items != NULL) {
 		for (int i = 0; i < level->itemCount; i++) {
-			if (!level->items[i].active) {
+			if (!level->items[i].active || level->items[i].cost > 0) {
 				continue;
 			}
 			// TODO: Put this on the item generation itself,,,
@@ -1207,16 +1261,6 @@ static Vector2 FindRewardPosition(Room* room) {
 	return (Vector2){ room->columns / 2.0f, room->rows / 2.0f };
 }
 
-static void AddItem(Level* level, Item item) {
-	int itemId = level->itemCount++;
-	if (level->items == NULL) {
-		level->items = malloc(sizeof(Item) * level->itemCount);
-	} else {
-		level->items = realloc(level->items, sizeof(Item) * level->itemCount);
-	}
-	level->items[itemId] = item;
-}
-
 static void UpdateRoomBoss(Level* level, ActiveBoss* boss, float dt) {
 	// Update boss state.
 	UpdateBoss(boss, dt);
@@ -1236,6 +1280,9 @@ void UpdateLevel(GameContext* context, float dt) {
 	// TODO: Loading screen step for this
 	if (!levelSetup) {
 		SetupLevel(context);
+	}
+	if (context->state->paused) {
+		return;
 	}
 	level.playTime += dt;
 
@@ -1306,6 +1353,7 @@ void UpdateLevel(GameContext* context, float dt) {
 				.type = level.currentRoom->reward,
 				.amount = amount,
 				.active = true,
+				.cost = 0,
 			});
 		}
 	}

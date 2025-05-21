@@ -264,7 +264,7 @@ void PlayerCollideItem(Player* player, Item* item) {
 		case I_EXP: player->exp += item->amount;break;
 		case I_BOMB: player->bombs += item->amount; break;
 		case I_RELIC:
-			// For now can use amount to mark ID on relcis. We'll see later.
+			// For now can use amount to mark ID on relics. We'll see later.
 			AddRelic(player, GetRelic(item->amount));
 			break;
 		case I_CONSUMABLE: /*TODO XD*/ break;

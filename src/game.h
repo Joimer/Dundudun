@@ -9,7 +9,7 @@
 #include <raymath.h>
 #include "lib.h"
 #include "screens.h"
-#include "text.h"
+
 
 #define GAME_CLOSE_SUCCESS 0
 #define SEED_LENGTH 8
@@ -87,9 +87,13 @@ typedef struct {
 	// We keep this at hand so it is calculated only once.
 	const char* seedStr;
 	MTRand mtrand;
+	int menuOption;
+	int menuContext;
 } GameState;
 
 typedef enum { DIRECTIONAL, MOUSE } DashMode;
+
+typedef enum { EN, ES } Language;
 
 typedef struct {
 	DashMode dashMode;

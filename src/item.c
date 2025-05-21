@@ -47,6 +47,7 @@ static Relic relics[TOTAL_RELICS] = {
 		.speed = 0,
 		.onHit = &AddPoisonOnHit,
 		.cooldown = 0,
+		.cost = 25,
 	},
 	[MACHINE_COFFEE] = {
 		.id = MACHINE_COFFEE,
@@ -55,6 +56,7 @@ static Relic relics[TOTAL_RELICS] = {
 		.speed = 0,
 		.onHit = &AddBurnOnHit,
 		.cooldown = 0,
+		.cost = 25,
 	},
 	[HR_HEART] = {
 		.id = HR_HEART,
@@ -63,6 +65,7 @@ static Relic relics[TOTAL_RELICS] = {
 		.speed = 0,
 		.onHit = &AddFreezeOnHit,
 		.cooldown = 2.5f,
+		.cost = 25,
 	},
 	[SHOCKING_PIC] = {
 		.id = SHOCKING_PIC,
@@ -71,6 +74,7 @@ static Relic relics[TOTAL_RELICS] = {
 		.speed = 0,
 		.onHit = &AddParalyseOnHit,
 		.cooldown = 2.5f,
+		.cost = 25,
 	},
 };
 

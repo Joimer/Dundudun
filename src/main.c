@@ -33,7 +33,9 @@ int main(void) {
 			.target = (Vector2){ 0, 0 },
 			.offset = (Vector2){ WORLD_SIZE_WIDTH / 2.0f, WORLD_SIZE_HEIGHT / 2.0f },
 			.zoom = 1.0f
-		}
+		},
+		.menuOption = 0,
+		.menuContext = 0
 	};
 
 	// The game context that all functions need to decide an outcome.

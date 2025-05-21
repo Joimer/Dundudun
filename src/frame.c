@@ -3,6 +3,7 @@
 #include <raymath.h>
 #include <stdlib.h>
 #include "frame.h"
+#include "control.h"
 #include "item.h"
 #include "screens.h"
 #include "player.h"
@@ -10,6 +11,7 @@
 #include "resource.h"
 #include "lib.h"
 #include "level.h"
+#include "text.h"
 
 const ScreenSize resolutions[5] = {
 	{ .width = 480, .height = 270 },
@@ -271,7 +273,7 @@ static void RenderRoomCalls(GameContext* context, Room* room, Player* player, Dr
 		camX1 += (scaledWidth - zoomedWidth) / 2;
 		camY1 += (scaledHeight - zoomedHeight) / 2;
 	}
-	Rectangle worldCamera = {
+	const Rectangle worldCamera = {
 		camX1 - 1,
 		camY1 - 1,
 		zoomedWidth + 2,
@@ -282,7 +284,7 @@ static void RenderRoomCalls(GameContext* context, Room* room, Player* player, Dr
 	Rectangle tileRect;
 	for (int row = 0; row < room->rows; row++) {
 		for (int column = 0; column < room->columns; column++) {
-			int index = column + (room->columns * row);
+			const int index = column + (room->columns * row);
 			switch (room->tiles[index].type) {
 				case WALL: tileColor = (Color){ 43, 3, 0, 255 }; break;
 				case GRASS: tileColor = (Color){ 0, 180, 66, 255 }; break;
@@ -403,7 +405,7 @@ static void RenderWorldCalls(
 			}
 			AddDrawCall(queue, (DrawCall){
 				.fun = DRAW_RECT,
-				.layer = ENTITY_LAYER - 1,
+				.layer = ENTITY_LAYER - 10 + level->items[i].pos.y * 10,
 				.args = { .rect = {
 					.rec = (Rectangle){ level->items[i].pos.x, level->items[i].pos.y, TILE_SIZE, TILE_SIZE },
 					.color = icolor
@@ -576,7 +578,8 @@ void CalculateScreenSize(GameContext* context) {
 static void RenderScreen(
 	GameContext* context,
 	RenderTexture2D* worldRender,
-	Player* player
+	Player* player,
+	Level* level
 ) {
 	// Draw the texture in the actual screen resolution.
 	BeginDrawing();
@@ -643,7 +646,6 @@ static void RenderScreen(
 	}
 
 	// Render the minimap.
-	Level* level = GetLevel();
 	const int cols = level->maxX - level->minX;
 	const int rows = level->maxY - level->minY;
 	const int roomPxSize = context->options->fullMap ? 25 : 5;
@@ -677,6 +679,138 @@ static void RenderScreen(
 		);
 	}
 
+	// Dialogue and menus.
+	if (level->itemCount > 0 && level->items != NULL) {
+		Item* overItem = NULL;
+		Vector2 playerPos = Vector2Subtract(player->entity.position, player->entity.sprite.position);
+		Rectangle playerArea = {
+			playerPos.x,
+			playerPos.y,
+			player->entity.sprite.rect.width,
+			player->entity.sprite.rect.height
+		};
+		for (int i = 0; i < level->itemCount; i++) {
+			if (!level->items[i].active) {
+				continue;
+			}
+			Rectangle itemArea = {
+				level->items[i].pos.x,
+				level->items[i].pos.y,
+				TILE_SIZE,
+				TILE_SIZE * 1.3
+			};
+			if (CheckCollisionRecs(itemArea, playerArea)) {
+				overItem = &level->items[i];
+				break;
+			}
+		}
+
+		// Buy item prompt.
+		// TODO: Abstract this out for all dialogues/prompts
+		if (overItem != NULL) {
+			const int dialogueFontSize = 40;
+			const Color textWhite = (Color){ 240, 240, 240, 190 };
+			const Color textGray = (Color){ 120, 120, 120, 190 };
+			if (context->state->menuContext == 0) {
+				// Not inside option, show tooltip to enter menu.
+				// TODO: This is the screen render.
+				// Should the UI logic be here too...?
+				// But the check of being within bounds should be once too.
+				// Think about it.
+				const float scale = GetScreenScale();
+				const Vector2 itemScreenPos = GetWorldToScreen2D(
+					(Vector2){ overItem->pos.x, (overItem->pos.y - TILE_SIZE) }, context->state->camera
+				);
+				const float width = TILE_SIZE * scale;
+				const float height = TILE_SIZE / 2 * scale;
+				DrawRectangle(
+					itemScreenPos.x * scale, itemScreenPos.y * scale, width, height, (Color){ 0, 0, 0, 190 }
+				);
+				DrawColourText(
+					"(Z) Buy", itemScreenPos.x * scale + 2, itemScreenPos.y * scale + 2, dialogueFontSize, textWhite
+				);
+				// Right now this does not interrupt attack...
+				if (IsActionOnce(ACTION_ATT)) {
+					context->state->menuContext = 1;
+					if (player->exp >= overItem->cost) {
+						context->state->menuOption = 0;
+					} else {
+						context->state->menuOption = 1;
+					}
+					context->state->paused = true;
+				}
+			} else {
+				// Inside buy menu.
+				const int dialogueHeight = screenHeight / 4;
+				const int dialogueWidth = screenWidth * 0.9f;
+				const int spacing = 5;
+				const int dialogueStartX = (screenWidth - dialogueWidth) / 2 + spacing;
+				const int dialogueStartY = screenHeight - dialogueHeight - spacing;
+				// Outside border.
+				DrawRectangle(
+					dialogueStartX, dialogueStartY, dialogueWidth, dialogueHeight, (Color){ 0, 0, 0, 190 }
+				);
+				// Inside border.
+				const int insideWidth = dialogueWidth - spacing * 2;
+				DrawRectangle(
+					dialogueStartX + spacing, dialogueStartY + spacing, insideWidth, dialogueHeight - spacing * 2, (Color){ 80, 80, 80, 190 }
+				);
+				DrawColourText(
+					"Shop", dialogueStartX + spacing * 2, dialogueStartY + spacing * 2, dialogueFontSize, textWhite
+				);
+				DrawColourText(
+					GetBuyItemText(context->options->lang, overItem->type, overItem->amount),
+					dialogueStartX + spacing * 2, dialogueStartY + spacing * 2 + dialogueFontSize + 2, dialogueFontSize, textWhite
+				);
+
+				// Yes and no options.
+				const bool canBuy = player->exp >= overItem->cost;
+				const int xSelection = insideWidth / 4;
+				const int ySelection = dialogueStartY + spacing * 2 + dialogueFontSize * 3 + 2;
+				DrawColourText(
+					"Yes", xSelection, ySelection, dialogueFontSize, canBuy ? textWhite : textGray
+				);
+				DrawColourText(
+					"No", insideWidth - xSelection, ySelection, dialogueFontSize, textWhite
+				);
+				int selectionX = 0;
+				if (context->state->menuOption == 0) {
+					selectionX = xSelection - dialogueFontSize * 2;
+					// Accept buy.
+					if (IsActionOnce(ACTION_ATT)) {
+						if (canBuy) {
+							// Buy the item and so on.
+							player->exp -= overItem->cost;
+							PlayerCollideItem(player, overItem);
+							context->state->paused = false;
+							context->state->menuContext = 0;
+						}
+					}
+				}
+				if (context->state->menuOption == 1) {
+					selectionX = insideWidth - xSelection - dialogueFontSize * 2;
+					// Accept "No" and cancel menu.
+					if (IsActionOnce(ACTION_ATT)) {
+						context->state->menuContext = 0;
+						context->state->paused = false;
+					}
+				}
+				DrawColourText(
+					"> ", selectionX, ySelection, dialogueFontSize, canBuy || context->state->menuOption == 1 ? textWhite : textGray
+				);
+				// Cancel
+				if (IsActionOnce(ACTION_SWAP)) {
+					context->state->menuContext = 0;
+					context->state->paused = false;
+				}
+				// Menu options
+				if (IsActionOnce(GO_LEFT) || IsActionOnce(GO_RIGHT)) {
+					context->state->menuOption = !context->state->menuOption;
+				}
+			}
+		}
+	}
+
 	// Mouse pointer.
 	if (!context->options->systemCursor) {
 		DrawTextureEx(*context->options->cursor.texture, mousePos, 0.0f, GetScreenScale(), WHITE);
@@ -695,8 +829,12 @@ static void RenderScreen(
 			maxWidth + 10, tooltipSize * 2 + 10,
 			(Color){ 80, 80, 80, 190 }
 		);
-		DrawColourText(label, mousePos.x, mousePos.y, tooltipSize, (Color){ 255, 255, 255, 190 });
-		DrawColourText(tooltip, mousePos.x, mousePos.y + 5 + tooltipSize, tooltipSize, (Color){ 255, 255, 255, 190 });
+		DrawColourText(
+			label, mousePos.x, mousePos.y, tooltipSize, (Color){ 255, 255, 255, 190 }
+		);
+		DrawColourText(
+			tooltip, mousePos.x, mousePos.y + 5 + tooltipSize, tooltipSize, (Color){ 255, 255, 255, 190 }
+		);
 	}
 
 	// We are done, show the frame.
@@ -783,7 +921,7 @@ static void RenderLevel(
 	// or run them on next frame.
 	// Needs a handful of changes, but not hard and still in a good moment to do it.
 	RenderWorld(context, worldRender, player, level);
-	RenderScreen(context, worldRender, player);
+	RenderScreen(context, worldRender, player, level);
 }
 
 void Render(
@@ -810,6 +948,7 @@ void LoadCustomCursor(GameOptions* options) {
 
 void SetupGameWindow(GameContext* context) {
 	int monitor = GetCurrentMonitor();
+	// TODO: Setup size when the screen is over 100% scale
 	int monitorWidth = GetMonitorWidth(monitor);
 	int monitorHeight = GetMonitorHeight(monitor);
 	int scale = (int) Clamp(fmin(
