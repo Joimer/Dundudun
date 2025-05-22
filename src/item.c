@@ -106,6 +106,17 @@ Relic* GetRelic(int i) {
 	return &relics[i];
 }
 
+bool HasRelic(RelicName id, Relic** relics, int count) {
+	if (count > 0) {
+		for (int j = 0; j < count; j++) {
+			if (id == relics[j]->id) {
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
 // Decides a relic drop from a drop table generated on the fly.
 Relic* GetRelicDrop(GameContext* context, Relic** playerRelics, int relicCount, int level) {
 	int totalChance = 0;
@@ -115,14 +126,7 @@ Relic* GetRelicDrop(GameContext* context, Relic** playerRelics, int relicCount, 
 			continue;
 		}
 		if (relicCount > 0) {
-			bool playerHasIt = false;
-			for (int j = 0; j < relicCount; j++) {
-				if (relics[i].id == playerRelics[j]->id) {
-					playerHasIt = true;
-					break;
-				}
-			}
-			if (playerHasIt) {
+			if (HasRelic(relics[i].id, playerRelics, relicCount)) {
 				continue;
 			}
 		}

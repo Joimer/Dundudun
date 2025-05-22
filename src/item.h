@@ -92,6 +92,7 @@ typedef struct {
 
 Weapon* GetWeapon(int i);
 Relic* GetRelic(int i);
+bool HasRelic(RelicName id, Relic** relics, int count);
 Relic* GetRelicDrop(GameContext* context, Relic** playerRelics, int relicCount, int level);
 
 #endif

@@ -510,6 +510,7 @@ static Level GenerateLevel(GameContext* context, int floor) {
 					reward = I_RELIC;
 					// Item amount is mapped to relic ID when getting a relic.
 					// Will probably have to update this if there's a way to get 2+ relics as reward...
+					// TODO: Check relic for path and make it unable to drop from boss.
 					Relic* relic = GetRelicDrop(context, player.relics, player.relicCount, floor);
 					if (relic == NULL) {
 						LogDebug("Could not find relic for room reward!");
@@ -1347,12 +1348,22 @@ void UpdateLevel(GameContext* context, float dt) {
 	if (level.currentRoom != NULL && !level.currentRoom->complete && activeEntities == 0) {
 		level.currentRoom->complete = true;
 		if (level.currentRoom->reward != I_NONE && level.currentRoom->rewardAmount > -1) {
-			LogDebug("Room has reward, instantiating it.");
+			LogDebug("Room %d has reward, instantiating it.", level.currentRoom->roomNo);
 			Vector2 rpos = FindRewardPosition(level.currentRoom);
 			// TODO: Right now world offset thinks all rooms must be same size.
 			// Precalculate world position on room creation one by one.
 			Vector2 worldPos = RoomOffsetPos(level.currentRoom, rpos.x, rpos.y);
 			ItemType itype;
+			// If relic and already gotten, reroll it.
+			if (HasRelic(level.currentRoom->rewardAmount, player.relics, player.relicCount)) {
+				Relic* relic = GetRelicDrop(context, player.relics, player.relicCount, level.floor);
+				if (relic == NULL) {
+					LogDebug("Could not find relic for room reward on reroll!");
+					level.currentRoom->rewardAmount = -1;
+				} else {
+					level.currentRoom->rewardAmount = relic->id;
+				}
+			}
 			AddItem(&level, (Item){
 				.pos = worldPos,
 				.type = level.currentRoom->reward,
