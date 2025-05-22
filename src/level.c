@@ -510,7 +510,13 @@ static Level GenerateLevel(GameContext* context, int floor) {
 					reward = I_RELIC;
 					// Item amount is mapped to relic ID when getting a relic.
 					// Will probably have to update this if there's a way to get 2+ relics as reward...
-					rewardAmount = (GetRandomMTValue(&context->state->mtrand) % TOTAL_RELICS);
+					Relic* relic = GetRelicDrop(context, player.relics, player.relicCount, floor);
+					if (relic == NULL) {
+						LogDebug("Could not find relic for room reward!");
+						rewardAmount = -1;
+					} else {
+						rewardAmount = relic->id;
+					}
 				} else {
 					// For now, let's just do this.
 					int dice = GetRandomMTValue(&context->state->mtrand) % 3;
@@ -1340,18 +1346,17 @@ void UpdateLevel(GameContext* context, float dt) {
 	// Check if room has been completed to open doors.
 	if (level.currentRoom != NULL && !level.currentRoom->complete && activeEntities == 0) {
 		level.currentRoom->complete = true;
-		if (level.currentRoom->reward != I_NONE) {
+		if (level.currentRoom->reward != I_NONE && level.currentRoom->rewardAmount > -1) {
 			LogDebug("Room has reward, instantiating it.");
 			Vector2 rpos = FindRewardPosition(level.currentRoom);
 			// TODO: Right now world offset thinks all rooms must be same size.
 			// Precalculate world position on room creation one by one.
 			Vector2 worldPos = RoomOffsetPos(level.currentRoom, rpos.x, rpos.y);
-			int amount = level.currentRoom->reward == I_EXP ? 5 : 1;
 			ItemType itype;
 			AddItem(&level, (Item){
 				.pos = worldPos,
 				.type = level.currentRoom->reward,
-				.amount = amount,
+				.amount = level.currentRoom->rewardAmount,
 				.active = true,
 				.cost = 0,
 			});

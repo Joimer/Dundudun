@@ -3,6 +3,35 @@
 #include "lib.h"
 #include "item.h"
 
+static const char* INVALID_STRING = "INVALID_STRING";
+
+// TODO: Maybe load the game texts from a file?
+static const char* texts[2][TOTAL_TEXTS] = {
+	[EN] = {
+		[HP_LABEL] = "%d HP",
+		[BOMB_LABEL] = "Bombs: %d",
+		[KEYS_LABEL] = "Keys: %d",
+		[EXP_LABEL] = "EXP: %d",
+		[LEFTOVER_LUNCH_LABEL] = "Leftover Lunch",
+		[LEFTOVER_LUNCH_TOOLTIP] = "Adds 2 {1}poison{r} on hit.",
+		[MACHINE_COFFEE_LABEL] = "Machine Coffee",
+		[MACHINE_COFFEE_TOOLTIP] = "Adds 5 {0}burn{r} on hit.",
+		[HR_HEART_LABEL] = "HR Heart",
+		[HR_HEART_TOOLTIP] = "Adds {2}freeze{r} on hit.",
+		[SHOCKING_PIC_LABEL] = "Shocking Picture",
+		[SHOCKING_PIC_TOOLTIP] = "Adds {3}paralyse{r} on hit.",
+		[IDESC_KEY] = "{3}key{r}",
+		[IDESC_KEYS] = "{3}keys{r}",
+		[BUY_ITEM] = "Do you want to buy %d %s?",
+		[IDESC_EXP] = "{4}exposure{r}",
+		[IDESC_BOMB] = "{5}bomb{r}",
+		[IDESC_BOMBS] = "{5}bombs{r}",
+		[LETTER_OPENER_LABEL] = "Letter Opener",
+		[CLIP_BOX_LABEL] = "Paperclip Box",
+	},
+	[ES] = {}
+};
+
 // This is a static global in Raylib,,,
 // Need to call SetTextLineSpacing(textLineSpacing) somewhere
 static float textLineSpacing = 2;
@@ -129,29 +158,6 @@ void DrawColourText(
 	}
 }
 
-static const char* INVALID_STRING = "INVALID_STRING";
-
-static const char* texts[TOTAL_TEXTS] = {
-	[HP_LABEL] = "%d HP",
-	[BOMB_LABEL] = "Bombs: %d",
-	[KEYS_LABEL] = "Keys: %d",
-	[EXP_LABEL] = "EXP: %d",
-	[LEFTOVER_LUNCH_LABEL] = "Leftover Lunch",
-	[LEFTOVER_LUNCH_TOOLTIP] = "Adds 2 {1}poison{r} on hit.",
-	[MACHINE_COFFEE_LABEL] = "Machine Coffee",
-	[MACHINE_COFFEE_TOOLTIP] = "Adds 5 {0}burn{r} on hit.",
-	[HR_HEART_LABEL] = "HR Heart",
-	[HR_HEART_TOOLTIP] = "Adds {2}freeze{r} on hit.",
-	[SHOCKING_PIC_LABEL] = "Shocking Picture",
-	[SHOCKING_PIC_TOOLTIP] = "Adds {3}paralyse{r} on hit.",
-	[IDESC_KEY] = "{3}key{r}",
-	[IDESC_KEYS] = "{3}keys{r}",
-	[BUY_ITEM] = "Do you want to buy %d %s?",
-	[IDESC_EXP] = "{4}exposure{r}",
-	[IDESC_BOMB] = "{5}bomb{r}",
-	[IDESC_BOMBS] = "{5}bombs{r}",
-};
-
 const char* GetText(Language lang, GameText text) {
 	// TODO: Usage of lang XD!
 	if (text >= TOTAL_TEXTS) {
@@ -159,7 +165,7 @@ const char* GetText(Language lang, GameText text) {
 		return INVALID_STRING;
 	}
 
-	return texts[text];
+	return texts[lang][text];
 }
 
 const char* GetRelicLabel(Language lang, int relic) {

@@ -690,7 +690,7 @@ static void RenderScreen(
 			player->entity.sprite.rect.height
 		};
 		for (int i = 0; i < level->itemCount; i++) {
-			if (!level->items[i].active) {
+			if (!level->items[i].active || level->items[i].cost <= 0) {
 				continue;
 			}
 			Rectangle itemArea = {

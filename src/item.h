@@ -20,11 +20,16 @@ typedef struct {
 	float force;
 } Bullet;
 
+typedef enum {
+	LETTER_OPENER, CLIP_BOX,
+} WeaponName;
+
 // A Weapon holds a type of attack.
 // Attacks have a windup and duration, but cooldown for usage is dependent on weapon.
 // TODO FIXME uuuh maybe attack.windup, duration, should be on the weapon and attack just be a collection of hitboxes with damage and associated sprite?
 // Later on I must add attack strings for melee weapons, therefor a single weapon should hold several attacks, but the cadence, cd, etc. is all on the weapon
 typedef struct {
+	WeaponName id;
 	Attack* attack;
 	WeaponType type;
 	float cooldown;
@@ -61,6 +66,9 @@ typedef struct {
 	RelicHitEvent* onHit;
 	float cooldown;
 	int cost;
+	// Values for dropping the relic.
+	int weight;
+	int minLevel;
 } Relic;
 
 typedef enum { KEFIR_DRINK } ConsumableName;
@@ -84,5 +92,6 @@ typedef struct {
 
 Weapon* GetWeapon(int i);
 Relic* GetRelic(int i);
+Relic* GetRelicDrop(GameContext* context, Relic** playerRelics, int relicCount, int level);
 
 #endif
