@@ -204,7 +204,7 @@ void UpdateWeaponStatus(Player* player, float delta) {
 	}
 }
 
-void PlayerAttackAction(GameContext* context, Player* player, ObjectPool* attPool) {
+void PlayerAttackAction(GameContext* context, Player* player, ObjectPool* attPool, Direction attackDir) {
 	Weapon* usedWeapon = player->gear.weapons[player->gear.weaponSlot];
 	if (usedWeapon != NULL && !usedWeapon->attacking) {
 		if (usedWeapon->attack == NULL) {
@@ -212,9 +212,25 @@ void PlayerAttackAction(GameContext* context, Player* player, ObjectPool* attPoo
 			return;
 		}
 		SetStance(&player->entity, ATTACKING);
-		// Create attack.
-		Vector2 mpos = GetWorldMousePos(context);
-		ActiveAttack att = InitiateAttack(&player->entity, &mpos, usedWeapon->attack, T_ENEMY, true);
+
+		// Direction depends on the type of input.
+		Vector2 attackPos;
+		switch (attackDir) {
+			case NORTH:
+			case SOUTH:
+			case EAST:
+			case WEST:
+			case NORTHEAST:
+			case NORTHWEST:
+			case SOUTHEAST:
+			case SOUTHWEST:
+				attackPos = AdvancePointByVector(player->entity.position, DirectionToVector(attackDir), TILE_SIZE);
+				break;
+			default: attackPos = GetWorldMousePos(context); break;
+		}
+
+		// Create attack instance.
+		ActiveAttack att = InitiateAttack(&player->entity, &attackPos, usedWeapon->attack, T_ENEMY, true);
 		void* result = AddToPool(attPool, &att);
 		if (result == NULL) {
 			LogDebug("Failed to allocate character attack on object pool: %d/%d", attPool->activeItems, attPool->length);

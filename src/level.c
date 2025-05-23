@@ -1247,7 +1247,24 @@ static void UpdatePlayer(GameContext* context, Level* level, Player* player, flo
 	// Update weapon statuses.
 	UpdateWeaponStatus(player, delta);
 
+	bool upAttack = false, downAttack = false, leftAttack = false, rightAttack = false;
 	bool isAttacking = IsActionActive(ACTION_ATT);
+	Direction attackDir = NO_DIRECTION;
+	if (IsActionActive(ACTION_ATT_DUP)) {
+		isAttacking = true;
+		attackDir = NORTH;
+	}
+	if (IsActionActive(ACTION_ATT_DDOWN)) {
+		isAttacking = true;
+		attackDir = SOUTH;
+	}
+	if (IsActionActive(ACTION_ATT_DRIGHT)) {
+		isAttacking = true;
+		attackDir |= EAST;
+	} else if (IsActionActive(ACTION_ATT_DLEFT)) {
+		isAttacking = true;
+		attackDir |= WEST;
+	}
 
 	// Player is mid dash, no control on actions until it is finished.
 	if (player->dash.dashing) {
@@ -1263,6 +1280,7 @@ static void UpdatePlayer(GameContext* context, Level* level, Player* player, flo
 		// Dash just finished this frame.
 		if (player->nextAction == ACTION_ATT) {
 			isAttacking = true;
+			attackDir = player->entity.dir;
 		}
 		player->nextAction = NONE;
 	}
@@ -1323,7 +1341,7 @@ static void UpdatePlayer(GameContext* context, Level* level, Player* player, flo
 
 		// Attack action.
 		if (isAttacking) {
-			PlayerAttackAction(context, player, &level->attacks);
+			PlayerAttackAction(context, player, &level->attacks, attackDir);
 		}
 	}
 

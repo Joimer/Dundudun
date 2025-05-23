@@ -57,7 +57,7 @@ void PlayerDashUpdate(Player* player, float dt);
 void PlayerStartDash(GameContext* context, Player* player);
 Direction PlayerUpdateDirection(Player* player);
 void UpdateWeaponStatus(Player* player, float delta);
-void PlayerAttackAction(GameContext* context, Player* player, ObjectPool* attPool);
+void PlayerAttackAction(GameContext* context, Player* player, ObjectPool* attPool, Direction attackDir);
 void AddRelic(Player* player, Relic* relic);
 Observable* GetPlayerEvents();
 void SetupPlayerEvents();

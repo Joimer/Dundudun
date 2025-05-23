@@ -18,6 +18,10 @@ typedef enum {
 	ACTION_BOMB,
 	ACTION_DASH,
 	ACTION_TAB,
+	ACTION_ATT_DRIGHT,
+	ACTION_ATT_DLEFT,
+	ACTION_ATT_DUP,
+	ACTION_ATT_DDOWN,
 } GameAction;
 
 bool IsActionActive(GameAction action);
