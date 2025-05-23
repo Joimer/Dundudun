@@ -133,7 +133,7 @@ static void AddRoomExit(
 	LogDebug("Adding exit from %d,%d (index %d, columns %d) to pos %f,%f", fromX, fromY, index, room->columns, destPos.x, destPos.y);
 	room->tiles[index].warp.dest = destination;
 	room->tiles[index].warp.pos = destPos;
-	room->tiles[index].warp.touched = false;
+	room->tiles[index].warp.open = true;
 	room->tiles[index].type = DOOR;
 	room->tiles[index].obstacle = false;
 	// TODO: Not sure if the best way to do this tbh.
@@ -166,7 +166,7 @@ static Room GenerateRoom(
 		.roomNo = num,
 		.type = type,
 		.pos = pos,
-		.tileCount = 200,
+		.tileCount = 8 * 15,
 		.columns = 15,
 		.rows = 8,
 		.entityCount = 0,
@@ -191,6 +191,11 @@ static Room GenerateRoom(
 					.damage = 0,
 					.speed = SpeedForTile(type),
 					.rotation = 0.0f,
+					.warp = {
+						.dest = NULL,
+						.open = false,
+						.pos = {}
+					}
 				};
 			}
 		}
@@ -535,7 +540,7 @@ static Level GenerateLevel(GameContext* context, int floor) {
 			level.rooms[currentRoomId] = GenerateRoom(
 				context,
 				&level,
-				currentRoomId,
+				currentRoom,
 				(Vector2){ roomX, roomY }, reward, rewardAmount,
 				isBoss ? BOSS : (isShop ? SHOP : ENCOUNTER)
 			);
@@ -737,7 +742,7 @@ static void MoveEntityByForce(Room* room, GameEntity* entity, float force) {
 	Vector2 newPos = AdvancePointByVector(entity->position, entity->anglev, speed * tile->speed * force);
 	Tile* newTile = GetTileByPos(room, &newPos);
 	// Would hit an obstacle on next tile, stop movement.
-	if (newTile->obstacle || (newTile->type == DOOR && !room->complete)) {
+	if (newTile->obstacle || (newTile->type == DOOR && (!room->complete || !newTile->warp.open))) {
 		StandStill(entity);
 	} else {
 		entity->position = newPos;
@@ -1129,15 +1134,31 @@ static void AttackCallback(ObjectPool* pool, int index, void* args) {
 	cleanup: RemoveFromPool(pool, index);
 }
 
-static void TriggerRoomChange(Level* level, Room* room) {
-	if (level == NULL || level->swappingRoom || room == NULL) {
+static void TriggerRoomChange(Level* level, Tile* tile) {
+	if (level == NULL || level->swappingRoom || tile->warp.dest == NULL) {
 		LogDebug("Invalid parameters");
 		return;
 	}
-	level->nextRoom = room;
-	room->visited = true;
+	level->nextRoom = tile->warp.dest;
+	tile->warp.dest->visited = true;
 	level->swappingRoom = true;
 	level->playTime = 0.0f;
+
+	// Block doors that lead to the same room number to block alternative paths.
+	for (int i = 0; i < level->totalRooms; i++) {
+		if (level->rooms[i].tiles != NULL && level->rooms[i].tileCount > 0) {
+			for (int j = 0; j < level->rooms[i].tileCount; j++) {
+				if (
+					tile != &level->rooms[i].tiles[j]
+					&& level->rooms[i].tiles[j].warp.dest != NULL
+					&& level->rooms[i].tiles[j].warp.dest != tile->warp.dest
+					&& level->rooms[i].tiles[j].warp.dest->roomNo == tile->warp.dest->roomNo
+				) {
+					level->rooms[i].tiles[j].warp.open = false;
+				}
+			}
+		}
+	}
 }
 
 static void SpawnBomb(Level* level, Vector2 pos) {
@@ -1230,13 +1251,12 @@ static void UpdatePlayer(GameContext* context, Level* level, Player* player, flo
 	// TODO: Implement opening doors by bombs when bombs are implemented.
 	if (level->currentRoom->complete && !level->swappingRoom) {
 		Tile* tile = GetTileByPos(level->currentRoom, &player->entity.position);
-		if (tile != NULL && tile->warp.dest != NULL) {
+		if (tile != NULL && tile->warp.dest != NULL && tile->warp.open) {
 			LogDebug("Warping player to %f,%f", tile->warp.pos.x, tile->warp.pos.y);
 			// Set player to the warp position.
 			context->state->lastCamPos = context->state->camera.target;
 			player->entity.position = tile->warp.pos;
-			tile->warp.touched = true;
-			return TriggerRoomChange(level, tile->warp.dest);
+			return TriggerRoomChange(level, tile);
 		}
 	}
 
@@ -1247,7 +1267,7 @@ static void UpdatePlayer(GameContext* context, Level* level, Player* player, flo
 	// Update weapon statuses.
 	UpdateWeaponStatus(player, delta);
 
-	bool upAttack = false, downAttack = false, leftAttack = false, rightAttack = false;
+	// Check if an attack is active and which direction to use.
 	bool isAttacking = IsActionActive(ACTION_ATT);
 	Direction attackDir = NO_DIRECTION;
 	if (IsActionActive(ACTION_ATT_DUP)) {
@@ -1258,6 +1278,7 @@ static void UpdatePlayer(GameContext* context, Level* level, Player* player, flo
 		isAttacking = true;
 		attackDir = SOUTH;
 	}
+	// TODO: Probably add preference by first pressed.
 	if (IsActionActive(ACTION_ATT_DRIGHT)) {
 		isAttacking = true;
 		attackDir |= EAST;
@@ -1349,6 +1370,8 @@ static void UpdatePlayer(GameContext* context, Level* level, Player* player, flo
 	if (newDir != NO_DIRECTION) {
 		MoveEntityByForce(level->currentRoom, &player->entity, delta);
 	}
+
+	// Check whether the player collides with an entity after all movements and actions are done.
 	CheckPlayerCollisions(level, player);
 }
 

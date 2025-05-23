@@ -24,7 +24,7 @@ typedef struct {
 	struct {
 		struct Room* dest;
 		Vector2 pos;
-		bool touched;
+		bool open;
 	} warp;
 	float rotation;
 } Tile;

@@ -299,7 +299,7 @@ static void RenderRoomCalls(GameContext* context, Room* room, Player* player, Dr
 						.fun = DRAW_TEXTURE,
 						.layer = BG_LAYER + row,
 						.args = { .texture = {
-							.texture = *GetTexture(room->tiles[index].warp.touched && room->complete ? DOOR_OPEN_TEXTURE : DOOR_TEXTURE),
+							.texture = *GetTexture(room->tiles[index].warp.open && room->complete ? DOOR_OPEN_TEXTURE : DOOR_TEXTURE),
 							.source = tileRect,
 							.position = (Vector2){ tileRect.x, tileRect.y },
 							.tint = WHITE,
