@@ -5,6 +5,8 @@
 #ifndef CONTROL_H
 #define CONTROL_H
 
+#include <stdbool.h>
+
 typedef enum {
 	NONE,
 	GO_LEFT,

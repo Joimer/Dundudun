@@ -1,7 +1,6 @@
 #include <stdlib.h>
 #include <raylib.h>
 #include "game.h"
-#include "control.h"
 #include "screens.h"
 #include "lib.h"
 #include "frame.h"
@@ -93,36 +92,6 @@ void SetupGamePRNG(GameContext* context) {
 	context->state->mtrand = SeedMTRand(context->state->seed);
 }
 
-static void UpdateLogo(GameContext* context) {
-	if (
-		context->state->elapsed > LOGO_DURATION
-		|| (
-			context->state->elapsed > 0.1f && (
-			IsActionActive(ACCEPT)
-			|| IsActionActive(CANCEL)
-			|| IsActionActive(ACTION_ATT)
-			|| IsActionActive(ACTION_SWAP)
-			|| IsActionActive(ACTION_BOMB)
-			|| IsActionActive(ACTION_DASH)
-		))
-	) {
-		LoadNextScreen(context, TITLE);
-	}
-}
-
-static void UpdateTitle(GameContext* context) {
-	if (
-		IsActionActive(ACCEPT)
-		|| IsActionActive(CANCEL)
-		|| IsActionActive(ACTION_ATT)
-		|| IsActionActive(ACTION_SWAP)
-		|| IsActionActive(ACTION_BOMB)
-		|| IsActionActive(ACTION_DASH)
-	) {
-		LoadNextScreen(context, GAMEPLAY);
-	}
-}
-
 static void Update(GameContext* context) {
 	float dt = GetFrameTime();
 	if (dt > MAX_DELTA) {
@@ -169,7 +138,9 @@ int RunGame(GameContext* context) {
 	LoadAllTextures();
 
 	// Main game loop
-	while (!WindowShouldClose()) {
+	while (!context->state->shouldClose) {
+		context->state->shouldClose = WindowShouldClose();
+
 		// First run the logic updates.
 		Update(context);
 

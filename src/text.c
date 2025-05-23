@@ -8,6 +8,10 @@ static const char* INVALID_STRING = "INVALID_STRING";
 // TODO: Maybe load the game texts from a file?
 static const char* texts[2][TOTAL_TEXTS] = {
 	[EN] = {
+		[M_NEW_GAME] = "Start game",
+		[M_CONTINUE] = "Continue",
+		[M_OPTIONS] = "Options",
+		[M_EXIT] = "Exit",
 		[HP_LABEL] = "%d HP",
 		[BOMB_LABEL] = "Bombs: %d",
 		[KEYS_LABEL] = "Keys: %d",

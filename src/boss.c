@@ -18,7 +18,6 @@ int Forklift(ActiveBoss* boss, Player* player) {
 		boss->stateCount = 1;
 		// Attack: Fix objective towards player and go there in a rushing movement until hitting the wall.
 		float angle = Vector2LineAngle(boss->entity.position, player->entity.position);
-		//Direction dir = AngleToDirection(angle, false);
 		boss->entity.anglev = AngleToVector(angle);
 		boss->entity.dir = AngleToDirection(angle, false);
 		boss->entity.speed = boss->boss->baseSpeed;
@@ -31,6 +30,7 @@ int Forklift(ActiveBoss* boss, Player* player) {
 		// Leave a flaming spot on the ground while rushing the player.
 		if (boss->elapsed >= 0.25f) {
 			boss->elapsed -= 0.25f;
+			// TODO: Enum for attacks
 			attackResult = 8;
 		}
 		// Was stopped upon hitting an obstacle.

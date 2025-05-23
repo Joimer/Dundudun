@@ -10,7 +10,7 @@
 #include "lib.h"
 #include "screens.h"
 
-
+#define GAME_NAME "Dundudun"
 #define GAME_CLOSE_SUCCESS 0
 #define SEED_LENGTH 8
 #define BITS_PER_SEED_CHAR 6
@@ -89,6 +89,7 @@ typedef struct {
 	MTRand mtrand;
 	int menuOption;
 	int menuContext;
+	bool shouldClose;
 } GameState;
 
 typedef enum { DIRECTIONAL, MOUSE } DashMode;
@@ -106,7 +107,7 @@ typedef struct {
 	Language lang;
 } GameOptions;
 
-typedef struct {
+typedef struct GameContext {
 	GameState* state;
 	GameOptions* options;
 } GameContext;

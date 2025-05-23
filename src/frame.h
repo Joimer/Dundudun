@@ -1,5 +1,7 @@
 /**********************************************
  * Frame construction and graphic management. *
+ * Gameplay rendering goes here.              *
+ * Non game scenes like menus go in screens.c *
  **********************************************/
 
 #ifndef FRAME_H

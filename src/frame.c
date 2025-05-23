@@ -845,67 +845,6 @@ static void RenderScreen(
 	EndDrawing();
 }
 
-static void RenderLogo(
-	GameContext* context,
-	RenderTexture2D* worldRender
-) {
-	// Render logo state in world render size.
-	BeginTextureMode(*worldRender);
-	ClearBackground(RAYWHITE);
-	const char* text = "Mantis Shrimp";
-	int fontSize = 42;
-	int textPxSize = MeasureText(text, fontSize);
-	DrawColourText(text, worldRender->texture.width / 2 - textPxSize / 2, worldRender->texture.height / 2 - fontSize / 2, fontSize, BLACK);
-
-	// Fade in logo 2s, fade out
-	if (context->state->elapsed <= LOGO_FADE_TIME) {
-		unsigned char t = (unsigned char)(255.0f * (LOGO_FADE_TIME - context->state->elapsed));
-		DrawRectangle(0, 0, worldRender->texture.width, worldRender->texture.height, (Color){ 0, 0, 0, t});
-	}
-	float fadeDiff = LOGO_DURATION - LOGO_FADE_TIME;
-	if (context->state->elapsed >= fadeDiff) {
-		unsigned char t = context->state->elapsed < LOGO_DURATION ? (unsigned char)(255.0f * -(fadeDiff - context->state->elapsed)) : 255;
-		DrawRectangle(0, 0, worldRender->texture.width, worldRender->texture.height, (Color){ 0, 0, 0, t});
-	}
-	EndTextureMode();
-
-	// Show frame in final size.
-	BeginDrawing();
-	ClearBackground(BLACK);
-	DrawTexturePro(
-		worldRender->texture,
-		(Rectangle){ 0, 0, WORLD_SIZE_WIDTH, -WORLD_SIZE_HEIGHT },
-		context->options->screenSize,
-		(Vector2){ 0, 0 }, 0.0f,
-		WHITE
-	);
-	EndDrawing();
-}
-
-static void RenderTitle(
-	GameContext* context,
-	RenderTexture2D* worldRender
-) {
-	BeginTextureMode(*worldRender);
-	ClearBackground(RAYWHITE);
-	const char* text = "This is a title";
-	int fontSize = 35;
-	int textPxSize = MeasureText(text, fontSize);
-	DrawColourText(text, worldRender->texture.width / 2 - textPxSize / 2, worldRender->texture.height / 2 - fontSize / 2, fontSize, BLACK);
-	EndTextureMode();
-
-	BeginDrawing();
-	ClearBackground(BLACK);
-	DrawTexturePro(
-		worldRender->texture,
-		(Rectangle){ 0, 0, WORLD_SIZE_WIDTH, -WORLD_SIZE_HEIGHT },
-		context->options->screenSize,
-		(Vector2){ 0, 0 }, 0.0f,
-		WHITE
-	);
-	EndDrawing();
-}
-
 static void RenderLevel(
 	GameContext* context,
 	RenderTexture2D* worldRender

@@ -2,8 +2,6 @@
 #include "game.h"
 #include "frame.h"
 
-#define GAME_NAME "Dundudun"
-
 int main(void) {
 	// Default game options.
 	// TODO: Load game config from options file.
@@ -23,10 +21,13 @@ int main(void) {
 	//SetTargetFPS(options.targetFps);
 	InitAudioDevice();
 
+	// Do not close game with ESC, as it's default for Menu in many games, including this one.
+	SetExitKey(KEY_NULL);
+
 	// Set up the initial game state.
 	GameState gameState = {
-		// LOGO
-		.screen = GAMEPLAY,
+		.screen = LOGO,
+		//.screen = GAMEPLAY,
 		.elapsed = 0.0f,
 		// 2d World camera.
 		.camera = {
@@ -35,7 +36,8 @@ int main(void) {
 			.zoom = 1.0f
 		},
 		.menuOption = 0,
-		.menuContext = 0
+		.menuContext = 0,
+		.shouldClose = false,
 	};
 
 	// The game context that all functions need to decide an outcome.

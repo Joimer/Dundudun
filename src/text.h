@@ -5,7 +5,7 @@
 #include "item.h"
 #include <raylib.h>
 
-#define TOTAL_TEXTS 31
+#define TOTAL_TEXTS 35
 #define TOTAL_GCOLOURS 7
 
 typedef enum {
@@ -16,6 +16,7 @@ typedef enum {
 extern const Color gameColours[TOTAL_GCOLOURS];
 
 typedef enum {
+	M_NEW_GAME, M_CONTINUE, M_OPTIONS, M_EXIT,
 	HP_LABEL, BOMB_LABEL, KEYS_LABEL, EXP_LABEL,
 	LEFTOVER_LUNCH_LABEL, LEFTOVER_LUNCH_TOOLTIP,
 	MACHINE_COFFEE_LABEL, MACHINE_COFFEE_TOOLTIP,
