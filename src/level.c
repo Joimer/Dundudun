@@ -1113,21 +1113,23 @@ static void AttackCallback(ObjectPool* pool, int index, void* args) {
 	// Attack that can hit enemies, go over them.
 	// Attacks can modify intended enemy status and it's likely there'll be more attacks than enemies,
 	// thus we'd rather loop enemies here than attacks on enemy update.
-	Room* room = cbArgs->level->currentRoom;
-	if (room->entityCount > 0 && (attack->target == T_ENEMY || attack->target == T_ALL)) {
-		for (int i = 0; i < room->entityCount; i++) {
-			if (!room->entities[i].active) {
-				continue;
+	if (attack->target == T_ENEMY || attack->target == T_ALL) {
+		Room* room = cbArgs->level->currentRoom;
+		if (room->entityCount > 0) {
+			for (int i = 0; i < room->entityCount; i++) {
+				if (!room->entities[i].active) {
+					continue;
+				}
+				if (room->entities[i].entity.invuln.active) {
+					continue;
+				}
+				// Check if attack hits the entity and process it.
+				DoesAttackHit(cbArgs, &room->entities[i].entity, attack);
 			}
-			if (room->entities[i].entity.invuln.active) {
-				continue;
-			}
-			// Check if attack hits the entity and process it.
-			DoesAttackHit(cbArgs, &room->entities[i].entity, attack);
 		}
-	}
-	if (room->boss.active && !room->boss.entity.invuln.active) {
-		DoesAttackHit(cbArgs, &room->boss.entity, attack);
+		if (room->boss.active && !room->boss.entity.invuln.active) {
+			DoesAttackHit(cbArgs, &room->boss.entity, attack);
+		}
 	}
 	return;
 

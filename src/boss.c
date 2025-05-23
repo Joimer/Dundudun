@@ -28,8 +28,9 @@ int Forklift(ActiveBoss* boss, Player* player) {
 	// Executing movement attack.
 	if (boss->stateCount == 1) {
 		// Leave a flaming spot on the ground while rushing the player.
-		if (boss->elapsed >= 0.25f) {
-			boss->elapsed -= 0.25f;
+		const float attackCd = 0.1f;
+		if (boss->entity.health < boss->boss->maxhp / 2 && boss->elapsed >= attackCd) {
+			boss->elapsed -= attackCd;
 			// TODO: Enum for attacks
 			attackResult = 8;
 		}
@@ -77,7 +78,6 @@ ActiveBoss InstantiateBoss(const Boss* boss, Vector2 pos) {
 	return (ActiveBoss){
 		.boss = boss,
 		.active = true,
-		.hp = boss->maxhp,
 		.stateCount = 0,
 		.elapsed = 0.0f,
 		.entity = CreateEntity(
@@ -89,7 +89,7 @@ ActiveBoss InstantiateBoss(const Boss* boss, Vector2 pos) {
 				.visible = true,
 				.layer = 4
 			},
-			(Rectangle){ -12, -12, 24, 24 },
+			(Rectangle){ -4, -4, 24, 24 },
 			0.5f
 		)
 	};

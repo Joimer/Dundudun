@@ -106,7 +106,7 @@ Attack attacks[TOTAL_ATTACKS] = {
 	{
 		.damage = 10,
 		.windup = 0.0f,
-		.duration = 10.0f,
+		.duration = 2.0f,
 		.centerDist = 0.0f,
 		.type = HB_CIRCLE,
 		.hitbox = { .radius = 16.0f },

@@ -25,7 +25,6 @@ typedef struct {
 
 typedef struct ActiveBoss {
 	const Boss* boss;
-	int hp;
 	// Generic counter for each boss to keep track of their own behaviour steps.
 	int stateCount;
 	float elapsed;

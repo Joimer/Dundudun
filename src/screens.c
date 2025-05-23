@@ -10,6 +10,8 @@ void LoadNextScreen(GameContext* context, GameScreen next) {
 	if (next == GAMEPLAY) {
 		SetupLevel(context);
 	}
+	context->state->menuOption = 0;
+	context->state->menuContext = 0;
 	context->state->screen = next;
 }
 
@@ -124,17 +126,18 @@ void RenderTitle(
 	const int middleY = worldRender->texture.height / 2;
 
 	// Draw the strings on the corresponding positions and finish up game world size texture.
+	const int separation = 5;
 	DrawColourText(text, middleX - textPxSize / 2, worldRender->texture.height / 10, fontSize, BLACK);
 	const int ngY = middleY;
 	const int ngX = middleX - ngPxSize / 2;
 	DrawColourText(newGame, ngX, ngY, menuSize, BLACK);
-	const int contY = middleY + menuSize + 5;
+	const int contY = middleY + menuSize + separation;
 	const int contX = middleX - contPxSize / 2;
 	DrawColourText(cont, contX, contY, menuSize, BLACK);
-	const int optsY = middleY + menuSize * 2 + 10;
+	const int optsY = middleY + menuSize * 2 + separation * 2;
 	const int optsX = middleX - optPxSize / 2;
 	DrawColourText(options, optsX, optsY, menuSize, BLACK);
-	const int exitY = middleY + menuSize * 3 + 15;
+	const int exitY = middleY + menuSize * 3 + separation * 3;
 	const int exitX = middleX - exitPxSize / 2;
 	DrawColourText(exitGame, exitX, exitY, menuSize, BLACK);
 	int selectionYPos, selectionXPos;
@@ -157,8 +160,13 @@ void RenderTitle(
 			break;
 	}
 	DrawColourText("> ", selectionXPos - menuSize, selectionYPos, menuSize, BLACK);
+	const char* version = "0.0.71";
+	const int vfsize = 12;
+	const int versionPxSize = MeasureText(version, vfsize);
+	DrawColourText(version, WORLD_SIZE_WIDTH - versionPxSize - vfsize - separation, WORLD_SIZE_HEIGHT - vfsize - separation, vfsize, BLACK);
 	EndTextureMode();
 
+	// TODO: UI in game is being done without this world size thingie, uhoh
 	BeginDrawing();
 	ClearBackground(BLACK);
 	DrawTexturePro(
