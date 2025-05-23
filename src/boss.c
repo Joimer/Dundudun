@@ -49,7 +49,8 @@ const Boss bosses[TOTAL_BOSSES] = {
 		.phases = 1,
 		.maxhp = 100,
 		.baseSpeed = 400,
-		.behaviour = &Forklift
+		.behaviour = &Forklift,
+		.weight = 300.0f,
 	},
 };
 

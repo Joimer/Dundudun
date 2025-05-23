@@ -506,7 +506,7 @@ static Level GenerateLevel(GameContext* context, int floor) {
 				reward = I_NONE;
 			} else {
 				// Boss reward is always a relic as well.
-				if (currentRoom == 6 || isBoss) {
+				if (currentRoom == 5 || isBoss) {
 					reward = I_RELIC;
 					// Item amount is mapped to relic ID when getting a relic.
 					// Will probably have to update this if there's a way to get 2+ relics as reward...
@@ -880,12 +880,12 @@ static void UpdateEnemy(GameContext* context, Player* player, Level* level, Acti
 			&enemy->entity, enemy->attack,
 			&player->entity.position,
 			&level->attacks,
-			enemy->behaviour == BOMB ? T_ALL : T_PLAYER
+			enemy->enemy->behaviour == BOMB ? T_ALL : T_PLAYER
 		);
 		if (unwindState > 0) {
 			// Enemy just finished winding an attack.
 			if (unwindState == 2) {
-				if (enemy->behaviour == BOMB) {
+				if (enemy->enemy->behaviour == BOMB) {
 					// Bombs are deactivated after exploding.
 					enemy->active = false;
 					return;
@@ -898,7 +898,7 @@ static void UpdateEnemy(GameContext* context, Player* player, Level* level, Acti
 
 		// Check if player is within the entity's active area.
 		if (!CheckCollisionPointCircle(
-			player->entity.position, enemy->entity.position, enemy->activeRadius
+			player->entity.position, enemy->entity.position, enemy->enemy->activeRadius
 		)) {
 			// Inactive status.
 			// If can be seen in screen or close by, idle behaviour.
@@ -917,12 +917,12 @@ static void UpdateEnemy(GameContext* context, Player* player, Level* level, Acti
 		Direction dir = NO_DIRECTION;
 
 		// Enemy that wants to distance itself from the player.
-		if (enemy->behaviour == DISTANCE) {
+		if (enemy->enemy->behaviour == DISTANCE) {
 			// When the enemy is a tad too far away within its active area, it actually approaches the player.
-			if (vecDist > enemy->activeRadius * 0.8f) {
+			if (vecDist > enemy->enemy->activeRadius * 0.8f) {
 				float angle = Vector2LineAngle(enemy->entity.position, player->entity.position);
 				dir = AngleToDirection(angle, false);
-			} else if (vecDist > enemy->activeRadius * 0.7f) {
+			} else if (vecDist > enemy->enemy->activeRadius * 0.7f) {
 				// Enemy will stand still if within adequate distance from the player.
 				return StandStill(&enemy->entity);
 			} else {
@@ -932,7 +932,7 @@ static void UpdateEnemy(GameContext* context, Player* player, Level* level, Acti
 				dir = AngleToDirection(angle, false);
 				// Check if there is an obstacle in the path of running away.
 				if (
-					vecDist < enemy->activeRadius * 0.5f
+					vecDist < enemy->enemy->activeRadius * 0.5f
 					&& TestPointDirCollision(
 						level->currentRoom, &enemy->entity, enemy->entity.position.x, enemy->entity.position.y, dir
 					)
@@ -943,7 +943,7 @@ static void UpdateEnemy(GameContext* context, Player* player, Level* level, Acti
 		}
 
 		// Enemy is always approaching player.
-		if (enemy->behaviour == APPROACH) {
+		if (enemy->enemy->behaviour == APPROACH) {
 			// Set direction towards player.
 			// Min distance is entity hitbox in front of player hitbox.
 			// Get the closest player hitbox corner to the enemy position.
@@ -1023,7 +1023,7 @@ static void UpdateEnemy(GameContext* context, Player* player, Level* level, Acti
 		}
 		SetStance(&enemy->entity, WALKING);
 		enemy->entity.dir = dir;
-		enemy->entity.speed = enemy->speed;
+		enemy->entity.speed = enemy->enemy->baseSpeed;
 		enemy->entity.anglev = DirectionToVector(enemy->entity.dir);
 	}
 
@@ -1032,6 +1032,17 @@ static void UpdateEnemy(GameContext* context, Player* player, Level* level, Acti
 	float speed = GetEntitySpeed(&enemy->entity);
 	if (speed > 0.0f) {
 		MoveEntityByForce(level->currentRoom, &enemy->entity, dt);
+	}
+}
+
+static void FinaliseAttackHit(GameEntity* entity, ActiveAttack* attack) {
+	// TODO: Instantiate blood splash on ground from an event sub.
+	const int damage = AttackHitEntity(entity, attack);
+	EmitDmgEvent(entity, damage, attack->attack->dmgType);
+	if (attack->fromPlayer) {
+		// Emit event if player is the one hitting.
+		// This allows us to manufacture many on hit events or combos without having to know about them here.
+		EmitPlayerHitEvent(entity);
 	}
 }
 
@@ -1048,14 +1059,7 @@ static void DoesAttackHit(AttackCbArgs* cbArgs, GameEntity* entity, ActiveAttack
 		return;
 	}
 	// Attack is hitting entity.
-	// TODO: Instantiate blood splash on ground from an event sub.
-	int damage = AttackHitEntity(entity, attack);
-	EmitDmgEvent(entity, damage, attack->attack->dmgType);
-	if (attack->fromPlayer) {
-		// Emit event if player is the one hitting.
-		// This allows us to manufacture many on hit events or combos without having to know about them here.
-		EmitPlayerHitEvent(entity);
-	}
+	FinaliseAttackHit(entity, attack);
 }
 
 static void AttackCallback(ObjectPool* pool, int index, void* args) {
@@ -1152,6 +1156,71 @@ static void SpawnBomb(Level* level, Vector2 pos) {
 	level->currentRoom->entities[bombId].entity.unstoppable = true;
 }
 
+static void CheckPlayerCollisions(Level* level, Player* player) {
+	// Check if, after movement, player is colliding with an enemy entity.
+	// In such a case, the player will be knocked back and receive damage.
+	Vector2 knockback = { 0 };
+	bool hasBeenHit = false;
+	float weight = 0.0f;
+	const Rectangle playerPos = HitboxWorldPosition(&player->entity);
+	GameEntity* hitter = NULL;
+	for (int i = 0; i < level->currentRoom->entityCount; i++) {
+		if (!level->currentRoom->entities[i].active || level->currentRoom->entities[i].enemy->weight == 0.0f) {
+			continue;
+		}
+		const Rectangle entityWorldHitbox = HitboxWorldPosition(&level->currentRoom->entities[i].entity);
+		if (CheckCollisionRecs(entityWorldHitbox, playerPos)) {
+			const float angle = Vector2LineAngle(level->currentRoom->entities[i].entity.position, player->entity.position);
+			knockback = Vector2Add(knockback, AngleToVector(angle));
+			hasBeenHit = true;
+			float newWeight = level->currentRoom->entities[i].enemy->weight + level->currentRoom->entities[i].entity.speed;
+			if (newWeight > weight) {
+				weight = newWeight;
+				hitter = &level->currentRoom->entities[i].entity;
+			}
+		}
+	}
+	if (level->currentRoom->type == BOSS && level->currentRoom->boss.active) {
+		const Rectangle entityWorldHitbox = HitboxWorldPosition(&level->currentRoom->boss.entity);
+		if (CheckCollisionRecs(entityWorldHitbox, playerPos)) {
+			const float angle = Vector2LineAngle(level->currentRoom->boss.entity.position, player->entity.position);
+			knockback = Vector2Add(knockback, AngleToVector(angle));
+			hasBeenHit = true;
+			float newWeight = level->currentRoom->boss.boss->weight + level->currentRoom->boss.entity.speed;
+			if (newWeight > weight) {
+				weight = newWeight;
+				hitter = &level->currentRoom->boss.entity;
+			}
+		}
+	}
+
+	// Apply knockback and stun.
+	if (hasBeenHit) {
+		// Generate ad hoc attack for the knockback hit.
+		// Damage is variable, so we have to do it like this.
+		const int damage = weight / 100.0f + 1.0f;
+		Attack attackTemp = *GetAttack(7);
+		attackTemp.damage = damage;
+		ActiveAttack* attack = &(ActiveAttack){
+			.source = hitter,
+			.attack = &attackTemp,
+			.elapsed = 0,
+			.center = player->entity.position,
+			.hitbox = { .rect = {} },
+			.target = T_PLAYER,
+			.stunDuration = 0.15f,
+			.pushForce = weight,
+			.angle = knockback,
+			.completed = true,
+			.fromPlayer = false,
+		};
+		// TODO: Add player's own weight and speed to the final speed
+		// its weight and direction should counteract the incoming force in a way that feels good to play.
+		// Right now the attack and angle is entirely from the enemy.
+		FinaliseAttackHit(&player->entity, attack);
+	}
+}
+
 static void UpdatePlayer(GameContext* context, Level* level, Player* player, float delta) {
 	if (level->swappingRoom) {
 		return;
@@ -1222,8 +1291,10 @@ static void UpdatePlayer(GameContext* context, Level* level, Player* player, flo
 		}
 	}
 
-	// TODO: Add pushback here.
 	// Player cannot move or act during a pushback action.
+	if (player->entity.stunned && player->entity.speed != 0.0f) {
+		return MoveEntityByForce(level->currentRoom, &player->entity, delta);
+	}
 
 	// Check if player is in the middle of an attack sequence.
 	if (player->entity.stance == ATTACKING) {
@@ -1260,6 +1331,7 @@ static void UpdatePlayer(GameContext* context, Level* level, Player* player, flo
 	if (newDir != NO_DIRECTION) {
 		MoveEntityByForce(level->currentRoom, &player->entity, delta);
 	}
+	CheckPlayerCollisions(level, player);
 }
 
 static Vector2 FindRewardPosition(Room* room) {

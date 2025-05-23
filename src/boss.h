@@ -20,6 +20,7 @@ typedef struct {
 	int maxhp;
 	float baseSpeed;
 	BossRunPhase* behaviour;
+	float weight;
 } Boss;
 
 typedef struct ActiveBoss {

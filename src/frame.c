@@ -335,7 +335,7 @@ static void RenderRoomCalls(GameContext* context, Room* room, Player* player, Dr
 					.layer = GIZMO_LAYER - 1000 + room->entities[i].entity.position.y * 100,
 					.args = { .circle = {
 						.center = room->entities[i].entity.position,
-						.radius = room->entities[i].activeRadius,
+						.radius = room->entities[i].enemy->activeRadius,
 						.color = (Color){ 255, 109, 194, 60 }
 					}}
 				});
@@ -768,10 +768,14 @@ static void RenderScreen(
 				const int xSelection = insideWidth / 4;
 				const int ySelection = dialogueStartY + spacing * 2 + dialogueFontSize * 3 + 2;
 				DrawColourText(
-					"Yes", xSelection, ySelection, dialogueFontSize, canBuy ? textWhite : textGray
+					GetText(context->options->lang, YES_LABEL),
+					xSelection, ySelection, dialogueFontSize,
+					canBuy ? textWhite : textGray
 				);
 				DrawColourText(
-					"No", insideWidth - xSelection, ySelection, dialogueFontSize, textWhite
+					GetText(context->options->lang, NO_LABEL),
+					insideWidth - xSelection, ySelection, dialogueFontSize,
+					textWhite
 				);
 				int selectionX = 0;
 				if (context->state->menuOption == 0) {

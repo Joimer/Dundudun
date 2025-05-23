@@ -16,6 +16,7 @@ Enemy enemies[TOTAL_ENEMIES] = {
 		.maxhp = 40,
 		.attackId = 0,
 		.touchDmg = 0,
+		.weight = 100.0f,
 	},
 	// Basic shooting from distance enemy.
 	[MAINT_SHOOTER] = {
@@ -26,6 +27,7 @@ Enemy enemies[TOTAL_ENEMIES] = {
 		.maxhp = 40,
 		.attackId = 4,
 		.touchDmg = 0,
+		.weight = 100.0f,
 	},
 	// Basic slow heavy hitter.
 	[MAINT_FAT] = {
@@ -36,6 +38,7 @@ Enemy enemies[TOTAL_ENEMIES] = {
 		.maxhp = 80,
 		.attackId = 1,
 		.touchDmg = 0,
+		.weight = 150.0f,
 	},
 	// Weak, fast, small enemy.
 	[RAT] = {
@@ -46,6 +49,7 @@ Enemy enemies[TOTAL_ENEMIES] = {
 		.maxhp = 9,
 		.attackId = 5,
 		.touchDmg = 0,
+		.weight = 30.0f,
 	},
 	// Player bomb is treated as an enemy that does not hurt on hit.
 	[PBOMB] = {
@@ -56,6 +60,7 @@ Enemy enemies[TOTAL_ENEMIES] = {
 		.maxhp = 1,
 		.attackId = 6,
 		.touchDmg = 0,
+		.weight = 0.0f,
 	},
 };
 
@@ -145,13 +150,10 @@ const EnemyGroup* GetEnemyGroup(int i) {
 
 ActiveEnemy InstantiateEnemy(Enemy* enemy, Vector2 pos) {
 	return (ActiveEnemy){
+		.enemy = enemy,
 		.active = true,
-		.activeRadius = enemy->activeRadius,
-		.behaviour = enemy->behaviour,
-		.speed = enemy->baseSpeed,
 		.attack = GetAttack(enemy->attackId),
 		.lastAttack = 0.0f,
-		.attackCd = enemy->attackCd,
 		.entity = CreateEntity(
 			enemy->maxhp,
 			pos,
@@ -209,9 +211,15 @@ GameEntity CreateEntity(
 	return entity;
 }
 
-int DamageEntity(GameEntity* entity, int damage) {
+int DamageEntity(GameEntity* entity, int damage, float dmgMod) {
+	if (entity->invuln.active) {
+		return 0;
+	}
 	entity->invuln.active = true;
 	damage = damage > entity->health ? entity->health : damage;
+	if (dmgMod != 1.0f) {
+		damage = damage + damage * dmgMod / 100.0f;
+	}
 	entity->health -= damage;
 
 	return damage;
@@ -249,27 +257,29 @@ static void RemoveStatus(GameEntity* entity, StatusName status) {
 	}
 }
 
+void ApplyStun(GameEntity* entity, float duration) {
+	if (!entity->stunned) {
+		entity->stunned = true;
+		entity->stunDuration = duration;
+		entity->stunElapsed = 0.0f;
+	}
+}
+
 int AttackHitEntity(GameEntity* entity, ActiveAttack* attack) {
 	// Calculate attack damage from source and active modifiers.
-	int damage = DamageEntity(entity, attack->attack->damage);
-	if (attack->source->dmgMod != 1.0f) {
-		damage = damage + damage * attack->source->dmgMod / 100.0f;
-	}
+	const int damage = DamageEntity(entity, attack->attack->damage, attack->source->dmgMod);
 
 	// Apply knockback.
 	if (!entity->unstoppable && attack->pushForce > 0.0f) {
 		entity->speed = attack->pushForce;
-		float angle = Vector2LineAngle(attack->center, entity->position);
-		entity->anglev = (Vector2){ .x = cosf(angle), .y = -(sinf(angle)) };
+		entity->anglev = attack->angle;
 		// Interrupts attacking stances.
 		SetStance(entity, WALKING);
 	}
 
 	// Apply damage received stun.
 	if (!entity->unstoppable && attack->stunDuration > 0.0f) {
-		entity->stunned = true;
-		entity->stunDuration = attack->stunDuration;
-		entity->stunElapsed = 0.0f;
+		ApplyStun(entity, attack->stunDuration);
 	}
 
 	// Destroy projectiles.
@@ -442,7 +452,7 @@ int EntityUnwindAttack(
 int EnemyCheckAttack(ActiveEnemy* enemy, float playTime, Vector2* targetPos) {
 	if (
 		enemy->entity.stance != ATTACKING
-		&& (enemy->lastAttack == 0.0f || enemy->lastAttack + enemy->attackCd < playTime)
+		&& (enemy->lastAttack == 0.0f || enemy->lastAttack + enemy->enemy->attackCd < playTime)
 	) {
 		// Shooting attack.
 		bool doAttack = enemy->attack->speed > 0.0f;

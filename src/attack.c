@@ -90,6 +90,18 @@ Attack attacks[TOTAL_ATTACKS] = {
 		.projectile = false,
 		.dmgType = D_PHYSICAL
 	},
+	// Attack template for enemy hitting player with collision.
+	{
+		.damage = 1,
+		.windup = 0.0f,
+		.duration = 0.0f,
+		.centerDist = 0.0f,
+		.type = HB_CIRCLE,
+		.hitbox = { .radius = 1.0f },
+		.speed = 0,
+		.projectile = false,
+		.dmgType = D_PHYSICAL
+	},
 };
 
 ActiveAttack InitiateAttack(

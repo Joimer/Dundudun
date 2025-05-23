@@ -28,6 +28,8 @@ static const char* texts[2][TOTAL_TEXTS] = {
 		[IDESC_BOMBS] = "{5}bombs{r}",
 		[LETTER_OPENER_LABEL] = "Letter Opener",
 		[CLIP_BOX_LABEL] = "Paperclip Box",
+		[YES_LABEL] = "Yes",
+		[NO_LABEL] = "No",
 	},
 	[ES] = {}
 };

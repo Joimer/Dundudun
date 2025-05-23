@@ -27,23 +27,21 @@ typedef enum { MAINT_MELEE, MAINT_SHOOTER, MAINT_FAT, RAT, PBOMB } EnemyType;
 typedef struct {
 	float activeRadius;
 	EnemyBehaviour behaviour;
+	// This is the base speed of the enemy.
+	// Can be modified. Entity holds final speed.
 	float baseSpeed;
 	float attackCd;
 	int attackId;
 	int maxhp;
 	int touchDmg;
+	float weight;
 } Enemy;
 
 typedef struct {
+	const Enemy* enemy;
 	GameEntity entity;
-	float activeRadius;
-	EnemyBehaviour behaviour;
 	bool active;
-	// This is the base speed of the enemy.
-	// Can be modified. Entity holds final speed.
-	float speed;
 	float lastAttack;
-	float attackCd;
 	Attack* attack;
 } ActiveEnemy;
 
@@ -62,8 +60,9 @@ typedef struct {
 Enemy* GetEnemy(int i);
 ActiveEnemy InstantiateEnemy(Enemy* enemy, Vector2 pos);
 const EnemyGroup* GetEnemyGroup(int i);
-int DamageEntity(GameEntity* entity, int damage);
+int DamageEntity(GameEntity* entity, int damage, float dmgMod);
 void ApplyStatus(GameEntity* entity, StatusName status, float value);
+void ApplyStun(GameEntity* entity, float duration);
 int AttackHitEntity(GameEntity* entity, ActiveAttack* attack);
 void SetStance(GameEntity* entity, Stance stance);
 Rectangle HitboxWorldPosition(GameEntity* entity);

@@ -5,7 +5,7 @@
 #include "item.h"
 #include <raylib.h>
 
-#define TOTAL_TEXTS 29
+#define TOTAL_TEXTS 31
 #define TOTAL_GCOLOURS 7
 
 typedef enum {
@@ -23,7 +23,7 @@ typedef enum {
 	SHOCKING_PIC_LABEL, SHOCKING_PIC_TOOLTIP,
 	IDESC_KEY, IDESC_KEYS, BUY_ITEM, IDESC_EXP,
 	IDESC_BOMB, IDESC_BOMBS, LETTER_OPENER_LABEL,
-	CLIP_BOX_LABEL,
+	CLIP_BOX_LABEL, YES_LABEL, NO_LABEL,
 } GameText;
 
 void LoadGameFont();
