@@ -68,6 +68,13 @@ void SetStance(GameEntity* entity, Stance stance);
 Rectangle HitboxWorldPosition(GameEntity* entity);
 float MaxAttackRange(ActiveEnemy* enemy);
 void UpdateEntity(GameEntity* entity, float delta);
+int CreateEntityAttack(
+	GameEntity* entity,
+	Attack* attack,
+	Vector2* targetPos,
+	ObjectPool* attackPool,
+	AttackTarget at
+);
 int EntityUnwindAttack(
 	GameEntity* entity,
 	Attack* attack,

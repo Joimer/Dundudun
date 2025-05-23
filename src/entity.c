@@ -414,6 +414,29 @@ void UpdateEntity(GameEntity* entity, float delta) {
 	UpdateStatuses(entity, delta);
 }
 
+int CreateEntityAttack(
+	GameEntity* entity,
+	Attack* attack,
+	Vector2* targetPos,
+	ObjectPool* attackPool,
+	AttackTarget at
+) {
+	ActiveAttack att = InitiateAttack(entity, targetPos, attack, at, at == T_ALL);
+	if (att.source == NULL) {
+		LogDebug("Failed creating active attack instance");
+		return -1;
+	}
+	void* result = AddToPool(attackPool, &att);
+	if (result == NULL) {
+		LogDebug("Failed to allocate attack on object pool");
+		return -1;
+	}
+	LogDebug("Amount of active attacks: %d", attackPool->activeItems);
+
+	// Attack was instantiated.
+	return 2;
+}
+
 // Returns wether unwinding or unwinded (movement stops) or no related attack unwind action (pick other action).
 int EntityUnwindAttack(
 	GameEntity* entity,
@@ -429,20 +452,7 @@ int EntityUnwindAttack(
 		}
 
 		// Attack windup has finished, instantiate actual attack hitbox.
-		ActiveAttack att = InitiateAttack(entity, targetPos, attack, at, at == T_ALL);
-		if (att.source == NULL) {
-			LogDebug("Failed creating active attack instance");
-			return -1;
-		}
-		void* result = AddToPool(attackPool, &att);
-		if (result == NULL) {
-			LogDebug("Failed to allocate attack on object pool");
-			return -1;
-		}
-		LogDebug("Amount of active attacks: %d", attackPool->activeItems);
-
-		// Attack was instantiated.
-		return 2;
+		return CreateEntityAttack(entity, attack, targetPos, attackPool, at);
 	}
 
 	// Not currently attacking nor readying an attack.

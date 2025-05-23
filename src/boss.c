@@ -10,11 +10,12 @@ void UpdateBoss(ActiveBoss* boss, float dt) {
 	}
 }
 
-void Forklift(ActiveBoss* boss, Player* player) {
-	// Boss is not doing an action and ready to stammrt.
+int Forklift(ActiveBoss* boss, Player* player) {
+	int attackResult = -1;
+
+	// Boss is not doing an action and ready to start.
 	if (boss->stateCount == 0 && boss->elapsed >= 0.15f) {
 		boss->stateCount = 1;
-		boss->elapsed = 0;
 		// Attack: Fix objective towards player and go there in a rushing movement until hitting the wall.
 		float angle = Vector2LineAngle(boss->entity.position, player->entity.position);
 		//Direction dir = AngleToDirection(angle, false);
@@ -22,11 +23,16 @@ void Forklift(ActiveBoss* boss, Player* player) {
 		boss->entity.dir = AngleToDirection(angle, false);
 		boss->entity.speed = boss->boss->baseSpeed;
 		boss->entity.unstoppable = true;
-		return;
+		return attackResult;
 	}
 
 	// Executing movement attack.
 	if (boss->stateCount == 1) {
+		// Leave a flaming spot on the ground while rushing the player.
+		if (boss->elapsed >= 0.25f) {
+			boss->elapsed -= 0.25f;
+			attackResult = 8;
+		}
 		// Was stopped upon hitting an obstacle.
 		if (boss->entity.speed == 0.0f) {
 			boss->entity.unstoppable = false;
@@ -41,6 +47,8 @@ void Forklift(ActiveBoss* boss, Player* player) {
 		boss->stateCount = 0;
 		boss->elapsed = 0;
 	}
+
+	return attackResult;
 }
 
 const Boss bosses[TOTAL_BOSSES] = {

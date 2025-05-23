@@ -12,7 +12,7 @@
 
 struct ActiveBoss;
 
-typedef void BossRunPhase(struct ActiveBoss* boss, Player* player);
+typedef int BossRunPhase(struct ActiveBoss* boss, Player* player);
 
 typedef struct {
 	int level;

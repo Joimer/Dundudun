@@ -102,6 +102,18 @@ Attack attacks[TOTAL_ATTACKS] = {
 		.projectile = false,
 		.dmgType = D_PHYSICAL
 	},
+	// Forklift boss flaming ground
+	{
+		.damage = 10,
+		.windup = 0.0f,
+		.duration = 10.0f,
+		.centerDist = 0.0f,
+		.type = HB_CIRCLE,
+		.hitbox = { .radius = 16.0f },
+		.speed = 0,
+		.projectile = false,
+		.dmgType = D_BURN
+	},
 };
 
 ActiveAttack InitiateAttack(

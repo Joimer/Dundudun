@@ -1381,11 +1381,20 @@ static Vector2 FindRewardPosition(Room* room) {
 	return (Vector2){ room->columns / 2.0f, room->rows / 2.0f };
 }
 
-static void UpdateRoomBoss(Level* level, ActiveBoss* boss, float dt) {
+static void UpdateRoomBoss(Level* level, ActiveBoss* boss, Player* player, float dt) {
 	// Update boss state.
 	UpdateBoss(boss, dt);
 	// Apply boss specific behaviour.
-	boss->boss->behaviour(boss, &player);
+	int attackResult = boss->boss->behaviour(boss, player);
+	if (attackResult > -1) {
+		CreateEntityAttack(
+			&boss->entity, GetAttack(attackResult),
+			&player->entity.position,
+			&level->attacks,
+			T_PLAYER
+		);
+	}
+
 	// Boss behaviour does not implement movement as it is agnostic to the room.
 	// We apply here movement and stop it if necessary.
 	// Boss behaviour will find out if it's been stopped.
@@ -1442,7 +1451,7 @@ void UpdateLevel(GameContext* context, float dt) {
 	if (level.currentRoom != NULL) {
 		// Run boss behaviour update on boss rooms.
 		if (level.currentRoom->type == BOSS && level.currentRoom->boss.active) {
-			UpdateRoomBoss(&level, &level.currentRoom->boss, dt);
+			UpdateRoomBoss(&level, &level.currentRoom->boss, &player, dt);
 			activeEntities++;
 		}
 
