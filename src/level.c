@@ -115,6 +115,11 @@ void onEntityDamage(Event* ev) {
 	);
 }
 
+// TODO: Should I just do a macro for this,,,?
+static inline int IndexForTile(int columns, int fromX, int fromY) {
+	return fromX + (columns * fromY);
+}
+
 static void AddRoomExit(
 	Room* room, Room* destination,
 	int fromX, int fromY,
@@ -124,7 +129,7 @@ static void AddRoomExit(
 		LogDebug("Invalid room from %d to %d", (room == NULL), (destination == NULL));
 		return;
 	}
-	const int index = fromX + (room->columns * fromY);
+	const int index = IndexForTile(room->columns, fromX, fromY);
 	if (index > room->tileCount - 1) {
 		LogDebug("Invalid tile position: %d/%d on starting pos %d,%d", index, room->tileCount, fromX, fromY);
 		return;
@@ -182,8 +187,8 @@ static Room GenerateRoom(
 		const TileType forGrass = num == 0 ? GROUND : GRASS;
 		for (int row = 0; row < room.rows; row++) {
 			for (int column = 0; column < room.columns; column++) {
-				const bool isWall = (row == 0 || column == 0 || column == room.columns - 1 || row == room.rows - 1);
-				const int index = column + (room.columns * row);
+				const bool isWall = (row == 0 || column == 0 || column == room.columns - 1 || row == room.rows - 1) || (column == room.columns / 2 && row == room.rows / 2);
+				const int index = IndexForTile(room.columns, column, row);
 				const TileType type = isWall ? WALL : (index % 6 == 0 ? forGrass : GROUND);
 				room.tiles[index] = (Tile){
 					.type = type,
@@ -679,6 +684,13 @@ void SetupLevel(GameContext* context) {
 	levelSetup = true;
 }
 
+static Vector2 GetTileVectorByPos(Room* room, Vector2* pos) {
+	Vector2 roomOffset = RoomOffset(room);
+	const float x = (pos->x - roomOffset.x) / TILE_SIZE;
+	const float y = (pos->y - roomOffset.y) / TILE_SIZE;
+	return (Vector2){ x, y };
+}
+
 static Tile* GetTileByPos(Room* room, Vector2* pos) {
 	if (room == NULL || pos == NULL || room->tileCount == 0 || room->rows == 0 || room->columns == 0) {
 		LogDebug("Invalid parameters");
@@ -686,12 +698,12 @@ static Tile* GetTileByPos(Room* room, Vector2* pos) {
 	}
 
 	// We will use room offset to calculate indexing as in room 0.
-	// Then, w use tile size to determine index from pixel position.
+	// Then, we use tile size to determine index from pixel position.
 	Vector2 roomOffset = RoomOffset(room);
-	const int x = (int)((pos->x - roomOffset.x) / TILE_SIZE);
-	const int y = (int)((pos->y - roomOffset.y) / TILE_SIZE);
-	const int index = x + (room->columns * y);
+	Vector2 tpos = GetTileVectorByPos(room, pos);
+	const int index = IndexForTile(room->columns, (int)tpos.x, (int)tpos.y);
 	if (index < room->tileCount) {
+		LogDebug("tile %d", index);
 		return &room->tiles[index];
 	}
 
@@ -757,7 +769,7 @@ Vector2 Raycast(Room* room, Vector2 start, Vector2 end, GameEntity* self) {
 	int max = (abs(err) * 2) + 1;
 	Vector2 point = {};
 	GameEntity* coll = NULL;
-	int tilesThrough = Vector2Distance(start, end) / TILE_SIZE;
+	int tilesThrough = Vector2Distance(start, end) / TILE_SIZE + 1;
 	Vector2 tilePos = { floorf(x0 / TILE_SIZE), floorf(y0 / TILE_SIZE) };
 
 	for (int i = 0; i < max; i++) {
@@ -798,6 +810,77 @@ Vector2 Raycast(Room* room, Vector2 start, Vector2 end, GameEntity* self) {
 	}
 
 	return point;
+}
+
+static void FindPath(Room* room, ActiveEnemy* self, Vector2 target) {
+	// Find the path for the enemy towards the objective.
+	// First do a straight line raycast. If no obstacles, try to follow this simple path.
+	// If there's an obstacle in the way, pick a path tile by tile.
+	// Once within a tile mid movement, it'll find the area that is not occupied by another entity.
+	Vector2 finalPos = Raycast(room, self->entity.position, target, &self->entity);
+	if (fabsf(finalPos.x - target.x) < TILE_SIZE / 2 && fabsf(finalPos.y - target.y) < TILE_SIZE / 2) {
+		self->pathPoints = 1;
+		self->path[0] = finalPos;
+		return;
+	}
+
+	// There's obstacles in the way, so find pathing tile by tile and then pinpoint by other entities.
+	Tile* currentTile = GetTileByPos(room, &self->entity.position);
+	Vector2 startTilePos = GetTileVectorByPos(room, &self->entity.position);
+	Vector2 endTilePos = GetTileVectorByPos(room, &target);
+	int x0 = (int)startTilePos.x, y0 = (int)startTilePos.y, x1 = (int)endTilePos.x, y1 = (int)endTilePos.y;
+	const int dx = abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
+	const int dy = -abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
+	int err = dx + dy, e2;
+	const int max = (abs(err) * 2) + 1;
+
+	// We know the first obstacle, so we can go around it.
+	Vector2 point;
+	int i = 0;
+	Tile* nextTile;
+	// This is supposed to be an A* but I am on a plane with no internet and I do not REMEMBER IT AAAAAAAAAAAAAAAAAAAAH
+	do {
+		// TODO: Should try to advance first by axis with most distance.
+		// In case of obstacle in this axis, should use the other axis to avoid obstacle.
+		// If path reaches a point where these actions do not allow for passing, go back and retry new path.
+		// ----
+		// Try to advance tile by X axis first.
+		bool obstacled = false;
+		if (x0 != x1) {
+			x0 += sx;
+			const int index = IndexForTile(room->columns, x0, y0);
+			nextTile = &room->tiles[index];
+			if (!nextTile->obstacle) {
+				self->path[i] = RoomOffsetPos(room, x0, y0);
+				i++;
+			} else {
+				obstacled = true;
+				x0 -= sx;
+			}
+		}
+		if (y0 != y1 || obstacled) {
+			y0 += sy;
+			const int index = IndexForTile(room->columns, x0, y0);
+			nextTile = &room->tiles[index];
+			if (!nextTile->obstacle) {
+				self->path[i] = RoomOffsetPos(room, x0, y0);
+				i++;
+			} else {
+				obstacled = true;
+				y0 -= sx;
+			}
+		}
+
+		// Destination reached.
+		if (x0 == x1 && y0 == y1) {
+			break;
+		}
+
+		// Both paths were an obstacle.
+		if (obstacled) {
+			// Retrace and find another route.
+		}
+	} while (i < max);
 }
 
 static GameEntity* FindEntityCollision(Room* room, GameEntity* self, Rectangle* newPos) {
@@ -918,7 +1001,7 @@ static void UpdateEnemy(GameContext* context, Player* player, Level* level, Acti
 			return;
 		}
 
-		float vecDist = Vector2Distance(player->entity.position, enemy->entity.position);
+		const float vecDist = Vector2Distance(player->entity.position, enemy->entity.position);
 		Direction dir = NO_DIRECTION;
 
 		// Enemy that wants to distance itself from the player.
@@ -978,17 +1061,26 @@ static void UpdateEnemy(GameContext* context, Player* player, Level* level, Acti
 			// Decided direction collides.
 			// If previous direction is different to new one, attempt to follow through.
 			if (willCollide && dir != enemy->entity.dir && enemy->entity.dir != NO_DIRECTION) {
+				LogDebug("Will collide on %d, try prev dir %d", dir, enemy->entity.dir);
 				willCollide = TestRectDirCollision(level->currentRoom, &enemy->entity, hitbox, enemy->entity.dir);
 				if (!willCollide) {
+					LogDebug("Previous dir will not collide apparently :)");
 					dir = enemy->entity.dir;
 				}
 			}
 		} else {
 			Vector2 anglev = DirectionToVector(enemy->entity.dir);
-			Rectangle newHitbox = HitboxWorldPosition(&enemy->entity);
-			newHitbox.x += anglev.x * enemy->entity.speed * dt;
-			newHitbox.y += anglev.y * enemy->entity.speed * dt;
-			willCollide = (FindEntityCollision(level->currentRoom, &enemy->entity, &newHitbox) != NULL);
+			Vector2 newPos = AdvancePointByVector(enemy->entity.position, anglev, enemy->entity.speed * dt);
+			Tile* nextTile = GetTileByPos(level->currentRoom, &newPos);
+			LogDebug("Next tilerino %d", nextTile->type);
+			willCollide = nextTile->obstacle || nextTile->type == DOOR && !level->currentRoom->complete;
+			if (!willCollide) {
+				Rectangle newHitbox = HitboxWorldPosition(&enemy->entity);
+				newHitbox.x = newPos.x;
+				newHitbox.y = newPos.y;
+				willCollide = (FindEntityCollision(level->currentRoom, &enemy->entity, &newHitbox) != NULL);
+			}
+			LogDebug("Will it collide %d", willCollide);
 		}
 
 		// Entity will collide on new position, try to find another path.
@@ -1016,10 +1108,12 @@ static void UpdateEnemy(GameContext* context, Player* player, Level* level, Acti
 				}
 				// This direction won't collide, can use it.
 				if (!TestRectDirCollision(level->currentRoom, &enemy->entity, hitbox, newDir)) {
+					LogDebug("Found new dir :)");
 					dir = newDir;
 					break;
 				}
 			}
+			LogDebug("All directions collide??");
 		}
 
 		// If the entity was completely stopped, we can check on next one already.

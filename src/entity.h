@@ -43,6 +43,10 @@ typedef struct {
 	bool active;
 	float lastAttack;
 	Attack* attack;
+	// Movement target and pathing.
+	Vector2* targetPos;
+	int pathPoints;
+	Vector2 path[10];
 } ActiveEnemy;
 
 typedef struct {

@@ -40,11 +40,6 @@ typedef struct {
 	int layer;
 } Sprite;
 
-typedef struct {
-	Vector2 center;
-	float radius;
-} Circle;
-
 // We can use a 4 bit value to indicate a direction.
 // 0000 - north south west east
 typedef enum {

@@ -11,6 +11,7 @@
 
 #define TOTAL_WEAPONS 100
 #define TOTAL_RELICS 4
+#define TOTAL_CONSUMABLES 5
 
 typedef enum { MELEE, SHOOTING } WeaponType;
 
@@ -44,14 +45,6 @@ typedef struct {
 	int cost;
 } Boots;
 
-typedef struct {
-	int weaponSlot;
-	int maxWeaps;
-	int equippedWeaps;
-	Weapon** weapons;
-	Boots* boots;
-} Gear;
-
 typedef void RelicHitEvent(GameEntity*);
 
 typedef enum {
@@ -71,11 +64,16 @@ typedef struct {
 	int minLevel;
 } Relic;
 
-typedef enum { KEFIR_DRINK } ConsumableName;
+typedef enum { KEFIR_DRINK, LATTE, ESPRESSO, MATCHA, WATER } ConsumableName;
+typedef enum { B_NONE, B_ATTACK, B_SPEED, B_DEFENSE } BoostType;
 
 typedef struct {
+	ConsumableName id;
 	int heal;
 	bool statusHeal[4];
+	BoostType btype;
+	float boostAmount;
+	float boostDuration;
 	int cost;
 } Consumable;
 
@@ -89,6 +87,17 @@ typedef struct {
 	bool active;
 	int cost;
 } Item;
+
+typedef struct {
+	int weaponSlot;
+	int maxWeaps;
+	int equippedWeaps;
+	Weapon** weapons;
+	Boots* boots;
+	Consumable* consumable;
+	// Add a trinket? Could be cool (unique relic styled item)
+	// How many active items? Variable?
+} Gear;
 
 Weapon* GetWeapon(int i);
 Relic* GetRelic(int i);

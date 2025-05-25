@@ -88,6 +88,14 @@ static Relic relics[TOTAL_RELICS] = {
 	},
 };
 
+static Consumable consumables[TOTAL_CONSUMABLES] = {
+	[KEFIR_DRINK] = {},
+	[LATTE] = {},
+	[ESPRESSO] = {},
+	[MATCHA] = {},
+	[WATER] = {},
+};
+
 Weapon* GetWeapon(int i) {
 	if (i > TOTAL_WEAPONS - 1) {
 		LogDebug("Attempting to get invalid weapon %d", i);
@@ -104,6 +112,15 @@ Relic* GetRelic(int i) {
 	}
 
 	return &relics[i];
+}
+
+Consumable* GetConsumable(int i) {
+	if (i > TOTAL_CONSUMABLES - 1) {
+		LogDebug("Attempting to get invalid consumable %d", i);
+		return NULL;
+	}
+
+	return &consumables[i];
 }
 
 bool HasRelic(RelicName id, Relic** relics, int count) {
