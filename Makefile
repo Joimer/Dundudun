@@ -7,5 +7,8 @@ SRCS=$(wildcard $(SRC)/*.c)
 all:
 	$(CC) $(SRCS) $(CFLAGS) -o $(BIN)/game
 
+win:
+	x86_64-w64-mingw32-gcc $(SRCS) -g -I../raylib/src -L../raylib/src -xo2 -lraylib -lm -lpthread -std=c99 -lopengl32 -lgdi32 -lwinmm -mwindows -o $(BIN)/game.exe
+
 clean:
-	rm -rf $(BIN)/game
+	rm -f $(BIN)/game $(BIN)/game.exe

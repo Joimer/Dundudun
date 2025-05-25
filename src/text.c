@@ -49,7 +49,7 @@ static float GetLineSpacing() {
 static Font gameFont;
 
 void LoadGameFont() {
-	gameFont = LoadFont("src/resources/fonts/pixantiqua.png");
+	gameFont = LoadFont("resources/fonts/pixantiqua.png");
 }
 
 void UnloadGameFont() {

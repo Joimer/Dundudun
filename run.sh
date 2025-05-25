@@ -1,2 +1,2 @@
 #! /bin/bash
-make && ./bin/game
+make && cd ./src && ../bin/game

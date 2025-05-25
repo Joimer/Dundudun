@@ -6,10 +6,10 @@
 static Texture2D gameTextures[TEXTURE_COUNT] = {};
 
 const char* textToSource[TEXTURE_COUNT] = {
-	[CURSOR_TEXTURE] = "src/resources/cursor.png",
-	[PLAYER_TEXTURE] = "src/resources/testpj.png",
-	[DOOR_TEXTURE] = "src/resources/doapi.png",
-	[DOOR_OPEN_TEXTURE] = "src/resources/opendoor.png",
+	[CURSOR_TEXTURE] = "resources/cursor.png",
+	[PLAYER_TEXTURE] = "resources/testpj.png",
+	[DOOR_TEXTURE] = "resources/doapi.png",
+	[DOOR_OPEN_TEXTURE] = "resources/opendoor.png",
 };
 
 static void LoadGameTexture(GameTexture text) {
