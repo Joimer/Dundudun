@@ -643,6 +643,18 @@ static void RenderScreen(
 				}
 			}
 		}
+
+		// Picked weapon and available weapons.
+		const int weapXStart = playerHudX;
+		const int weapY = screenHeight - 210;
+		const int weapSeparation = 10;
+		for (int i = 0; i < player->gear.equippedWeaps; i++) {
+			Color weapColor = player->gear.weaponSlot == i ? RED : BLACK;
+			const int currWeapX = weapXStart + i * 32 + i * weapSeparation;
+			DrawRectangle(currWeapX, weapY, 38, 38, weapColor);
+			DrawRectangle(currWeapX + 3, weapY + 3, 32, 32, GRAY);
+			DrawColourText(TextFormat("W%d", i), currWeapX + 6, weapY + 6, 22, weapColor);
+		}
 	}
 
 	// Render the minimap.
