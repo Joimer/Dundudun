@@ -26,10 +26,13 @@ Player CreatePlayer(Texture2D* characterTexture) {
 	float halfHeight = (float) characterTexture->height / 2.0f;
 	// TODO: realloc if limits are increased in-game? Always alloc to max possible weapons?
 	Weapon** playerWeapons = calloc(PLAYER_INIT_WEAPONS, sizeof(Weapon*));
+	Consumable** consumables = calloc(PLAYER_INIT_CONSUMABLES, sizeof(Consumable*));
+
 	// Pre-assign initial weapons.
 	// This will not be done here and initial room will have them so player can learn how to interact with items.
 	playerWeapons[0] = GetWeapon(0);
 	playerWeapons[1] = GetWeapon(1);
+
 	return (Player){
 		.speed = PLAYER_SPEED,
 		.relicCount = 0,
@@ -66,7 +69,11 @@ Player CreatePlayer(Texture2D* characterTexture) {
 			.weaponSlot = 0,
 			.maxWeaps = PLAYER_INIT_WEAPONS,
 			.weapons = playerWeapons,
-			.equippedWeaps = PLAYER_INIT_WEAPONS
+			.equippedWeaps = PLAYER_INIT_WEAPONS,
+			.consumableSlot = 0,
+			.maxConsumables = PLAYER_INIT_CONSUMABLES,
+			.equippedConsumables = 0,
+			.consumable = consumables,
 		}
 	};
 }

@@ -655,6 +655,9 @@ static void RenderScreen(
 			DrawRectangle(currWeapX + 3, weapY + 3, 32, 32, GRAY);
 			DrawColourText(TextFormat("W%d", i), currWeapX + 6, weapY + 6, 22, weapColor);
 		}
+
+		// Show consumable item
+		// TODO XDDDD
 	}
 
 	// Render the minimap.
