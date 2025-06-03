@@ -12,7 +12,6 @@
 #include "event.h"
 #include "boss.h"
 
-#define COLL_RAYCAST_ACTIVE 48.0f
 #define COLL_RAYCAST_DIST 16.0f
 
 typedef enum { WALL = 0, GROUND = 1, GRASS, DOOR } TileType;

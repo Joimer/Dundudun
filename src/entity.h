@@ -45,7 +45,8 @@ typedef struct {
 	float lastAttack;
 	Attack* attack;
 	// Movement target and pathing.
-	Vector2* targetPos;
+	int lastTile;
+	Vector2 targetPos;
 	unsigned int pathPoints;
 	Vector2 path[MAX_PATH_POINTS];
 } ActiveEnemy;

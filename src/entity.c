@@ -154,6 +154,9 @@ ActiveEnemy InstantiateEnemy(Enemy* enemy, Vector2 pos) {
 		.active = true,
 		.attack = GetAttack(enemy->attackId),
 		.lastAttack = 0.0f,
+		.targetPos = (Vector2){ 0 },
+		.pathPoints = 0,
+		.lastTile = 0,
 		.entity = CreateEntity(
 			enemy->maxhp,
 			pos,

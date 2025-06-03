@@ -828,6 +828,7 @@ static inline float AstarHeuristic(Room* room, int currentTile, int nextTile) {
 // Find a path from Tile startIndex to Tile goalIndex in the Room.
 static void Astar(Room* room, ActiveEnemy* enemy, int startIndex, int goalIndex) {
 	if (startIndex == goalIndex) {
+		enemy->pathPoints = 0;
 		return;
 	}
 	const int maxItems = room->tileCount * room->tileCount;
@@ -852,7 +853,7 @@ static void Astar(Room* room, ActiveEnemy* enemy, int startIndex, int goalIndex)
 		const bool lookEast = currentPos.x < room->columns - 2;
 		const bool lookNorth = currentPos.y > 1;
 		const bool lookSouth = currentPos.y < room->rows - 2;
-		int neighbours[8] = { -1, -1, -1, -1, -1, -1, -1, -1 };
+		int neighbours[4] = { -1, -1, -1, -1 };
 		if (lookWest) {
 			neighbours[0] = IndexForTile(room->columns, currentPos.x - 1, currentPos.y);
 		}
@@ -861,24 +862,12 @@ static void Astar(Room* room, ActiveEnemy* enemy, int startIndex, int goalIndex)
 		}
 		if (lookNorth) {
 			neighbours[2] = IndexForTile(room->columns, currentPos.x, currentPos.y - 1);
-			if (lookWest) {
-				neighbours[4] = IndexForTile(room->columns, currentPos.x - 1, currentPos.y - 1);
-			}
-			if (lookEast) {
-				neighbours[5] = IndexForTile(room->columns, currentPos.x + 1, currentPos.y - 1);
-			}
 		}
 		if (lookSouth) {
 			neighbours[3] = IndexForTile(room->columns, currentPos.x, currentPos.y + 1);
-			if (lookWest) {
-				neighbours[6] = IndexForTile(room->columns, currentPos.x - 1, currentPos.y + 1);
-			}
-			if (lookEast) {
-				neighbours[7] = IndexForTile(room->columns, currentPos.x + 1, currentPos.y + 1);
-			}
 		}
 		// Check decided neighbours for availability.
-		for (int i = 0; i < 8; i++) {
+		for (int i = 0; i < 4; i++) {
 			if (neighbours[i] == -1) {
 				continue;
 			}
@@ -910,7 +899,10 @@ static void Astar(Room* room, ActiveEnemy* enemy, int startIndex, int goalIndex)
 		}
 		enemy->pathPoints = pointCount < MAX_PATH_POINTS ? pointCount : MAX_PATH_POINTS;
 		for (int i = 0; i < enemy->pathPoints; i++) {
-			enemy->path[i] = tilePath[enemy->pathPoints - i - 1];
+			enemy->path[i] = Vector2AddValue(
+				RoomOffsetPos(room, tilePath[enemy->pathPoints - i - 1].x, tilePath[enemy->pathPoints - i - 1].y),
+				TILE_SIZE / 2
+			);
 		}
 		free(tilePath);
 	}
@@ -1040,42 +1032,35 @@ static void UpdateEnemy(GameContext* context, Player* player, Level* level, Acti
 
 		const float vecDist = Vector2Distance(player->entity.position, enemy->entity.position);
 		Direction dir = NO_DIRECTION;
+		Vector2 targetPos = enemy->entity.position;
+		EnemyBehaviour nextBehaviour = enemy->enemy->behaviour;
 
 		// Enemy that wants to distance itself from the player.
-		if (enemy->enemy->behaviour == DISTANCE) {
+		if (nextBehaviour == DISTANCE) {
 			// When the enemy is a tad too far away within its active area, it actually approaches the player.
 			if (vecDist > enemy->enemy->activeRadius * 0.8f) {
-				float angle = Vector2LineAngle(enemy->entity.position, player->entity.position);
-				dir = AngleToDirection(angle, false);
+				nextBehaviour = APPROACH;
 			} else if (vecDist > enemy->enemy->activeRadius * 0.7f) {
 				// Enemy will stand still if within adequate distance from the player.
 				return StandStill(&enemy->entity);
 			} else {
 				// Too close to player, get away from it.
-				float angle = Vector2LineAngle(player->entity.position, enemy->entity.position);
 				// TODO: If close to an obstacle in the direction, try to go around the player.
+				const float angle = Vector2LineAngle(player->entity.position, enemy->entity.position);
+				targetPos = AdvancePointByVector(enemy->entity.position, AngleToVector(angle), enemy->enemy->activeRadius * 0.5f);
 				dir = AngleToDirection(angle, false);
-				// Check if there is an obstacle in the path of running away.
-				if (
-					vecDist < enemy->enemy->activeRadius * 0.5f
-					&& TestPointDirCollision(
-						level->currentRoom, &enemy->entity, enemy->entity.position.x, enemy->entity.position.y, dir
-					)
-				) {
-					dir = OppositeDir(dir);
-				}
 			}
 		}
 
 		// Enemy is always approaching player.
-		if (enemy->enemy->behaviour == APPROACH) {
+		if (nextBehaviour == APPROACH) {
 			// Set direction towards player.
 			// Min distance is entity hitbox in front of player hitbox.
 			// Get the closest player hitbox corner to the enemy position.
-			Vector2 closestCorner = ClosestRectCorner(HitboxWorldPosition(&player->entity), enemy->entity.position);
+			targetPos = ClosestRectCorner(HitboxWorldPosition(&player->entity), enemy->entity.position);
 			dir = GetPointDirThreshold(
 				enemy->entity.position,
-				closestCorner,
+				targetPos,
 				enemy->entity.hitbox.width,
 				enemy->entity.hitbox.height
 			);
@@ -1086,13 +1071,39 @@ static void UpdateEnemy(GameContext* context, Player* player, Level* level, Acti
 			return StandStill(&enemy->entity);
 		}
 
+		// Find tile path to target position with A*.
+		// TODO: Should probably store tile's own pos and index at creation, would speed things up...
+		if (vecDist > TILE_SIZE) {
+			Vector2 currTile = GetTileVectorByPos(level->currentRoom, &enemy->entity.position);
+			int currTileIndex = IndexForTile(level->currentRoom->columns, currTile.x, currTile.y);
+			if (currTileIndex != enemy->lastTile || targetPos.x != enemy->targetPos.x || targetPos.y != enemy->targetPos.y) {
+				enemy->lastTile = currTileIndex;
+				Vector2 targetTile = GetTileVectorByPos(level->currentRoom, &targetPos);
+				Astar(
+					level->currentRoom,
+					enemy,
+					currTileIndex,
+					IndexForTile(level->currentRoom->columns, targetTile.x, targetTile.y)
+				);
+				if (enemy->pathPoints > 0) {
+					const float angle = Vector2LineAngle(enemy->entity.position, enemy->path[0]);
+					dir = AngleToDirection(angle, false);
+				} else {
+					// No path found towards player.
+					return StandStill(&enemy->entity);
+				}
+			}
+		} else {
+			enemy->pathPoints = 0;
+		}
+		enemy->targetPos = targetPos;
+
 		// Here the enemy has picked a direction to walk towards.
-		// Check if future movement will collide with something.
-		// If far away, we check with next hitbox.
-		// If getting close 2 tiles, we raycast a tile.
+		// We raycast nearby area to find potential collisions and change course slightly.
 		// We draw a line from both advancing front corners to see if any edge would hit a box.
-		bool willCollide = false;
-		if (vecDist < COLL_RAYCAST_ACTIVE) {
+		// TODO: This should be done at all times when advancing but things kinda break ugh.
+		if (vecDist < TILE_SIZE) {
+			bool willCollide = false;
 			Rectangle hitbox = HitboxWorldPosition(&enemy->entity);
 			willCollide = TestRectDirCollision(level->currentRoom, &enemy->entity, hitbox, dir);
 			// Decided direction collides.
@@ -1100,63 +1111,40 @@ static void UpdateEnemy(GameContext* context, Player* player, Level* level, Acti
 			if (willCollide && dir != enemy->entity.dir && enemy->entity.dir != NO_DIRECTION) {
 				LogDebug("Will collide on %d, try prev dir %d", dir, enemy->entity.dir);
 				willCollide = TestRectDirCollision(level->currentRoom, &enemy->entity, hitbox, enemy->entity.dir);
-				if (!willCollide) {
+				// Entity will collide on new position, try to find another path.
+				if (willCollide) {
+					float angle = DirectionToAngle(dir);
+					dir = NO_DIRECTION;
+					// Raycast every 45º to find a decent path around obstacle.
+					// Should try closest angles up to opposite angle: +45, -45, +90, -90, +135, -135, +180
+					Direction newDir;
+					for (int i = 1; i < 8; i++) {
+						switch (i) {
+							case 1: newDir = AngleToDirection(angle + DEG_45, false); break;
+							case 2: newDir = AngleToDirection(angle - DEG_45, false); break;
+							case 3: newDir = AngleToDirection(angle + DEG_90, false); break;
+							case 4: newDir = AngleToDirection(angle - DEG_90, false); break;
+							case 5: newDir = AngleToDirection(angle + DEG_135, false); break;
+							case 6: newDir = AngleToDirection(angle - DEG_135, false); break;
+							case 7: newDir = AngleToDirection(angle + PI, false); break;
+						}
+						if (newDir == dir || newDir == enemy->entity.dir) {
+							// Ignore directions that have already been tested.
+							continue;
+						}
+						// This direction won't collide, can use it.
+						if (!TestRectDirCollision(level->currentRoom, &enemy->entity, hitbox, newDir)) {
+							LogDebug("Found new dir :)");
+							dir = newDir;
+							break;
+						}
+					}
+					LogDebug("All directions collide??");
+				} else {
 					LogDebug("Previous dir will not collide apparently :)");
 					dir = enemy->entity.dir;
 				}
 			}
-		} else {
-			// Find tiling path from far away with A*.
-			// TODO: Should probably store tile's own pos and index at creation, would speed things up...
-			Vector2 currTile = GetTileVectorByPos(level->currentRoom, &enemy->entity.position);
-			Vector2 playerTile = GetTileVectorByPos(level->currentRoom, &player->entity.position);
-			Astar(
-				level->currentRoom,
-				enemy,
-				IndexForTile(level->currentRoom->columns, currTile.x, currTile.y),
-				IndexForTile(level->currentRoom->columns, playerTile.x, playerTile.y)
-			);
-			// First point on path is current tile, so we need at least 2 points for a path to be valid.
-			if (enemy->pathPoints < 2) {
-				dir = NO_DIRECTION;
-			} else {
-				const Vector2 nextPos = RoomOffsetPos(level->currentRoom, enemy->path[1].x, enemy->path[1].y);
-				const float angle = Vector2LineAngle(enemy->entity.position, nextPos);
-				dir = AngleToDirection(angle, false);
-			}
-		}
-
-		// Entity will collide on new position, try to find another path.
-		// We only check with raycasts here, otherwise a far away enemy could do weird pathing before getting close.
-		if (willCollide) {
-			float angle = DirectionToAngle(dir);
-			dir = NO_DIRECTION;
-			Rectangle hitbox = HitboxWorldPosition(&enemy->entity);
-			// Raycast every 45º to find a decent path around obstacle.
-			// Should try closest angles up to opposite angle: +45, -45, +90, -90, +135, -135, +180
-			Direction newDir;
-			for (int i = 1; i < 8; i++) {
-				switch (i) {
-					case 1: newDir = AngleToDirection(angle + DEG_45, false); break;
-					case 2: newDir = AngleToDirection(angle - DEG_45, false); break;
-					case 3: newDir = AngleToDirection(angle + DEG_90, false); break;
-					case 4: newDir = AngleToDirection(angle - DEG_90, false); break;
-					case 5: newDir = AngleToDirection(angle + DEG_135, false); break;
-					case 6: newDir = AngleToDirection(angle - DEG_135, false); break;
-					case 7: newDir = AngleToDirection(angle + PI, false); break;
-				}
-				if (newDir == dir || newDir == enemy->entity.dir) {
-					// Ignore directions that have already been tested.
-					continue;
-				}
-				// This direction won't collide, can use it.
-				if (!TestRectDirCollision(level->currentRoom, &enemy->entity, hitbox, newDir)) {
-					LogDebug("Found new dir :)");
-					dir = newDir;
-					break;
-				}
-			}
-			LogDebug("All directions collide??");
 		}
 
 		// If the entity was completely stopped, we can check on next one already.

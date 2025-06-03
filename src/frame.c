@@ -353,12 +353,11 @@ static void RenderRoomCalls(GameContext* context, Room* room, Player* player, Dr
 				// Draw pathing.
 				if (room->entities[i].pathPoints > 0) {
 					for (int pp = 0; pp < room->entities[i].pathPoints; pp++) {
-						Vector2 tilePos = RoomOffsetPos(room, room->entities[i].path[pp].x, room->entities[i].path[pp].y);
 						AddDrawCall(queue, (DrawCall){
 							.fun = DRAW_RECT,
 							.layer = GIZMO_LAYER + 501 + room->entities[i].entity.position.y * 100,
 							.args = { .rect = {
-								.rec = (Rectangle){ tilePos.x, tilePos.y, TILE_SIZE, TILE_SIZE },
+								.rec = (Rectangle){ room->entities[i].path[pp].x - TILE_SIZE / 2, room->entities[i].path[pp].y - TILE_SIZE / 2, TILE_SIZE, TILE_SIZE },
 								.color = (Color){ 211, 176, 131, 80 }
 							}}
 						});
