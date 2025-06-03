@@ -431,7 +431,7 @@ int CreateEntityAttack(
 		LogDebug("Failed to allocate attack on object pool");
 		return -1;
 	}
-	LogDebug("Amount of active attacks: %d", attackPool->activeItems);
+	//LogDebug("Amount of active attacks: %d", attackPool->activeItems);
 
 	// Attack was instantiated.
 	return 2;

@@ -115,6 +115,11 @@ void onEntityDamage(Event* ev) {
 	);
 }
 
+// TODO: Should I just do a macro for this,,,?
+static inline int IndexForTile(int columns, int fromX, int fromY) {
+	return fromX + (columns * fromY);
+}
+
 static void AddRoomExit(
 	Room* room, Room* destination,
 	int fromX, int fromY,
@@ -124,7 +129,7 @@ static void AddRoomExit(
 		LogDebug("Invalid room from %d to %d", (room == NULL), (destination == NULL));
 		return;
 	}
-	const int index = fromX + (room->columns * fromY);
+	const int index = IndexForTile(room->columns, fromX, fromY);
 	if (index > room->tileCount - 1) {
 		LogDebug("Invalid tile position: %d/%d on starting pos %d,%d", index, room->tileCount, fromX, fromY);
 		return;
@@ -182,8 +187,8 @@ static Room GenerateRoom(
 		const TileType forGrass = num == 0 ? GROUND : GRASS;
 		for (int row = 0; row < room.rows; row++) {
 			for (int column = 0; column < room.columns; column++) {
-				const bool isWall = (row == 0 || column == 0 || column == room.columns - 1 || row == room.rows - 1);
-				const int index = column + (room.columns * row);
+				const bool isWall = (row == 0 || column == 0 || column == room.columns - 1 || row == room.rows - 1) || (column == room.columns / 2 && row == room.rows / 2);
+				const int index = IndexForTile(room.columns, column, row);
 				const TileType type = isWall ? WALL : (index % 6 == 0 ? forGrass : GROUND);
 				room.tiles[index] = (Tile){
 					.type = type,
@@ -679,6 +684,13 @@ void SetupLevel(GameContext* context) {
 	levelSetup = true;
 }
 
+static Vector2 GetTileVectorByPos(Room* room, Vector2* pos) {
+	Vector2 roomOffset = RoomOffset(room);
+	const float x = (pos->x - roomOffset.x) / TILE_SIZE;
+	const float y = (pos->y - roomOffset.y) / TILE_SIZE;
+	return (Vector2){ x, y };
+}
+
 static Tile* GetTileByPos(Room* room, Vector2* pos) {
 	if (room == NULL || pos == NULL || room->tileCount == 0 || room->rows == 0 || room->columns == 0) {
 		LogDebug("Invalid parameters");
@@ -686,11 +698,10 @@ static Tile* GetTileByPos(Room* room, Vector2* pos) {
 	}
 
 	// We will use room offset to calculate indexing as in room 0.
-	// Then, w use tile size to determine index from pixel position.
+	// Then, we use tile size to determine index from pixel position.
 	Vector2 roomOffset = RoomOffset(room);
-	const int x = (int)((pos->x - roomOffset.x) / TILE_SIZE);
-	const int y = (int)((pos->y - roomOffset.y) / TILE_SIZE);
-	const int index = x + (room->columns * y);
+	Vector2 tpos = GetTileVectorByPos(room, pos);
+	const int index = IndexForTile(room->columns, (int)tpos.x, (int)tpos.y);
 	if (index < room->tileCount) {
 		return &room->tiles[index];
 	}
@@ -757,7 +768,7 @@ Vector2 Raycast(Room* room, Vector2 start, Vector2 end, GameEntity* self) {
 	int max = (abs(err) * 2) + 1;
 	Vector2 point = {};
 	GameEntity* coll = NULL;
-	int tilesThrough = Vector2Distance(start, end) / TILE_SIZE;
+	int tilesThrough = Vector2Distance(start, end) / TILE_SIZE + 1;
 	Vector2 tilePos = { floorf(x0 / TILE_SIZE), floorf(y0 / TILE_SIZE) };
 
 	for (int i = 0; i < max; i++) {
@@ -798,6 +809,115 @@ Vector2 Raycast(Room* room, Vector2 start, Vector2 end, GameEntity* self) {
 	}
 
 	return point;
+}
+
+static inline Vector2 TilePosByIndex(Room* room, int index) {
+	const float x = index % room->columns;
+	return (Vector2){
+		.x = x,
+		.y = (index - x) / room->columns,
+	};
+}
+
+static inline float AstarHeuristic(Room* room, int currentTile, int nextTile) {
+	Vector2 a = TilePosByIndex(room, currentTile);
+	Vector2 b = TilePosByIndex(room, nextTile);
+	return fabsf(a.x - b.x) + fabs(a.y - b.y) + (1.0f - room->tiles[nextTile].speed);
+}
+
+// Find a path from Tile startIndex to Tile goalIndex in the Room.
+static void Astar(Room* room, ActiveEnemy* enemy, int startIndex, int goalIndex) {
+	if (startIndex == goalIndex) {
+		return;
+	}
+	const int maxItems = room->tileCount * room->tileCount;
+	// TODO: How to deal with failure to allocate memory here.
+	int* cameFrom = calloc(maxItems, sizeof(int));
+	float* costSoFar = calloc(maxItems, sizeof(float));
+	cameFrom[startIndex] = startIndex;
+	PriorityQueue queue = CreatePriorityQueue(maxItems);
+	PriorityEnqueue(&queue, startIndex, 0);
+	const int maxIterations = maxItems;
+	int iteration = 0;
+	while (queue.count > 0 && iteration < maxIterations) {
+		const int current = PriorityDequeue(&queue);
+		if (current == goalIndex) {
+			break;
+		}
+
+		// Get all neighbours for current tile.
+		// No need to check the tiles in the borders, they are all obstacles always.
+		const Vector2 currentPos = TilePosByIndex(room, current);
+		const bool lookWest = currentPos.x > 1;
+		const bool lookEast = currentPos.x < room->columns - 2;
+		const bool lookNorth = currentPos.y > 1;
+		const bool lookSouth = currentPos.y < room->rows - 2;
+		int neighbours[8] = { -1, -1, -1, -1, -1, -1, -1, -1 };
+		if (lookWest) {
+			neighbours[0] = IndexForTile(room->columns, currentPos.x - 1, currentPos.y);
+		}
+		if (lookEast) {
+			neighbours[1] = IndexForTile(room->columns, currentPos.x + 1, currentPos.y);
+		}
+		if (lookNorth) {
+			neighbours[2] = IndexForTile(room->columns, currentPos.x, currentPos.y - 1);
+			if (lookWest) {
+				neighbours[4] = IndexForTile(room->columns, currentPos.x - 1, currentPos.y - 1);
+			}
+			if (lookEast) {
+				neighbours[5] = IndexForTile(room->columns, currentPos.x + 1, currentPos.y - 1);
+			}
+		}
+		if (lookSouth) {
+			neighbours[3] = IndexForTile(room->columns, currentPos.x, currentPos.y + 1);
+			if (lookWest) {
+				neighbours[6] = IndexForTile(room->columns, currentPos.x - 1, currentPos.y + 1);
+			}
+			if (lookEast) {
+				neighbours[7] = IndexForTile(room->columns, currentPos.x + 1, currentPos.y + 1);
+			}
+		}
+		// Check decided neighbours for availability.
+		for (int i = 0; i < 8; i++) {
+			if (neighbours[i] == -1) {
+				continue;
+			}
+			// TODO: Check here if any neighbour is destination, mark it, end pathing.
+			if (!room->tiles[neighbours[i]].obstacle && room->tiles[neighbours[i]].speed > 0) {
+				const float newCost = costSoFar[current] + AstarHeuristic(room, current, neighbours[i]);
+				if (costSoFar[neighbours[i]] == 0 || newCost < costSoFar[neighbours[i]]) {
+					costSoFar[neighbours[i]] = newCost;
+					const float priority = newCost + AstarHeuristic(room, neighbours[i], goalIndex);
+					PriorityEnqueue(&queue, neighbours[i], priority);
+					cameFrom[neighbours[i]] = current;
+				}
+			}
+		}
+		iteration++;
+	}
+
+	// Index 0 is always a obstacle, this means a path was not found.
+	if (cameFrom[goalIndex] == 0) {
+		enemy->pathPoints = 0;
+	} else {
+		// We can reconstruct the path from `cameFrom` in reverse now.
+		Vector2* tilePath = calloc(maxItems, sizeof(Vector2));
+		int current = goalIndex;
+		int pointCount = 0;
+		while (current != startIndex) {
+			tilePath[pointCount++] = TilePosByIndex(room, current);
+			current = cameFrom[current];
+		}
+		enemy->pathPoints = pointCount < MAX_PATH_POINTS ? pointCount : MAX_PATH_POINTS;
+		for (int i = 0; i < enemy->pathPoints; i++) {
+			enemy->path[i] = tilePath[enemy->pathPoints - i - 1];
+		}
+		free(tilePath);
+	}
+
+	free(costSoFar);
+	free(cameFrom);
+	DestroyPriorityQueue(&queue);
 }
 
 static GameEntity* FindEntityCollision(Room* room, GameEntity* self, Rectangle* newPos) {
@@ -918,7 +1038,7 @@ static void UpdateEnemy(GameContext* context, Player* player, Level* level, Acti
 			return;
 		}
 
-		float vecDist = Vector2Distance(player->entity.position, enemy->entity.position);
+		const float vecDist = Vector2Distance(player->entity.position, enemy->entity.position);
 		Direction dir = NO_DIRECTION;
 
 		// Enemy that wants to distance itself from the player.
@@ -978,17 +1098,32 @@ static void UpdateEnemy(GameContext* context, Player* player, Level* level, Acti
 			// Decided direction collides.
 			// If previous direction is different to new one, attempt to follow through.
 			if (willCollide && dir != enemy->entity.dir && enemy->entity.dir != NO_DIRECTION) {
+				LogDebug("Will collide on %d, try prev dir %d", dir, enemy->entity.dir);
 				willCollide = TestRectDirCollision(level->currentRoom, &enemy->entity, hitbox, enemy->entity.dir);
 				if (!willCollide) {
+					LogDebug("Previous dir will not collide apparently :)");
 					dir = enemy->entity.dir;
 				}
 			}
 		} else {
-			Vector2 anglev = DirectionToVector(enemy->entity.dir);
-			Rectangle newHitbox = HitboxWorldPosition(&enemy->entity);
-			newHitbox.x += anglev.x * enemy->entity.speed * dt;
-			newHitbox.y += anglev.y * enemy->entity.speed * dt;
-			willCollide = (FindEntityCollision(level->currentRoom, &enemy->entity, &newHitbox) != NULL);
+			// Find tiling path from far away with A*.
+			// TODO: Should probably store tile's own pos and index at creation, would speed things up...
+			Vector2 currTile = GetTileVectorByPos(level->currentRoom, &enemy->entity.position);
+			Vector2 playerTile = GetTileVectorByPos(level->currentRoom, &player->entity.position);
+			Astar(
+				level->currentRoom,
+				enemy,
+				IndexForTile(level->currentRoom->columns, currTile.x, currTile.y),
+				IndexForTile(level->currentRoom->columns, playerTile.x, playerTile.y)
+			);
+			// First point on path is current tile, so we need at least 2 points for a path to be valid.
+			if (enemy->pathPoints < 2) {
+				dir = NO_DIRECTION;
+			} else {
+				const Vector2 nextPos = RoomOffsetPos(level->currentRoom, enemy->path[1].x, enemy->path[1].y);
+				const float angle = Vector2LineAngle(enemy->entity.position, nextPos);
+				dir = AngleToDirection(angle, false);
+			}
 		}
 
 		// Entity will collide on new position, try to find another path.
@@ -1016,10 +1151,12 @@ static void UpdateEnemy(GameContext* context, Player* player, Level* level, Acti
 				}
 				// This direction won't collide, can use it.
 				if (!TestRectDirCollision(level->currentRoom, &enemy->entity, hitbox, newDir)) {
+					LogDebug("Found new dir :)");
 					dir = newDir;
 					break;
 				}
 			}
+			LogDebug("All directions collide??");
 		}
 
 		// If the entity was completely stopped, we can check on next one already.

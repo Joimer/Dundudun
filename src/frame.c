@@ -336,7 +336,7 @@ static void RenderRoomCalls(GameContext* context, Room* room, Player* player, Dr
 					.args = { .circle = {
 						.center = room->entities[i].entity.position,
 						.radius = room->entities[i].enemy->activeRadius,
-						.color = (Color){ 255, 109, 194, 60 }
+						.color = (Color){ 255, 109, 194, 25 }
 					}}
 				});
 				AddDrawCall(queue, (DrawCall){
@@ -350,6 +350,20 @@ static void RenderRoomCalls(GameContext* context, Room* room, Player* player, Dr
 						.color = DARKGRAY
 					}}
 				});
+				// Draw pathing.
+				if (room->entities[i].pathPoints > 0) {
+					for (int pp = 0; pp < room->entities[i].pathPoints; pp++) {
+						Vector2 tilePos = RoomOffsetPos(room, room->entities[i].path[pp].x, room->entities[i].path[pp].y);
+						AddDrawCall(queue, (DrawCall){
+							.fun = DRAW_RECT,
+							.layer = GIZMO_LAYER + 501 + room->entities[i].entity.position.y * 100,
+							.args = { .rect = {
+								.rec = (Rectangle){ tilePos.x, tilePos.y, TILE_SIZE, TILE_SIZE },
+								.color = (Color){ 211, 176, 131, 80 }
+							}}
+						});
+					}
+				}
 			}
 		}
 	}
@@ -455,7 +469,7 @@ static void RenderWorld(
 ) {
 	// Create the draw queue.
 	// Tiles + entities + player entity + attacks + texts + some extra.
-	int maxCalls = level->currentRoom->tileCount + (level->currentRoom->entityCount + 1) * 5 + level->attacks.activeItems + level->texts.activeItems + 32;
+	int maxCalls = level->currentRoom->tileCount + (level->currentRoom->entityCount + 1) * (5 + level->currentRoom->tileCount) + level->attacks.activeItems + level->texts.activeItems + 32;
 	if (level->swappingRoom) {
 		maxCalls += level->nextRoom->tileCount + (level->nextRoom->entityCount + 1) * 5;
 	}

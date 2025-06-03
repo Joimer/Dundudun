@@ -15,6 +15,7 @@
 #define TOTAL_ENEMY_GROUPS 25
 #define DEFAULT_ENEMY_RADIUS 200.0f
 #define ENEMY_DEFAULT_SPEED 150.0f
+#define MAX_PATH_POINTS 25
 
 // Will I use this? Could be better idk haha
 typedef enum { PLAYER_ENT, ENEMY_ENT, BOSS_ENT, ITEM_ENT } EntityType;
@@ -43,6 +44,10 @@ typedef struct {
 	bool active;
 	float lastAttack;
 	Attack* attack;
+	// Movement target and pathing.
+	Vector2* targetPos;
+	unsigned int pathPoints;
+	Vector2 path[MAX_PATH_POINTS];
 } ActiveEnemy;
 
 typedef struct {

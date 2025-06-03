@@ -240,3 +240,51 @@ Direction OppositeDir(Direction dir) {
 
 	return newDir;
 }
+
+PriorityQueue CreatePriorityQueue(int max) {
+	// TODO: How to manage malloc error here
+	return (PriorityQueue){
+		.count = 0,
+		.max = max,
+		.itemPriority = malloc(sizeof(QueueItem) * max)
+	};
+}
+
+void PriorityEnqueue(PriorityQueue* queue, int index, float priority) {
+	if (queue->count == queue->max) {
+		queue->itemPriority = realloc(queue->itemPriority, sizeof(QueueItem) * ++queue->max);
+	}
+	queue->itemPriority[queue->count++] = (QueueItem){
+		.index = index,
+		.priority = priority
+	};
+}
+
+int PriorityDequeue(PriorityQueue* queue) {
+	if (queue->count == 1) {
+		queue->count = 0;
+		return queue->itemPriority[0].index;
+	}
+	int bestIndex = 0;
+	for (int i = 1; i < queue->count; i++) {
+		if (queue->itemPriority[i].priority < queue->itemPriority[bestIndex].priority) {
+			bestIndex = i;
+		}
+	}
+
+	queue->count--;
+	int itemIndex = queue->itemPriority[bestIndex].index;
+	if (bestIndex < queue->count) {
+		queue->itemPriority[bestIndex] = queue->itemPriority[queue->count];
+	}
+
+	return itemIndex;
+}
+
+void DestroyPriorityQueue(PriorityQueue* queue) {
+	if (queue->itemPriority != NULL) {
+		free(queue->itemPriority);
+	}
+	queue->count = 0;
+	queue->max = 0;
+}

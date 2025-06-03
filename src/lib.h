@@ -54,6 +54,22 @@ typedef enum {
 	SOUTHWEST = 6
 } Direction;
 
+typedef struct {
+	unsigned int index;
+	float priority;
+} QueueItem;
+
+typedef struct {
+	unsigned int count;
+	unsigned int max;
+	QueueItem* itemPriority;
+} PriorityQueue;
+
+PriorityQueue CreatePriorityQueue(int max);
+void PriorityEnqueue(PriorityQueue* queue, int index, float priority);
+int PriorityDequeue(PriorityQueue* queue);
+void DestroyPriorityQueue(PriorityQueue* queue);
+
 Vector2 ClosestRectCorner(Rectangle rect, Vector2 point);
 bool IsBitSet(int val, int bit);
 Direction GetPointDir(Vector2 origin, Vector2 target);
