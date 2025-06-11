@@ -1,15 +1,16 @@
 #include <raylib.h>
 #include "resource.h"
 
-#define TEXTURE_COUNT 4
+#define TEXTURE_COUNT 5
 
 static Texture2D gameTextures[TEXTURE_COUNT] = {};
 
 const char* textToSource[TEXTURE_COUNT] = {
 	[CURSOR_TEXTURE] = "resources/cursor.png",
-	[PLAYER_TEXTURE] = "resources/testpj.png",
+	[PLAYER_TEXTURE] = "resources/pjfront.png",
 	[DOOR_TEXTURE] = "resources/doapi.png",
 	[DOOR_OPEN_TEXTURE] = "resources/opendoor.png",
+	[MAINT_MELEE_STANDING] = "resources/warehouse.png",
 };
 
 static void LoadGameTexture(GameTexture text) {

@@ -187,7 +187,7 @@ static Room GenerateRoom(
 		const TileType forGrass = num == 0 ? GROUND : GRASS;
 		for (int row = 0; row < room.rows; row++) {
 			for (int column = 0; column < room.columns; column++) {
-				const bool isWall = (row == 0 || column == 0 || column == room.columns - 1 || row == room.rows - 1) || (column == room.columns / 2 && row == room.rows / 2);
+				const bool isWall = (row == 0 || column == 0 || column == room.columns - 1 || row == room.rows - 1);
 				const int index = IndexForTile(room.columns, column, row);
 				const TileType type = isWall ? WALL : (index % 6 == 0 ? forGrass : GROUND);
 				room.tiles[index] = (Tile){
@@ -837,6 +837,11 @@ static void Astar(Room* room, ActiveEnemy* enemy, int startIndex, int goalIndex)
 	float* costSoFar = calloc(maxItems, sizeof(float));
 	cameFrom[startIndex] = startIndex;
 	PriorityQueue queue = CreatePriorityQueue(maxItems);
+	if (queue.itemPriority == NULL) {
+		LogDebug("Failed priority queue allocation!!");
+		enemy->pathPoints = 0;
+		return;
+	}
 	PriorityEnqueue(&queue, startIndex, 0);
 	const int maxIterations = maxItems;
 	int iteration = 0;
@@ -871,7 +876,11 @@ static void Astar(Room* room, ActiveEnemy* enemy, int startIndex, int goalIndex)
 			if (neighbours[i] == -1) {
 				continue;
 			}
-			// TODO: Check here if any neighbour is destination, mark it, end pathing.
+			if (neighbours[i] == goalIndex) {
+				cameFrom[neighbours[i]] = current;
+				queue.count = 0;
+				break;
+			}
 			if (!room->tiles[neighbours[i]].obstacle && room->tiles[neighbours[i]].speed > 0) {
 				const float newCost = costSoFar[current] + AstarHeuristic(room, current, neighbours[i]);
 				if (costSoFar[neighbours[i]] == 0 || newCost < costSoFar[neighbours[i]]) {
@@ -992,7 +1001,7 @@ static void UpdateEnemy(GameContext* context, Player* player, Level* level, Acti
 	UpdateEntity(&enemy->entity, dt);
 
 	// It is preferable to check for stun here once rather than on every single entity action.
-	if (!enemy->entity.stunned) {
+	if (!enemy->entity.stun.active) {
 		int unwindState = EntityUnwindAttack(
 			&enemy->entity, enemy->attack,
 			&player->entity.position,
@@ -1458,7 +1467,7 @@ static void UpdatePlayer(GameContext* context, Level* level, Player* player, flo
 	}
 
 	// Player cannot move or act during a pushback action.
-	if (player->entity.stunned && player->entity.speed != 0.0f) {
+	if (player->entity.stun.active && player->entity.speed != 0.0f) {
 		return MoveEntityByForce(level->currentRoom, &player->entity, delta);
 	}
 
@@ -1475,7 +1484,7 @@ static void UpdatePlayer(GameContext* context, Level* level, Player* player, flo
 
 	// Movement actions being pressed to pick current direction.
 	Direction newDir = PlayerUpdateDirection(player);
-	if (!player->entity.stunned && player->entity.stance != ATTACKING) {
+	if (!player->entity.stun.active && player->entity.stance != ATTACKING) {
 		// Plant bomb, first action.
 		if (IsActionOnce(ACTION_BOMB) && player->bombs > 0) {
 			player->bombs--;

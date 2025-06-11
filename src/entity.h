@@ -26,6 +26,7 @@ typedef enum { MAINT_MELEE, MAINT_SHOOTER, MAINT_FAT, RAT, PBOMB } EnemyType;
 
 // Enemy template to instantiate an live entity on a level.
 typedef struct {
+	EnemyType id;
 	float activeRadius;
 	EnemyBehaviour behaviour;
 	// This is the base speed of the enemy.

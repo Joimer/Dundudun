@@ -22,9 +22,9 @@ typedef struct {
 	float elapsed;
 	float duration;
 	bool active;
-} Invulnerability;
+} TimedStatus;
 
-typedef enum { STANDING, ATTACKING, WALKING, RUNNING, FLYING, DASHING } Stance;
+typedef enum { STANDING, ATTACKING, WALKING, RUNNING, FLYING, DASHING, STAGGERING } Stance;
 
 typedef enum { POISON, BURN, FROZEN, PARALYSED } StatusName;
 
@@ -48,10 +48,11 @@ typedef struct {
 
 typedef struct {
 	Sprite sprite;
+	int stanceAnimation[8][7];
 	Vector2 position;
 	int maxHealth;
 	int health;
-	Invulnerability invuln;
+	TimedStatus invuln;
 	Rectangle hitbox;
 	// Direction the entity is facing.
 	// Cues sprite position.
@@ -70,9 +71,7 @@ typedef struct {
 	Stance stance;
 	float stanceTime;
 	// Stun status.
-	bool stunned;
-	float stunElapsed;
-	float stunDuration;
+	TimedStatus stun;
 	ActiveStatus statuses[TOTAL_STATUSES];
 } GameEntity;
 

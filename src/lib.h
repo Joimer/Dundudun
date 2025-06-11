@@ -9,11 +9,11 @@
 #include <raylib.h>
 
 #define MAX_LEVEL 10
+#define TILE_SIZE 32.0f
+
 #define LOG_YELL "\e[0;33m"
 #define LOG_PURP "\e[0;35m"
 #define LOG_ENDC "\e[0m"
-
-#define TILE_SIZE 32.0f
 
 #define LOG_DEBUG
 #ifdef LOG_DEBUG
@@ -39,6 +39,17 @@ typedef struct {
 	bool visible;
 	int layer;
 } Sprite;
+
+typedef struct {
+	Sprite sprite;
+	float duration;
+} AnimationFrame;
+
+typedef struct {
+	unsigned short totalFrames;
+	float duration;
+	AnimationFrame frames[25];
+} Animation;
 
 // We can use a 4 bit value to indicate a direction.
 // 0000 - north south west east

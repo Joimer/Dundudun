@@ -242,7 +242,6 @@ Direction OppositeDir(Direction dir) {
 }
 
 PriorityQueue CreatePriorityQueue(int max) {
-	// TODO: How to manage malloc error here
 	return (PriorityQueue){
 		.count = 0,
 		.max = max,

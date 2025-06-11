@@ -113,7 +113,7 @@ void PlayerStartDash(GameContext* context, Player* player) {
 }
 
 Direction PlayerUpdateDirection(Player* player) {
-	if (player->entity.stunned) {
+	if (player->entity.stun.active) {
 		return NO_DIRECTION;
 	}
 

@@ -3,12 +3,14 @@
 #include "event.h"
 #include "game.h"
 #include "lib.h"
+#include "resource.h"
 
 static Observable entityEvents;
 
 Enemy enemies[TOTAL_ENEMIES] = {
 	// Basic approaching enemy.
 	[MAINT_MELEE] = {
+		.id = MAINT_MELEE,
 		.activeRadius = DEFAULT_ENEMY_RADIUS,
 		.behaviour = APPROACH,
 		.baseSpeed = ENEMY_DEFAULT_SPEED,
@@ -20,6 +22,7 @@ Enemy enemies[TOTAL_ENEMIES] = {
 	},
 	// Basic shooting from distance enemy.
 	[MAINT_SHOOTER] = {
+		.id = MAINT_SHOOTER,
 		.activeRadius = DEFAULT_ENEMY_RADIUS,
 		.behaviour = DISTANCE,
 		.baseSpeed = ENEMY_DEFAULT_SPEED,
@@ -31,6 +34,7 @@ Enemy enemies[TOTAL_ENEMIES] = {
 	},
 	// Basic slow heavy hitter.
 	[MAINT_FAT] = {
+		.id = MAINT_FAT,
 		.activeRadius = DEFAULT_ENEMY_RADIUS * 1.1f,
 		.behaviour = APPROACH,
 		.baseSpeed = ENEMY_DEFAULT_SPEED * 0.33f,
@@ -42,6 +46,7 @@ Enemy enemies[TOTAL_ENEMIES] = {
 	},
 	// Weak, fast, small enemy.
 	[RAT] = {
+		.id = RAT,
 		.activeRadius = DEFAULT_ENEMY_RADIUS,
 		.behaviour = APPROACH,
 		.baseSpeed = ENEMY_DEFAULT_SPEED * 1.5f,
@@ -53,6 +58,7 @@ Enemy enemies[TOTAL_ENEMIES] = {
 	},
 	// Player bomb is treated as an enemy that does not hurt on hit.
 	[PBOMB] = {
+		.id = PBOMB,
 		.activeRadius = DEFAULT_ENEMY_RADIUS * 10,
 		.behaviour = BOMB,
 		.baseSpeed = 0,
@@ -149,6 +155,24 @@ const EnemyGroup* GetEnemyGroup(int i) {
 }
 
 ActiveEnemy InstantiateEnemy(Enemy* enemy, Vector2 pos) {
+	Sprite sprite;
+	if (enemy->id == MAINT_MELEE) {
+		Texture2D* texture = GetTexture(MAINT_MELEE_STANDING);
+		sprite = (Sprite){
+			.texture = texture,
+			.position = { texture->width / 2.0f, texture->height / 2.0f },
+			.rect = { 0.0f, 0.0f, texture->width, texture->height },
+			.visible = true,
+			.layer = 4
+		};
+	} else {
+		sprite = (Sprite){
+			.rect = (Rectangle){ 0, 0, 32, 32 },
+			.position = (Vector2){ -16, -16 },
+			.visible = true,
+			.layer = 4
+		};
+	}
 	return (ActiveEnemy){
 		.enemy = enemy,
 		.active = true,
@@ -160,12 +184,7 @@ ActiveEnemy InstantiateEnemy(Enemy* enemy, Vector2 pos) {
 		.entity = CreateEntity(
 			enemy->maxhp,
 			pos,
-			(Sprite){
-				.rect = (Rectangle){ 0, 0, 32, 32 },
-				.position = (Vector2){ -16, -16 },
-				.visible = true,
-				.layer = 4
-			},
+			sprite,
 			(Rectangle){ -8, -8, 16, 16 },
 			0.5f
 		)
@@ -202,10 +221,11 @@ GameEntity CreateEntity(
 		.dir = SOUTH,
 		.sprite = sprite,
 		.hitbox = hitbox,
-		.invuln = (Invulnerability){ .duration = invuln },
+		.invuln = (TimedStatus){ .duration = invuln },
 		.speedMod = 1.0f,
 		.dmgMod = 1.0f,
 		.unstoppable = false,
+		.stanceAnimation = { 0 }
 	};
 	for (int i = POISON; i <= PARALYSED; i++) {
 		entity.statuses[i] = (ActiveStatus){ .value = 0.0f, .active = false	};
@@ -261,10 +281,10 @@ static void RemoveStatus(GameEntity* entity, StatusName status) {
 }
 
 void ApplyStun(GameEntity* entity, float duration) {
-	if (!entity->stunned) {
-		entity->stunned = true;
-		entity->stunDuration = duration;
-		entity->stunElapsed = 0.0f;
+	if (!entity->stun.active) {
+		entity->stun.active = true;
+		entity->stun.duration = duration;
+		entity->stun.elapsed = 0.0f;
 	}
 }
 
@@ -347,10 +367,10 @@ float MaxAttackRange(ActiveEnemy* enemy) {
 }
 
 static void UpdateStun(GameEntity* entity, float delta) {
-	if (entity->stunned) {
-		entity->stunElapsed += delta;
-		if (entity->stunElapsed >= entity->stunDuration) {
-			entity->stunned = false;
+	if (entity->stun.active) {
+		entity->stun.elapsed += delta;
+		if (entity->stun.elapsed >= entity->stun.duration) {
+			entity->stun.active = false;
 			// TODO: Probably better to manage these forces in a different way...
 			entity->speed = 0.0f;
 		}
